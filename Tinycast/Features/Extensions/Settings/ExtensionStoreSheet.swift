@@ -255,7 +255,7 @@ private struct StoreRow: View {
         HStack(alignment: .top, spacing: Theme.Spacing.lg) {
             ExtensionIconView(
                 resolved: listing.iconURL(isDark: isDark).map {
-                    ExtensionImage.Resolved(source: .remote($0))
+                    ExtensionImage.Resolved(source: .url($0))
                 },
                 size: 32)
             VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {

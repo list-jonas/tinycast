@@ -157,6 +157,10 @@ screens hold (see [palette.md](palette.md)).
   and the grid cell alike — see the scroll-id rule in [ui.md](../ui.md#rows-selection-hover).
 - **Detail** — markdown rendered block-by-block (headings, lists, code fences, quotes, rules, remote
   images) with `AttributedString` handling inline styling, plus `Detail.Metadata`.
+- **Image sources** — a string is an SF Symbol name, an `assets/` file, an absolute path, or a URL.
+  `http(s)` and `data:` are the same source (`ExtensionImage.Source.url`): an icon extension inlines
+  each tile as a percent-encoded SVG `data:` URL, and `ExtensionIconCache` reads those bytes in place
+  instead of asking its session for them.
 - **Appearance** — `environment.appearance` reports the real one, so an extension that branches on it
   is told the truth. It is an injected field on `ExtensionLaunchContext` (a `Model/` type owns no
   environment), which means a **running command keeps the appearance it booted with**; a change

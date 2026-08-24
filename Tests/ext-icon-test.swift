@@ -39,6 +39,23 @@ struct ExtensionIconTests {
         expect(icon.size.width > 0, "a missing icon falls back to the puzzle-piece tile")
     }
 
+    /// An icon extension inlines every tile as an SVG `data:` URL, so a grid of them must still paint.
+    static func dataURLDecodes() async {
+        let svg = """
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" \
+            fill="none" stroke="#FFFFFF" stroke-width="1.5"><path d="M4 4H20V20H4Z"/></svg>
+            """
+        let allowed = CharacterSet(charactersIn: "-_.!~*'()").union(.alphanumerics)
+        guard let encoded = svg.addingPercentEncoding(withAllowedCharacters: allowed),
+            let url = URL(string: "data:image/svg+xml," + encoded)
+        else { return expect(false, "the data URL builds") }
+
+        guard let icon = await ExtensionIconCache.loadAsync(url) else {
+            return expect(false, "a data URL decodes to an image")
+        }
+        expect((inkExtent(icon) ?? 0) > 0.5, "the decoded SVG paints ink, not an empty tile")
+    }
+
     /// A red square on a transparent canvas, `inset` pixels in from each edge.
     static func writePNG(_ name: String, inset: Int) -> URL? {
         let side = 512
@@ -92,9 +109,10 @@ struct ExtensionIconTests {
         return CGFloat(max(maxX - minX + 1, maxY - minY + 1)) / CGFloat(side)
     }
 
-    static func main() {
+    static func main() async {
         artworkIsNormalized()
         missingFileFallsBack()
+        await dataURLDecodes()
 
         print(failures == 0 ? "Extension icon tests passed" : "\(failures) tests failed")
         exit(failures == 0 ? 0 : 1)

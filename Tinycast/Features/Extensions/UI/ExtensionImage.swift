@@ -16,7 +16,8 @@ enum ExtensionImage {
         /// Raycast's `{ fileIcon }` — the path names a bundle or document to ask `NSWorkspace` about,
         /// not an image to decode.
         case fileIcon(String)
-        case remote(URL)
+        /// `http(s)` or a `data:` URL: an extension that renders SVG inlines the whole icon in one.
+        case url(URL)
         case glyph(String)
     }
 
@@ -93,9 +94,7 @@ enum ExtensionImage {
             if let digits = numberGlyph(forIcon: text) { return .glyph(digits) }
             if let symbol = symbolName(forIcon: text) { return .symbol(symbol) }
         }
-        if let url = URL(string: text), let scheme = url.scheme, scheme.hasPrefix("http") {
-            return .remote(url)
-        }
+        if let url = drawableURL(text) { return .url(url) }
         if text.hasPrefix("/") || text.hasPrefix("~") {
             return .file((text as NSString).expandingTildeInPath)
         }
@@ -114,6 +113,14 @@ enum ExtensionImage {
             return color(named: string(from: .object(fields), isDark: isDark) ?? "")
         }
         return nil
+    }
+
+    /// An icon extension inlines each tile as an SVG `data:` URL, so both schemes name an image.
+    static func drawableURL(_ text: String) -> URL? {
+        guard let url = URL(string: text), let scheme = url.scheme,
+            scheme.hasPrefix("http") || scheme == "data"
+        else { return nil }
+        return url
     }
 
     private static func color(named raw: String) -> Color? {
@@ -339,7 +346,7 @@ struct ExtensionIconView: View {
             Text(text)
                 .font(.system(size: size * 0.72))
                 .frame(width: size, height: size)
-        case .file, .fileIcon, .remote:
+        case .file, .fileIcon, .url:
             if let loaded {
                 // Only a multi-frame image pays for `NSImageView`; a still stays on SwiftUI's path.
                 if animates, loaded.isAnimated {
@@ -370,7 +377,7 @@ struct ExtensionIconView: View {
         switch resolved?.source {
         case .file(let path): return "file:" + path
         case .fileIcon(let path): return "fileIcon:" + path
-        case .remote(let url): return "remote:" + url.absoluteString
+        case .url(let url): return "url:" + url.absoluteString
         default: return ""
         }
     }
@@ -387,8 +394,8 @@ struct ExtensionIconView: View {
             // Fitted rather than raw: a `fileIcon` list mixes app bundles with documents and folders,
             // and only the normalized draw keeps them the same optical size down the column.
             loaded = await IconCache.loadFittedAsync(forFile: path)
-        case .remote(let url):
-            loaded = await ExtensionIconCache.loadRemoteAsync(url, asIcon: !animates)
+        case .url(let url):
+            loaded = await ExtensionIconCache.loadAsync(url, asIcon: !animates)
         default:
             loaded = nil
         }

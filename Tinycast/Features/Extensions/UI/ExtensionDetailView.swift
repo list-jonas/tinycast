@@ -357,8 +357,7 @@ struct ExtensionMarkdownView: View {
         }
         let inner = line[line.index(after: open)..<line.index(before: line.endIndex)]
         let target = inner.split(separator: " ").first.map(String.init) ?? String(inner)
-        guard let url = URL(string: target), url.scheme?.hasPrefix("http") == true else { return nil }
-        return url
+        return ExtensionImage.drawableURL(target)
     }
 }
 
@@ -396,6 +395,6 @@ private struct ExtensionMarkdownImage: View {
                     .frame(height: 120)
             }
         }
-        .task(id: url) { image = await ExtensionIconCache.loadRemoteAsync(url, asIcon: false) }
+        .task(id: url) { image = await ExtensionIconCache.loadAsync(url, asIcon: false) }
     }
 }
