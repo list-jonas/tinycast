@@ -90,7 +90,9 @@ same arrangement as `EmojiData.generated.swift`: building Tinycast never needs N
 | `src/api/system.js` | Clipboard, LocalStorage, Cache, Toast, preferences, environment |
 | `src/api/oauth.js` | `OAuth.PKCEClient`, `OAuth.TokenSet`, redirect url builders |
 | `src/api/enums.generated.js` | Icon / Color / Toast.Style / … extracted from the real `@raycast/api` types |
-| `src/node-shims.js` | `path`, `fs`, `os`, `child_process`, `crypto`, `zlib`, `util`, `events`, `buffer`, `punycode`, … |
+| `src/node-shims.js` | `path`, `fs`, `os`, `child_process`, `crypto`, `zlib`, `util`, `buffer`, `punycode`, … and the registry every module above is reached through |
+| `src/stream.js`, `src/http.js`, `src/events.js` | `stream`, `http`/`https` and `events` — their own files because `http` builds on `stream`, which builds on `events` |
+| `src/interop.js` | the keys a bundler probes on every module (`__esModule`, `then`, …) — absent everywhere, never throwing |
 | `src/url.js`, `src/punycode.js`, `src/buffer.js` | web/Node primitives JavaScriptCore lacks |
 
 Two host-call flavours:
@@ -345,9 +347,17 @@ would launch Raycast itself.
 
 **Node built-ins** — `path`, `fs` (+ `fs/promises`), `os`, `child_process` (`exec`, `execFile`,
 `execSync`, `execFileSync`, `spawnSync`, and a buffered `spawn`), `crypto` (hashes, HMAC, random,
-UUID), `zlib` (gzip/zlib/raw deflate, both directions), `util`, `events`, `buffer`, `url`,
-`querystring`, `punycode`, `assert`, `string_decoder`, `timers`. Every other built-in resolves to a
-stub that throws only when used, so a bundle that merely references `dgram` or `http2` still loads.
+UUID), `zlib` (gzip/zlib/raw deflate, both directions), `stream`, `http` / `https`, `util`, `events`,
+`buffer`, `url`, `querystring`, `punycode`, `assert`, `string_decoder`, `timers`. Every other built-in
+resolves to a stub that throws only when used, so a bundle that merely references `dgram` or `http2`
+still loads.
+
+`http.request` runs on the same `URLSession` bridge as `fetch`, which is what makes `node-fetch` work
+— it is bundled into a large share of extensions and is reached through `require("node:http")`, never
+through the global. The response arrives already decoded, so `Content-Encoding` is dropped from the
+headers a caller sees — leaving it would send `node-fetch` gunzipping a body that is already plain
+text — and `Content-Length` is replaced with the decoded body's own length rather than the encoded
+one, which describes bytes that never arrive.
 
 **Command modes** — `view` renders into the palette; `no-view` runs headless with the palette closed.
 Both receive `props.arguments` and `props.launchType`.
@@ -367,8 +377,9 @@ OAuth extensions it excluded are not counted yet — re-measure before quoting t
 | **WebSocket** | No polyfill yet; `URLSessionWebSocketTask` could back one. |
 | **Aborting a `fetch` already in flight** | `AbortSignal` is complete — `timeout`, `abort` and `any` included — and `fetch` checks it on both sides of the host call, so a caller gets its `AbortError`. The request itself still runs to completion: the signal isn't carried across the bridge, so nothing cancels the `URLSessionTask`. A timeout bounds the caller, not the network. |
 | **Streaming `child_process.spawn`** | `spawn` runs the child to completion and emits its output as one chunk (async-iterable, which is what `get-stream`/`execa` consume). True duplex streaming would need a bidirectional channel across the bridge. Extensions built on `execa`'s deeper stream API can still fail. |
-| **`http` / `https` / `net` / `tls`** | Resolve but throw on use. `fetch` is the supported path; `axios`'s Node adapter is not. |
-| **`stream`** | Only `PassThrough` and `pipeline` are real — enough for `@raycast/utils`' `useExec`, which pipes a child's stdout through them. The rest of the module still throws. |
+| **`net` / `tls`** | Resolve but throw on use. A raw socket has no equivalent here. |
+| **Streaming an HTTP response** | `http.request` is request/response, not incremental: the body arrives whole and is then pushed through the `IncomingMessage` in one chunk. A caller that reads it as a stream gets the right bytes; one that wants to act on the first bytes of a slow response waits for all of them. A `timeout` is a real deadline on the caller — it emits `timeout`, then fails the request with `ETIMEDOUT` — but the `URLSessionTask` behind it still runs to completion. |
+| **`stream/web` and `EventTarget`** | JavaScriptCore ships neither. `stream/web` names the web streams but throws when one is reached, so `node-fetch`'s bundled polyfill installs itself instead — the interop keys stay absent, so importing the module is safe and only *using* a stream fails. A bundle that subclasses `EventTarget` at load time still fails. |
 | **Tool/AI-extension entry points (`tools/`)** | Not surfaced. |
 
 ## Working on the runtime

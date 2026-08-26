@@ -1,6 +1,6 @@
 // Node built-ins that extension bundles keep external. Everything filesystem-, process- or
 // crypto-shaped is a synchronous host call (Swift services these on the JS thread); the
-// stream/socket-shaped modules resolve but throw on use, so a bundle that merely references them
+// socket-shaped modules resolve but throw on use, so a bundle that merely references them
 // still loads.
 
 import { hostCall, hostCallSync } from "./host.js";
@@ -8,6 +8,10 @@ import { Buffer, bufferModule } from "./buffer.js";
 import { base64ToBytes, bytesToBase64, reportUncaught, utf8Decode, utf8Encode } from "./polyfills.js";
 import { URL, URLSearchParams } from "./url.js";
 import { punycode } from "./punycode.js";
+import { EventEmitter } from "./events.js";
+import { Readable, streamModule, webStreams } from "./stream.js";
+import { httpModule, httpsModule } from "./http.js";
+import { RESERVED_MEMBERS } from "./interop.js";
 
 // ─── path ───────────────────────────────────────────────────────────
 
@@ -621,121 +625,19 @@ for (const name of ["gzip", "gunzip", "deflate", "inflate", "deflateRaw", "infla
 // subclass them at load time — so unknown members fall through to a throwing constructor.
 const zlib = unsupportedModule("zlib", zlibImpl);
 
-// ─── events ─────────────────────────────────────────────────────────
+// ─── child_process: the buffered spawn ──────────────────────────────
 
-class EventEmitter {
-  constructor() {
-    this._events = new Map();
-    this._maxListeners = 10;
-  }
-  _list(event) {
-    if (!this._events.has(event)) this._events.set(event, []);
-    return this._events.get(event);
-  }
-  on(event, listener) {
-    this._list(event).push(listener);
-    return this;
-  }
-  addListener(event, listener) {
-    return this.on(event, listener);
-  }
-  prependListener(event, listener) {
-    this._list(event).unshift(listener);
-    return this;
-  }
-  once(event, listener) {
-    const wrapper = (...args) => {
-      this.off(event, wrapper);
-      listener(...args);
-    };
-    wrapper.listener = listener;
-    return this.on(event, wrapper);
-  }
-  off(event, listener) {
-    const list = this._events.get(event);
-    if (!list) return this;
-    const index = list.findIndex((entry) => entry === listener || entry.listener === listener);
-    if (index >= 0) list.splice(index, 1);
-    return this;
-  }
-  removeListener(event, listener) {
-    return this.off(event, listener);
-  }
-  removeAllListeners(event) {
-    if (event === undefined) this._events.clear();
-    else this._events.delete(event);
-    return this;
-  }
-  emit(event, ...args) {
-    const list = this._events.get(event);
-    if (!list?.length) return false;
-    for (const listener of list.slice()) listener.apply(this, args);
-    return true;
-  }
-  listenerCount(event) {
-    return this._events.get(event)?.length ?? 0;
-  }
-  listeners(event) {
-    return (this._events.get(event) ?? []).slice();
-  }
-  eventNames() {
-    return Array.from(this._events.keys());
-  }
-  setMaxListeners(count) {
-    this._maxListeners = count;
-    return this;
-  }
-  getMaxListeners() {
-    return this._maxListeners;
-  }
+/// The whole of a child's output, pushed as one chunk. `get-stream` (and therefore execa) consumes
+/// stdout by async iteration rather than by `data` events, which `Readable` answers either way.
+function deliver(stream, bytes) {
+  if (bytes.length) stream.push(bytes);
+  stream.push(null);
 }
-EventEmitter.EventEmitter = EventEmitter;
-EventEmitter.defaultMaxListeners = 10;
-EventEmitter.once = (emitter, event) =>
-  new Promise((resolve) => emitter.once(event, (...args) => resolve(args)));
 
-class BufferedStream extends EventEmitter {
-  constructor() {
-    super();
-    this.readable = true;
-    this.readableEnded = false;
-    this.encoding = null;
-    // `get-stream` (and therefore execa) consumes stdout by async iteration, not by `data` events.
-    this._delivered = new Promise((resolve) => {
-      this._resolveDelivered = resolve;
-    });
-  }
-
-  async *[Symbol.asyncIterator]() {
-    const bytes = await this._delivered;
-    if (bytes.length) yield this.encoding ? bytes.toString(this.encoding) : bytes;
-  }
-  setEncoding(encoding) {
-    this.encoding = encoding;
-    return this;
-  }
-  pipe(destination) {
-    this.on("data", (chunk) => destination.write?.(chunk));
-    this.on("end", () => destination.end?.());
-    return destination;
-  }
-  resume() {
-    return this;
-  }
-  pause() {
-    return this;
-  }
-  destroy() {
-    return this;
-  }
-  _deliver(bytes) {
-    this._resolveDelivered(bytes);
-    if (bytes.length) this.emit("data", this.encoding ? bytes.toString(this.encoding) : bytes);
-    this.readableEnded = true;
-    this.emit("end");
-    this.emit("close");
-  }
-}
+// Node emits these only once the child's stdio has closed, so a caller that drains stdout first and
+// attaches afterwards still catches them. Here the child has already run to completion before any
+// listener can exist, so a terminal event replays instead — same arrival, later attachment.
+const REPLAYED_EVENTS = new Set(["exit", "close"]);
 
 class BufferedChildProcess extends EventEmitter {
   constructor(file, args, options) {
@@ -743,10 +645,11 @@ class BufferedChildProcess extends EventEmitter {
     this.pid = 0;
     this.killed = false;
     this.exitCode = null;
-    this.stdout = new BufferedStream();
-    this.stderr = new BufferedStream();
+    this.stdout = new Readable();
+    this.stderr = new Readable();
     this._input = [];
     this._started = false;
+    this._replayable = new Map();
 
     const self = this;
     this.stdin = {
@@ -792,8 +695,8 @@ class BufferedChildProcess extends EventEmitter {
     ]).then(
       (raw) => {
         this.exitCode = raw.status;
-        this.stdout._deliver(Buffer.from(base64ToBytes(raw.stdout)));
-        this.stderr._deliver(Buffer.from(base64ToBytes(raw.stderr)));
+        deliver(this.stdout, Buffer.from(base64ToBytes(raw.stdout)));
+        deliver(this.stderr, Buffer.from(base64ToBytes(raw.stderr)));
         this.emit("exit", raw.status, raw.signal ?? null);
         this.emit("close", raw.status, raw.signal ?? null);
       },
@@ -801,8 +704,8 @@ class BufferedChildProcess extends EventEmitter {
         // Close the streams even on failure: a consumer that awaits stdout (execa does) would
         // otherwise see `undefined` where Node guarantees an empty string.
         this.exitCode = 1;
-        this.stdout._deliver(Buffer.alloc(0));
-        this.stderr._deliver(Buffer.from(String(error?.message ?? error), "utf8"));
+        deliver(this.stdout, Buffer.alloc(0));
+        deliver(this.stderr, Buffer.from(String(error?.message ?? error), "utf8"));
         this.emit("error", error);
         this.emit("close", 1, null);
       },
@@ -812,6 +715,24 @@ class BufferedChildProcess extends EventEmitter {
   kill() {
     this.killed = true;
     return false;
+  }
+
+  emit(event, ...args) {
+    if (REPLAYED_EVENTS.has(event)) this._replayable.set(event, args);
+    return super.emit(event, ...args);
+  }
+
+  on(event, listener) {
+    const fired = this._replayable.get(event);
+    if (fired) {
+      queueMicrotask(() => listener.apply(this, fired));
+      return this;
+    }
+    return super.on(event, listener);
+  }
+
+  once(event, listener) {
+    return this._replayable.has(event) ? this.on(event, listener) : super.once(event, listener);
   }
 
   // Node uses these to detach a child from the event loop. Nothing here keeps the runtime alive, so
@@ -888,80 +809,6 @@ function runAsync(spec, options, callback, label) {
   handle.catch = promise.catch.bind(promise);
   handle[Symbol.for("nodejs.util.promisify.custom")] = () => promise;
   return handle;
-}
-
-// ─── stream ─────────────────────────────────────────────────────────
-
-// Only what `@raycast/utils`' `useExec` needs: it pipes a child's stdout into a `PassThrough` and
-// reads back the buffered value, so `stream` cannot stay a stub or every `useExec` extension fails.
-// Worse, it fails opaquely — the thrown "not supported" never reaches the extension, which reports
-// the TypeError that follows from an undefined stdout instead. Everything else on the module still
-// refuses to run.
-class PassThrough extends EventEmitter {
-  constructor() {
-    super();
-    this.readable = true;
-    this.writable = true;
-    this.writableEnded = false;
-    this.encoding = null;
-  }
-
-  setEncoding(encoding) {
-    this.encoding = encoding;
-    return this;
-  }
-
-  write(chunk) {
-    const decode = this.encoding && typeof chunk !== "string";
-    this.emit("data", decode ? Buffer.from(chunk).toString(this.encoding) : chunk);
-    return true;
-  }
-
-  end(chunk) {
-    if (chunk !== undefined && chunk !== null) this.write(chunk);
-    this.writableEnded = true;
-    this.emit("end");
-    this.emit("finish");
-    this.emit("close");
-  }
-
-  pipe(destination) {
-    this.on("data", (chunk) => destination.write?.(chunk));
-    this.on("end", () => destination.end?.());
-    return destination;
-  }
-
-  resume() {
-    return this;
-  }
-
-  pause() {
-    return this;
-  }
-
-  destroy() {
-    return this;
-  }
-}
-
-/// Callback form, so `util.promisify(stream.pipeline)` works. Completion comes from the last stage:
-/// a source ends its destination when it ends, which is what `BufferedStream.pipe` wires up.
-function pipeline(...stages) {
-  const callback = typeof stages[stages.length - 1] === "function" ? stages.pop() : null;
-  let settled = false;
-  const finish = (error) => {
-    if (settled) return;
-    settled = true;
-    callback?.(error ?? null);
-  };
-  const last = stages.reduce((from, to) => {
-    from.on?.("error", finish);
-    return from.pipe(to);
-  });
-  last.on("error", finish);
-  last.on("finish", () => finish());
-  last.on("end", () => finish());
-  return last;
 }
 
 // ─── util ───────────────────────────────────────────────────────────
@@ -1110,17 +957,12 @@ function unsupportedModule(name, extras = {}) {
   return new Proxy(extras, {
     get(target, member) {
       if (member in target) return target[member];
-      // Interop and probing keys must stay absent: a truthy `__esModule` makes esbuild's `__toESM`
-      // skip the default-wrapping it would otherwise apply, and a truthy `then` makes the module
-      // look like a thenable to `await`.
       if (typeof member !== "string" || RESERVED_MEMBERS.has(member)) return undefined;
       if (!cache.has(member)) cache.set(member, makeUnsupported(`${name}.${member}`));
       return cache.get(member);
     },
   });
 }
-
-const RESERVED_MEMBERS = new Set(["__esModule", "default", "then", "catch", "prototype", "constructor", "toJSON", "inspect", "valueOf", "toString", "length", "name"]);
 
 function makeUnsupported(label) {
   const reason = `${label} is not supported in Tinycast extensions (no Node runtime). See docs/extensions.md.`;
@@ -1136,11 +978,6 @@ function makeUnsupported(label) {
     },
   });
 }
-
-const httpLike = (name) =>
-  unsupportedModule(name, { globalAgent: {}, STATUS_CODES: {}, METHODS: [] });
-
-const streamStub = unsupportedModule("stream", { PassThrough, pipeline });
 
 // ─── Registry ───────────────────────────────────────────────────────
 
@@ -1164,14 +1001,14 @@ export const nodeModules = {
   timers: { setTimeout, clearTimeout, setInterval, clearInterval, setImmediate, clearImmediate },
   "timers/promises": { setTimeout: (ms, value) => new Promise((resolve) => setTimeout(() => resolve(value), ms)) },
   perf_hooks: { performance: globalThis.performance },
-  http: httpLike("http"),
-  https: httpLike("https"),
+  http: httpModule,
+  https: httpsModule,
   net: unsupportedModule("net"),
   tls: unsupportedModule("tls"),
   dns: unsupportedModule("dns"),
-  stream: streamStub,
-  "stream/web": unsupportedModule("stream/web"),
-  "stream/promises": unsupportedModule("stream/promises"),
+  stream: streamModule,
+  "stream/web": webStreams,
+  "stream/promises": streamModule.promises,
   worker_threads: unsupportedModule("worker_threads", { isMainThread: true }),
   readline: unsupportedModule("readline"),
   tty: { isatty: () => false },

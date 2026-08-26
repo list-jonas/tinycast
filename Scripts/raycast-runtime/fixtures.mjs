@@ -193,6 +193,198 @@ export default function Command() {
 
 // Bundled HTTP clients (axios) construct and probe a Response at module scope, before any component
 // mounts — a host-shaped constructor took the whole command down with them.
+// `node-fetch` is bundled into a large share of real extensions and never touches global `fetch`:
+// it type-checks bodies against `stream`, then goes to the network through `http.request`.
+const httpSource = `
+import http from "node:http";
+import Stream, { PassThrough, Readable, pipeline } from "node:stream";
+
+export default async function Command() {
+  const piped = await new Promise((resolve) => {
+    const chunks = [];
+    const out = pipeline(Readable.from("streamed body"), new PassThrough(), () => {});
+    out.on("data", (chunk) => chunks.push(String(chunk)));
+    out.on("end", () => resolve(chunks.join("")));
+  });
+
+  const response = await new Promise((resolve, reject) => {
+    const request = http.request("https://example.com/api", { method: "GET" }, (message) => {
+      const chunks = [];
+      message.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+      message.on("end", () =>
+        resolve({ status: message.statusCode, body: Buffer.concat(chunks).toString("utf8"), headers: message.headers }));
+    });
+    request.on("error", reject);
+    request.end();
+  });
+
+  // The shape node-fetch actually passes: a spread of this runtime's URL, whose host and search are
+  // prototype getters — so no path survives the copy and the port arrives on its own.
+  const spread = (url) => new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const call = http.request({ ...parsed, method: "GET" }, (message) => {
+      message.on("data", () => {});
+      message.on("end", () => resolve(message.url));
+    });
+    call.on("error", reject);
+    call.end();
+  });
+
+  globalThis.__http = {
+    piped,
+    isStream: Readable.from("x") instanceof Stream,
+    iterated: await (async () => { let text = ""; for await (const chunk of Readable.from("iterated")) text += chunk; return text; })(),
+    status: response.status,
+    body: response.body,
+    spreadPath: await spread("https://example.com/api/tags?q=1"),
+    spreadPort: await spread("https://example.com:8443/api"),
+    // An empty body settles immediately, so its end fires before any listener can exist — which is
+    // exactly the shape a child's stdout has. Node replays it; missing it hangs an execa-style read.
+    lateEnd: await new Promise((resolve) => {
+      const settled = new Readable();
+      settled.push(null);
+      setTimeout(() => {
+        settled.on("data", () => {});
+        settled.on("end", () => resolve("end"));
+      }, 30);
+      setTimeout(() => resolve("MISSED"), 400);
+    }),
+    encodingDropped: !("content-encoding" in response.headers),
+    // The encoded length would describe bytes the caller never sees; the decoded one is the truth.
+    length: response.headers["content-length"],
+    bodyLength: String(Buffer.byteLength(response.body)),
+    timedOut: await new Promise((resolve) => {
+      const slow = http.request("https://example.com/slow", { timeout: 30 });
+      slow.on("timeout", () => resolve("timeout-event"));
+      slow.on("error", () => {});
+      slow.end();
+      setTimeout(() => resolve("NEVER"), 600);
+    }),
+  };
+}
+`;
+
+// A buffered child has already exited before any listener can attach, so `exit`/`close` replay.
+// execa-shaped code drains stdout first and only then waits for the child, which would hang.
+const spawnOrderSource = `
+import { spawn } from "node:child_process";
+
+export default async function Command() {
+  const drainThenWait = async (arg) => {
+    const child = spawn("/bin/echo", [arg]);
+    let text = "";
+    for await (const chunk of child.stdout) text += String(chunk);
+    const closed = await Promise.race([
+      new Promise((resolve) => child.on("close", (code) => resolve("close:" + code))),
+      new Promise((resolve) => setTimeout(() => resolve("MISSED"), 900)),
+    ]);
+    return { text: text.trim(), closed };
+  };
+
+  const late = await drainThenWait("hi");
+  const early = await new Promise((resolve) => {
+    const child = spawn("/bin/echo", ["z"]);
+    child.on("close", (code) => resolve("close:" + code));
+  });
+
+  const settled = spawn("/bin/echo", ["y"]);
+  for await (const chunk of settled.stdout) String(chunk);
+  let onceCalls = 0;
+  settled.once("close", () => { onceCalls += 1; });
+  await new Promise((resolve) => setTimeout(resolve, 250));
+
+  globalThis.__spawnOrder = { late, early, onceCalls };
+}
+`;
+
+// The failure modes a stream shim fails silently at: an import that dies on an interop probe, a
+// destroyed stream that parks its reader forever, and a pipeline that reports a failure as success.
+const streamEdgeSource = `
+import * as web from "node:stream/web";
+import { Readable, Transform, PassThrough, pipeline, finished, promises as sp } from "node:stream";
+
+export default async function Command() {
+  const race = (promise, label) =>
+    Promise.race([promise, new Promise((resolve) => setTimeout(() => resolve(label), 600))]);
+
+  const drain = (stream) => (async () => {
+    try {
+      for await (const chunk of stream) String(chunk);
+      return "returned";
+    } catch (error) {
+      return "threw:" + error.message;
+    }
+  })();
+
+  const quiet = new Readable();
+  setTimeout(() => quiet.destroy(), 20);
+  const failed = new Readable();
+  failed.on("error", () => {});
+  setTimeout(() => failed.destroy(new Error("boom")), 20);
+
+  // A torn-down stream reports close alone: an end here would tell a reader the body arrived.
+  const torn = new Readable();
+  const tornEvents = [];
+  for (const event of ["end", "close"]) torn.on(event, () => tornEvents.push(event));
+  torn.destroy();
+  torn.resume();
+
+  const settle = (stages) => new Promise((resolve) => {
+    pipeline(...stages, (error) => resolve(error ? error.message : "null"));
+    setTimeout(() => resolve("NEVER"), 600);
+  });
+
+  // A stream torn down mid-flight ends nothing, so every completion path has to answer on close.
+  const abandoned = new Readable();
+  abandoned.on("error", () => {});
+  setTimeout(() => abandoned.destroy(), 20);
+  const finishedOnDestroy = race(
+    new Promise((resolve) => finished(abandoned, (error) => resolve(error ? error.code : "null"))),
+    "HUNG",
+  );
+  const abandonedPipe = new Readable();
+  abandonedPipe.on("error", () => {});
+  setTimeout(() => abandonedPipe.destroy(), 20);
+  const pipelineOnDestroy = race(
+    sp.pipeline(abandonedPipe, new PassThrough()).then(() => "RESOLVED", (error) => error.code),
+    "HUNG",
+  );
+
+  // Node's order, and each event exactly once: a duplicated close runs a consumer's teardown twice.
+  const ordered = new PassThrough();
+  const events = [];
+  for (const event of ["finish", "end", "close"]) ordered.on(event, () => events.push(event));
+  let finishedCalls = 0;
+  finished(ordered, () => { finishedCalls += 1; });
+  ordered.on("data", () => {});
+  Readable.from("body").pipe(ordered);
+  await new Promise((resolve) => setTimeout(resolve, 120));
+
+  const late = new Readable();
+  late.destroy();
+  late.push("dropped");
+
+  globalThis.__streamEdge = {
+    webNames: ["ReadableStream", "WritableStream", "TransformStream"].every((name) => name in web),
+    webThrows: (() => { try { web.ReadableStream; return false; } catch { return true; } })(),
+    webProbe: web.__esModule === undefined && web.then === undefined,
+    destroyed: await race(drain(quiet), "HUNG"),
+    destroyedWithError: await race(drain(failed), "HUNG"),
+    tornEvents: tornEvents.join(","),
+    pipelineFailure: await settle([Readable.from("a"), new Transform({ transform: (c, e, cb) => cb(new Error("nope")) })]),
+    pipelineSuccess: await settle([Readable.from("a"), new PassThrough()]),
+    promisedFailure: await sp
+      .pipeline(Readable.from("a"), new Transform({ transform: (c, e, cb) => cb(new Error("nope")) }))
+      .then(() => "RESOLVED", (error) => error.message),
+    finishedOnDestroy: await finishedOnDestroy,
+    pipelineOnDestroy: await pipelineOnDestroy,
+    events: events.join(","),
+    finishedCalls,
+    pushedAfterDestroy: late.readableLength ?? late._queue.length,
+  };
+}
+`;
+
 const responseSource = `
 export default async function Command() {
   const probe = new Response();
@@ -411,6 +603,60 @@ export async function runFixtures() {
       "héllo",
     ];
     expected.forEach((value, index) => check(`shim ${index}: ${value}`, markdown[index] === value, markdown[index]));
+  });
+
+  await run("node:http and node:stream carry node-fetch", httpSource, "no-view", async (harness) => {
+    // The command makes several round trips and waits on a replayed `end`; 60ms lands mid-flight.
+    await wait(300);
+    const result = harness.call("JSON.stringify(globalThis.__http ?? null)");
+    const http = result ? JSON.parse(result) : null;
+    check("the command completed", !!http, harness.state.failures.join(" | "));
+    if (!http) return;
+    check("pipeline moves a body through a PassThrough", http.piped === "streamed body", http.piped);
+    check("a Readable is an instance of Stream", http.isStream === true);
+    check("a Readable can be consumed by async iteration", http.iterated === "iterated", http.iterated);
+    check("http.request reaches the fetch bridge", http.status === 200, String(http.status));
+    check("the response body arrives intact", http.body.startsWith("stubbed body"), http.body);
+    check("a spread URL keeps its path and query", http.spreadPath === "https://example.com/api/tags?q=1", http.spreadPath);
+    check("a spread URL names its port exactly once", http.spreadPort === "https://example.com:8443/api", http.spreadPort);
+    check("end reaches a listener that attached after the body", http.lateEnd === "end", http.lateEnd);
+    check("the header describing the encoded body is dropped", http.encodingDropped === true);
+    check("content-length matches the decoded body", http.length === http.bodyLength, `${http.length} vs ${http.bodyLength}`);
+    check("a request timeout is a real deadline", http.timedOut === "timeout-event", http.timedOut);
+  });
+
+  await run("a buffered child replays exit and close", spawnOrderSource, "no-view", async (harness) => {
+    await wait(900);
+    const raw = harness.call("JSON.stringify(globalThis.__spawnOrder ?? null)");
+    const order = raw ? JSON.parse(raw) : null;
+    check("the command completed", !!order, harness.state.failures.join(" | "));
+    if (!order) return;
+    check("stdout still drains", order.late.text === "hi", order.late.text);
+    check("close reaches a listener attached after the drain", order.late.closed === "close:0", order.late.closed);
+    check("close still reaches a listener attached before it fires", order.early === "close:0", order.early);
+    check("a replayed once() fires exactly once", order.onceCalls === 1, String(order.onceCalls));
+  });
+
+  await run("streams fail loudly, never silently", streamEdgeSource, "no-view", async (harness) => {
+    await wait(900);
+    const raw = harness.call("JSON.stringify(globalThis.__streamEdge ?? null)");
+    const edge = raw ? JSON.parse(raw) : null;
+    check("the command completed", !!edge, harness.state.failures.join(" | "));
+    if (!edge) return;
+    check("stream/web survives an interop probe", edge.webProbe === true);
+    check("stream/web still names the web streams", edge.webNames === true);
+    check("stream/web throws on a real member", edge.webThrows === true);
+    check("destroy() releases a parked reader", edge.destroyed === "returned", edge.destroyed);
+    check("destroy(error) still reaches the reader", edge.destroyedWithError === "threw:boom", edge.destroyedWithError);
+    check("a destroyed stream never claims it ended", edge.tornEvents === "close", edge.tornEvents);
+    check("pipeline reports a stage that fails as it drains", edge.pipelineFailure === "nope", edge.pipelineFailure);
+    check("pipeline still reports a clean run", edge.pipelineSuccess === "null", edge.pipelineSuccess);
+    check("promises.pipeline rejects on failure", edge.promisedFailure === "nope", edge.promisedFailure);
+    check("finished() answers a stream that was destroyed", edge.finishedOnDestroy === "ERR_STREAM_PREMATURE_CLOSE", edge.finishedOnDestroy);
+    check("promises.pipeline rejects when a stage is destroyed", edge.pipelineOnDestroy === "ERR_STREAM_PREMATURE_CLOSE", edge.pipelineOnDestroy);
+    check("a drained stream emits finish, end and close in order", edge.events === "finish,end,close", edge.events);
+    check("finished() fires exactly once", edge.finishedCalls === 1, String(edge.finishedCalls));
+    check("a chunk pushed after destroy is dropped", edge.pushedAfterDestroy === 0, String(edge.pushedAfterDestroy));
   });
 
   await run("Response takes the Web spec's constructor", responseSource, "no-view", async (harness) => {

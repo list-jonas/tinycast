@@ -232,6 +232,19 @@ async function stubHostCall(api, method, args) {
       return [];
     case "fetch.request": {
       const spec = args[0];
+      // The fixtures must not depend on the network; every other caller gets a real request.
+      if (/^https:\/\/example\.com(:\d+)?\//.test(spec.url)) {
+        // A request that outlives its deadline, so a timeout has something to fire against.
+        if (spec.url.endsWith("/slow")) await new Promise((resolve) => setTimeout(resolve, 400));
+        return {
+          status: 200,
+          statusText: "OK",
+          headers: { "content-type": "text/plain", "content-encoding": "gzip", "content-length": "13" },
+          url: spec.url,
+          // Echoed, so a fixture can assert the URL the shim built rather than only the body.
+          bodyBase64: Buffer.from(`stubbed body ${spec.url}`).toString("base64"),
+        };
+      }
       const response = await fetch(spec.url, {
         method: spec.method,
         headers: spec.headers,
@@ -328,11 +341,12 @@ function summarize(value) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const [dir, command] = process.argv.slice(2);
-  if (dir) {
-    await runExtension(dir, command);
-  } else {
-    await runFixtures();
-  }
+  // Never awaited here: `fixtures.mjs` imports this module back, and a static import of a module
+  // that is still evaluating parks on an evaluation promise only this line's return can settle.
+  (dir ? runExtension(dir, command) : runFixtures()).catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
 }
 
 /// Mirrors the Swift-side resolution: a manifest default can be platform-keyed
@@ -392,5 +406,6 @@ async function runExtension(dir, commandName) {
 
 async function runFixtures() {
   const { runFixtures: run } = await import("./fixtures.mjs");
-  await run();
+  // The failure count is the whole result: `fixtures.mjs` exits by itself only as the entry point.
+  process.exitCode = (await run()) === 0 ? 0 : 1;
 }
