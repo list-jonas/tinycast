@@ -250,6 +250,11 @@ export default async function Command() {
     // rather than the member — and reports it as a fetch failure far from the real cause.
     boxed: [new Number(1), new String("x"), Object(Symbol())].every(types.isBoxedPrimitive),
     unboxed: [1, "x", null, undefined, {}, new Date()].some(types.isBoxedPrimitive),
+    // What a bundled client brand-checks a signal by, and both have to survive minification:
+    // v2 reads the constructor's name, v3 the tag. Either one missing rejects the request before
+    // it is made, so an AbortController fails the very fetch it was meant to cancel.
+    signalName: Object.getPrototypeOf(new AbortController().signal).constructor.name,
+    signalTag: new AbortController().signal[Symbol.toStringTag],
     anyArrayBuffer: types.isAnyArrayBuffer(new ArrayBuffer(2)) && !types.isAnyArrayBuffer(new Uint8Array(2)),
     // An empty body settles immediately, so its end fires before any listener can exist — which is
     // exactly the shape a child's stdout has. Node replays it; missing it hangs an execa-style read.
@@ -686,6 +691,8 @@ export async function runFixtures() {
     check("a port carried by host survives", http.hostPort === "http://example.com:8443/a", http.hostPort);
     check("a boxed primitive is recognised", http.boxed === true);
     check("a bare value is not called boxed", http.unboxed === false);
+    check("a signal still names itself AbortSignal once minified", http.signalName === "AbortSignal", http.signalName);
+    check("a signal carries the AbortSignal tag", http.signalTag === "AbortSignal", http.signalTag);
     check("isAnyArrayBuffer separates a buffer from its view", http.anyArrayBuffer === true);
     check("end reaches a listener that attached after the body", http.lateEnd === "end", http.lateEnd);
     check("the header describing the encoded body is dropped", http.encodingDropped === true);

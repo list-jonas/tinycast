@@ -306,6 +306,16 @@ if (!g.AbortController) {
       }
     }
   }
+  // How every bundled HTTP client tells a real signal from a lookalike, and neither survives on its
+  // own: `node-fetch` v2 reads the constructor's name, which minification rewrites to a single
+  // letter, and v3 reads the tag, which a plain class never sets. A signal that fails either check
+  // is rejected before the request is made, so an `AbortController` fails the fetch it was meant
+  // to cancel.
+  Object.defineProperty(AbortSignalShim, "name", { value: "AbortSignal", configurable: true });
+  Object.defineProperty(AbortSignalShim.prototype, Symbol.toStringTag, {
+    value: "AbortSignal",
+    configurable: true,
+  });
   g.AbortSignal = AbortSignalShim;
   g.AbortController = class {
     constructor() {
