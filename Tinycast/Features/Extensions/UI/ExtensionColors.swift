@@ -11,4 +11,6 @@ enum ExtensionColors {
     /// Fainter than a list row, since a grid tiles many of them.
     static let gridItemFill = Theme.Colors.ramp(dark: 0.03, light: 0.035)
     static let detailCardFill = Theme.Colors.ramp(dark: 0.05, light: 0.04)
+    /// Every other metadata row, faint enough that the banding reads as a table rather than as rows.
+    static let metadataRowFill = Theme.Colors.ramp(dark: 0.03, light: 0.04)
 }

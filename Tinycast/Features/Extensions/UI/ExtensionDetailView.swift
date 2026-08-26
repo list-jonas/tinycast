@@ -33,49 +33,77 @@ struct ExtensionDetailBody: View {
     }
 }
 
-/// `Detail.Metadata` — label / link / tag-list / separator rows.
+/// `Detail.Metadata` — label / link / tag-list / separator rows, as Raycast draws them: one banded
+/// two-column row per entry, title leading and value trailing.
 struct ExtensionMetadataView: View {
     @Environment(\.isDarkAppearance) private var isDark
     let metadata: RenderNode
     let assetsPath: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            ForEach(metadata.children) { child in
-                switch child.type {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(bandedChildren, id: \.node.id) { entry in
+                switch entry.node.type {
                 case "Detail.Metadata.Label":
-                    row(title: child.string("title")) {
+                    row(entry) {
                         HStack(spacing: Theme.Spacing.xs) {
-                            if let icon = child.props["icon"] {
+                            if let icon = entry.node.props["icon"] {
                                 ExtensionIconView(
                                     resolved: ExtensionImage.resolve(
                                         icon, assetsPath: assetsPath, isDark: isDark),
                                     size: 14)
                             }
-                            Text(labelText(child))
-                                .font(Theme.Typography.rowTitle)
+                            Text(labelText(entry.node))
+                                .font(Theme.Typography.rowTrailing)
+                                .multilineTextAlignment(.trailing)
                                 .textSelection(.enabled)
                         }
                     }
                 case "Detail.Metadata.Link":
-                    row(title: child.string("title")) {
-                        if let target = child.string("target"), let url = URL(string: target) {
-                            Link(child.string("text") ?? target, destination: url)
-                                .font(Theme.Typography.rowTitle)
+                    row(entry) {
+                        if let target = entry.node.string("target"), let url = URL(string: target) {
+                            Link(entry.node.string("text") ?? target, destination: url)
+                                .font(Theme.Typography.rowTrailing)
                         } else {
-                            Text(child.string("text") ?? "").font(Theme.Typography.rowTitle)
+                            Text(entry.node.string("text") ?? "")
+                                .font(Theme.Typography.rowTrailing)
+                                .multilineTextAlignment(.trailing)
                         }
                     }
                 case "Detail.Metadata.TagList":
-                    row(title: child.string("title")) {
-                        ExtensionTagListView(tags: child.children, assetsPath: assetsPath)
+                    row(entry) {
+                        ExtensionTagListView(tags: entry.node.children, assetsPath: assetsPath)
                     }
                 case "Detail.Metadata.Separator":
-                    Rectangle().fill(Theme.Colors.separator).frame(height: 1)
+                    Rectangle()
+                        .fill(Theme.Colors.separator)
+                        .frame(height: 1)
+                        .padding(.vertical, Theme.Spacing.xs)
                 default:
                     EmptyView()
                 }
             }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private struct BandedRow {
+        let node: RenderNode
+        let isBanded: Bool
+    }
+
+    /// Raycast's metadata row height, owned here so a launcher surface can never inherit it.
+    private static let rowHeight: CGFloat = 28
+
+    /// A separator carries no band of its own, so the stripe keeps alternating across it.
+    private var bandedChildren: [BandedRow] {
+        var banded = true
+        return metadata.children.map { child in
+            guard child.type != "Detail.Metadata.Separator" else {
+                return BandedRow(node: child, isBanded: false)
+            }
+            defer { banded.toggle() }
+            return BandedRow(node: child, isBanded: banded)
         }
     }
 
@@ -87,15 +115,23 @@ struct ExtensionMetadataView: View {
     }
 
     @ViewBuilder
-    private func row<Content: View>(title: String?, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            if let title, !title.isEmpty {
-                Text(title)
-                    .font(Theme.Typography.sectionHeader)
-                    .foregroundStyle(.secondary)
-            }
+    private func row<Content: View>(
+        _ entry: BandedRow, @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.lg) {
+            Text(entry.node.string("title") ?? "")
+                .font(Theme.Typography.rowTrailing)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: Theme.Spacing.lg)
             content()
         }
+        .padding(.horizontal, Theme.Spacing.md)
+        .padding(.vertical, Theme.Spacing.sm)
+        .frame(minHeight: Self.rowHeight, alignment: .center)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.Radius.menu, style: .continuous)
+                .fill(entry.isBanded ? ExtensionColors.metadataRowFill : .clear)
+        )
     }
 }
 
@@ -106,7 +142,7 @@ private struct ExtensionTagListView: View {
 
     var body: some View {
         // Wrapping matters here: a metadata tag list is frequently longer than the pane is wide.
-        FlowLayout(spacing: Theme.Spacing.xs) {
+        FlowLayout(spacing: Theme.Spacing.xs, alignment: .trailing) {
             ForEach(tags) { tag in
                 let color =
                     ExtensionImage.color(tag.props["color"], isDark: isDark) ?? Theme.Colors.textSecondary
@@ -133,6 +169,8 @@ private struct ExtensionTagListView: View {
 /// Left-to-right wrapping row. SwiftUI has no built-in wrap, and tag lists need one.
 struct FlowLayout: Layout {
     var spacing: CGFloat = 4
+    /// A metadata tag list hangs off the trailing edge of its row, so its wrapped lines do too.
+    var alignment: HorizontalAlignment = .leading
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let width = proposal.width ?? .infinity
@@ -159,20 +197,42 @@ struct FlowLayout: Layout {
     func placeSubviews(
         in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()
     ) {
-        var x = bounds.minX
         var y = bounds.minY
-        var rowHeight: CGFloat = 0
+        for line in lines(of: subviews, width: bounds.width) {
+            let width = line.sizes.reduce(0) { $0 + $1.width } + spacing * CGFloat(line.sizes.count - 1)
+            var x = alignment == .trailing ? bounds.maxX - width : bounds.minX
+            var lineHeight: CGFloat = 0
+            for (subview, size) in zip(line.subviews, line.sizes) {
+                subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+                x += size.width + spacing
+                lineHeight = max(lineHeight, size.height)
+            }
+            y += lineHeight + spacing
+        }
+    }
+
+    private struct Line {
+        var subviews: [LayoutSubview] = []
+        var sizes: [CGSize] = []
+    }
+
+    private func lines(of subviews: Subviews, width: CGFloat) -> [Line] {
+        var lines: [Line] = []
+        var line = Line()
+        var lineWidth: CGFloat = 0
         for subview in subviews {
             let size = subview.sizeThatFits(.unspecified)
-            if x > bounds.minX, x + size.width > bounds.maxX {
-                x = bounds.minX
-                y += rowHeight + spacing
-                rowHeight = 0
+            if lineWidth > 0, lineWidth + spacing + size.width > width {
+                lines.append(line)
+                line = Line()
+                lineWidth = 0
             }
-            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
-            x += size.width + spacing
-            rowHeight = max(rowHeight, size.height)
+            line.subviews.append(subview)
+            line.sizes.append(size)
+            lineWidth += lineWidth > 0 ? spacing + size.width : size.width
         }
+        if !line.subviews.isEmpty { lines.append(line) }
+        return lines
     }
 }
 

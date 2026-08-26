@@ -159,7 +159,9 @@ screens hold (see [palette.md](palette.md)).
   carries both the flat `selection` index and the scroll id, and is the `ForEach` identity of the row
   and the grid cell alike — see the scroll-id rule in [ui.md](../ui.md#rows-selection-hover).
 - **Detail** — markdown rendered block-by-block (headings, lists, code fences, quotes, rules, fetched
-  and inline images) with `AttributedString` handling inline styling, plus `Detail.Metadata`.
+  and inline images) with `AttributedString` handling inline styling, plus `Detail.Metadata` — drawn
+  the way Raycast draws it, one banded two-column row per entry with the title leading and the value
+  trailing, a separator breaking the run without taking a band of its own.
 - **Appearance** — `environment.appearance` reports the real one, so an extension that branches on it
   is told the truth. It is an injected field on `ExtensionLaunchContext` (a `Model/` type owns no
   environment), which means a **running command keeps the appearance it booted with**; a change
