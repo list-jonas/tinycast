@@ -359,6 +359,10 @@ headers a caller sees — leaving it would send `node-fetch` gunzipping a body t
 text — and `Content-Length` is replaced with the decoded body's own length rather than the encoded
 one, which describes bytes that never arrive.
 
+`util.types` carries the predicates that library builds itself on, `isBoxedPrimitive` and
+`isAnyArrayBuffer` included: node-fetch v3 routes every `Headers` through them, so a missing one
+surfaces as a failed request rather than a missing member, far from the call that caused it.
+
 **Command modes** — `view` renders into the palette; `no-view` runs headless with the palette closed.
 Both receive `props.arguments` and `props.launchType`.
 

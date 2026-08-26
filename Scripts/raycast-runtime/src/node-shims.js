@@ -852,6 +852,14 @@ function format(first, ...rest) {
 
 const promisifyCustom = Symbol.for("nodejs.util.promisify.custom");
 
+const BOXED_BRANDS = new Set(["[object Number]", "[object String]", "[object Boolean]", "[object Symbol]", "[object BigInt]"]);
+
+/// `Object.prototype.toString` rather than `instanceof`: it reads the internal brand, so a boxed
+/// primitive is still recognised when its prototype has been replaced or it crossed a realm.
+function brandOf(value) {
+  return Object.prototype.toString.call(value);
+}
+
 const util = {
   promisify(fn) {
     if (fn[promisifyCustom]) return fn[promisifyCustom];
@@ -887,6 +895,11 @@ const util = {
     isTypedArray: (value) => ArrayBuffer.isView(value),
     isUint8Array: (value) => value instanceof Uint8Array,
     isArrayBuffer: (value) => value instanceof ArrayBuffer,
+    isAnyArrayBuffer: (value) =>
+      value instanceof ArrayBuffer ||
+      (typeof SharedArrayBuffer === "function" && value instanceof SharedArrayBuffer),
+    isBoxedPrimitive: (value) =>
+      typeof value === "object" && value !== null && BOXED_BRANDS.has(brandOf(value)),
   },
 };
 util.promisify.custom = promisifyCustom;

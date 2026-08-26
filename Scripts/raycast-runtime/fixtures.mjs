@@ -198,6 +198,7 @@ export default function Command() {
 const httpSource = `
 import http from "node:http";
 import https from "node:https";
+import { types } from "node:util";
 import Stream, { PassThrough, Readable, pipeline } from "node:stream";
 
 export default async function Command() {
@@ -245,6 +246,11 @@ export default async function Command() {
     securedProtocol: https.request({ hostname: "example.com", path: "/a" }).url,
     // A host carries its port, and dropping it sends the request to 80 rather than erroring.
     hostPort: http.request({ host: "example.com:8443", path: "/a" }).url,
+    // node-fetch v3 routes every Headers through these, so a missing one fails the first request
+    // rather than the member — and reports it as a fetch failure far from the real cause.
+    boxed: [new Number(1), new String("x"), Object(Symbol())].every(types.isBoxedPrimitive),
+    unboxed: [1, "x", null, undefined, {}, new Date()].some(types.isBoxedPrimitive),
+    anyArrayBuffer: types.isAnyArrayBuffer(new ArrayBuffer(2)) && !types.isAnyArrayBuffer(new Uint8Array(2)),
     // An empty body settles immediately, so its end fires before any listener can exist — which is
     // exactly the shape a child's stdout has. Node replays it; missing it hangs an execa-style read.
     lateEnd: await new Promise((resolve) => {
@@ -678,6 +684,9 @@ export async function runFixtures() {
     check("a plain-options request keeps its module's scheme", http.plainProtocol === "http://example.com:8080/a", http.plainProtocol);
     check("https keeps its own scheme", http.securedProtocol === "https://example.com/a", http.securedProtocol);
     check("a port carried by host survives", http.hostPort === "http://example.com:8443/a", http.hostPort);
+    check("a boxed primitive is recognised", http.boxed === true);
+    check("a bare value is not called boxed", http.unboxed === false);
+    check("isAnyArrayBuffer separates a buffer from its view", http.anyArrayBuffer === true);
     check("end reaches a listener that attached after the body", http.lateEnd === "end", http.lateEnd);
     check("the header describing the encoded body is dropped", http.encodingDropped === true);
     check("content-length matches the decoded body", http.length === http.bodyLength, `${http.length} vs ${http.bodyLength}`);
