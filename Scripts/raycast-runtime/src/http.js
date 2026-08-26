@@ -6,6 +6,7 @@ import { hostCall } from "./host.js";
 import { Buffer } from "./buffer.js";
 import { base64ToBytes, bytesToBase64 } from "./polyfills.js";
 import { Readable, Writable } from "./stream.js";
+import { EventEmitter } from "./events.js";
 
 const HTTP_TOKEN = /^[\^`\-\w!#$%&'*+.|~]+$/;
 
@@ -31,7 +32,10 @@ class IncomingMessage extends Readable {
     this.httpVersion = "1.1";
     this.complete = true;
     this.headers = responseHeaders(raw.headers);
-    this.rawHeaders = Object.entries(this.headers).flat();
+    // The one header Node never folds, because a site sets several and each is its own cookie. The
+    // bridge sends them already split, since joining them is what makes an `Expires` comma ambiguous.
+    if (raw.setCookie?.length) this.headers["set-cookie"] = raw.setCookie;
+    this.rawHeaders = rawHeaderPairs(this.headers);
     this.url = raw.url || "";
     this.socket = null;
   }
@@ -51,6 +55,7 @@ class ClientRequest extends Writable {
     this.aborted = false;
     this._chunks = [];
     this._timeout = null;
+    this._socket = new EventEmitter();
     if (options.timeout) this.setTimeout(options.timeout);
   }
 
@@ -108,8 +113,19 @@ class ClientRequest extends Writable {
     this.emit("error", error);
   }
 
+  /// A reply the HTTP spec gives no body: its `content-length` describes what a GET would have
+  /// returned, so it is the one header the decoded length must not overwrite.
+  _bodiless(status) {
+    return this.method === "HEAD" || status === 204 || status === 304;
+  }
+
   _send() {
     const body = this._chunks.length ? bytesToBase64(Buffer.concat(this._chunks)) : null;
+    // `node-fetch` v2 arms its `timeout` inside `once("socket")` and never anywhere else, so a
+    // request that reports no socket silently loses the deadline the caller asked for. There is no
+    // socket to hand over — the stand-in only has to carry `listenerCount`, which its own
+    // chunked-ending guard calls on whatever arrives.
+    queueMicrotask(() => this.emit("socket", this._socket));
     hostCall("fetch", "request", [
       { url: this.url, method: this.method, headers: normalizeHeaders(this.headers), bodyBase64: body },
     ]).then(
@@ -120,8 +136,12 @@ class ClientRequest extends Writable {
         const bytes = base64ToBytes(raw.bodyBase64 || "");
         // The decoded length is the one a caller can trust; the encoded one describes bytes that
         // never arrive, and dropping it outright loses a header `content-length`-driven code reads.
-        message.headers["content-length"] = String(bytes.length);
-        message.rawHeaders = Object.entries(message.headers).flat();
+        // A bodiless reply is the exception — its length describes the body a GET would have got —
+        // so the server's own value is put back rather than measuring the nothing that arrived.
+        message.headers["content-length"] = this._bodiless(message.statusCode)
+          ? String(raw.headers?.["content-length"] ?? bytes.length)
+          : String(bytes.length);
+        message.rawHeaders = rawHeaderPairs(message.headers);
         this.emit("response", message);
         // Push after the handler runs: it attaches its reader synchronously, and a body delivered
         // before that would be buffered against a consumer that never arrives.
@@ -148,6 +168,16 @@ function responseHeaders(headers) {
     if (!DECODED_AWAY_HEADERS.has(name.toLowerCase())) out[name] = value;
   }
   return out;
+}
+
+/// Node's flat name/value list, where a header holding several values contributes one pair each —
+/// flattening the array itself would splice its entries in as if they were names.
+function rawHeaderPairs(headers) {
+  const pairs = [];
+  for (const [name, value] of Object.entries(headers)) {
+    for (const single of Array.isArray(value) ? value : [value]) pairs.push(name, single);
+  }
+  return pairs;
 }
 
 function normalizeHeaders(headers) {

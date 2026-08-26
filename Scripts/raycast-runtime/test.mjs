@@ -236,11 +236,18 @@ async function stubHostCall(api, method, args) {
       if (/^https:\/\/example\.com(:\d+)?\//.test(spec.url)) {
         // A request that outlives its deadline, so a timeout has something to fire against.
         if (spec.url.endsWith("/slow")) await new Promise((resolve) => setTimeout(resolve, 400));
+        // A bodiless reply: the length describes the body a GET would have returned, and the
+        // stub sends none, which is exactly the case a HEAD has to keep the header through.
+        if (spec.method === "HEAD") {
+          return { status: 200, statusText: "OK", headers: { "content-length": "4096" }, url: spec.url, bodyBase64: "" };
+        }
         return {
           status: 200,
           statusText: "OK",
           headers: { "content-type": "text/plain", "content-encoding": "gzip", "content-length": "13" },
           url: spec.url,
+          // Sent split, the way the Swift bridge sends them: joined, an Expires comma is ambiguous.
+          setCookie: ["a=1; Path=/; Expires=Wed, 21 Oct 2099 07:28:00 GMT", "b=2; Path=/deep"],
           // Echoed, so a fixture can assert the URL the shim built rather than only the body.
           bodyBase64: Buffer.from(`stubbed body ${spec.url}`).toString("base64"),
         };

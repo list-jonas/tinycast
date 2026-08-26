@@ -23,13 +23,12 @@ export class Stream extends EventEmitter {
     this.emit("close");
   }
 
-  /// Deferred like Node: `makeStream().on("error", …)` attaches on the next line, so a synchronous
-  /// emit lands before that listener exists. `close` follows in the same turn to keep the order a
-  /// consumer reads failure from — a `close` that overtook its `error` reports a premature close.
+  /// Deferred like Node, error or not: `stream.destroy()` on one line and `.on("close", …)` on the
+  /// next is the shape callers write, so a synchronous emit lands before that listener exists.
+  /// `close` trails `error` in the same turn — a `close` that overtook it reports a premature close.
   _failAndClose(error) {
-    if (!error) return this._emitClose();
     queueMicrotask(() => {
-      this.emit("error", error);
+      if (error) this.emit("error", error);
       this._emitClose();
     });
   }

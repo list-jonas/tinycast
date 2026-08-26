@@ -6,6 +6,7 @@ import Foundation
 /// `Sendable` because it holds only an immutable `URLSession`.
 final class ExtensionFetcher: Sendable {
     private let session: URLSession
+    private let redirects = RedirectGuard()
 
     init() {
         let configuration = URLSessionConfiguration.ephemeral
@@ -43,7 +44,7 @@ final class ExtensionFetcher: Sendable {
             request.httpBody = body
         }
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await session.data(for: request, delegate: redirects)
         let http = response as? HTTPURLResponse
         var headers: [String: String] = [:]
         for (key, value) in http?.allHeaderFields ?? [:] {
@@ -56,8 +57,55 @@ final class ExtensionFetcher: Sendable {
             "statusText": HTTPURLResponse.localizedString(forStatusCode: status),
             "headers": headers,
             "url": response.url?.absoluteString ?? urlString,
+            "setCookie": setCookieValues(http, headers: headers),
             "bodyBase64": data.base64EncodedString()
         ]
+    }
+}
+
+/// `allHeaderFields` folds repeated headers into one comma-joined string, which `Set-Cookie` cannot
+/// survive: a cookie's own `Expires` carries a comma, so splitting the joined value by hand tears it
+/// in half. Foundation's cookie parser knows that grammar, so the cookies are re-serialised from it.
+private func setCookieValues(_ response: HTTPURLResponse?, headers: [String: String]) -> [String] {
+    // The parser matches the header name exactly as HTTP spells it, so the lowercased copy the
+    // bridge sends across finds nothing.
+    guard let url = response?.url, let folded = headers["set-cookie"] else { return [] }
+    return HTTPCookie.cookies(withResponseHeaderFields: ["Set-Cookie": folded], for: url).compactMap { cookie in
+        HTTPCookie.requestHeaderFields(with: [cookie])["Cookie"].map { pair in
+            let path = cookie.path.isEmpty ? "/" : cookie.path
+            let attributes = ["Path=\(path)", "Domain=\(cookie.domain)"]
+                + (cookie.isSecure ? ["Secure"] : []) + (cookie.isHTTPOnly ? ["HttpOnly"] : [])
+            return ([pair] + attributes).joined(separator: "; ")
+        }
+    }
+}
+
+/// URLSession follows redirects itself, so a bundled HTTP client never sees the 3xx it would have
+/// stripped credentials on: it is handed the final response with its own `Authorization` and
+/// `Cookie` already replayed at whatever host the hop named. That is the extension's session token
+/// handed to a third party, so the headers are dropped here whenever a redirect leaves the site.
+private final class RedirectGuard: NSObject, URLSessionTaskDelegate, Sendable {
+    private static let scoped = ["authorization", "cookie", "cookie2", "www-authenticate", "proxy-authorization"]
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest
+    ) async -> URLRequest? {
+        guard let from = task.originalRequest?.url, let to = request.url else { return request }
+        guard !staysInSite(from: from, to: to) else { return request }
+        var stripped = request
+        for header in Self.scoped { stripped.setValue(nil, forHTTPHeaderField: header) }
+        return stripped
+    }
+
+    /// A subdomain of the site that was asked for still counts, matching what `node-fetch` keeps its
+    /// credentials across; dropping to plain HTTP never does, however the hosts compare.
+    private func staysInSite(from: URL, to: URL) -> Bool {
+        guard let origin = from.host?.lowercased(), let target = to.host?.lowercased() else { return false }
+        guard from.scheme?.lowercased() != "https" || to.scheme?.lowercased() == "https" else { return false }
+        return origin == target || target.hasSuffix(".\(origin)") || origin.hasSuffix(".\(target)")
     }
 }
 

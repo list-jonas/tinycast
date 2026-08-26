@@ -271,6 +271,27 @@ export default async function Command() {
     // The encoded length would describe bytes the caller never sees; the decoded one is the truth.
     length: response.headers["content-length"],
     bodyLength: String(Buffer.byteLength(response.body)),
+    // A bodiless reply is measured by the body a GET would have returned, so a HEAD that reports
+    // what arrived calls every response empty — and code sizing a download reads zero.
+    headLength: await new Promise((resolve) => {
+      const call = http.request("https://example.com/sized", { method: "HEAD" }, (message) => {
+        message.on("data", () => {});
+        message.on("end", () => resolve(message.headers["content-length"]));
+      });
+      call.on("error", (error) => resolve("error:" + error.message));
+      call.end();
+    }),
+    // node-fetch v2 arms its timeout inside once("socket"), so a request that never reports one
+    // silently drops the deadline the caller asked for.
+    socketEmitted: await new Promise((resolve) => {
+      const call = http.request("https://example.com/api", { method: "GET" });
+      call.on("socket", () => resolve(true));
+      call.end();
+      setTimeout(() => resolve(false), 200);
+    }),
+    // Node hands back several Set-Cookie values as a list; folding them into one string makes a
+    // cookie's own Expires comma impossible to split back out.
+    cookies: response.headers["set-cookie"],
     timedOut: await new Promise((resolve) => {
       const slow = http.request("https://example.com/slow", { timeout: 30 });
       slow.on("timeout", () => resolve("timeout-event"));
@@ -697,6 +718,10 @@ export async function runFixtures() {
     check("end reaches a listener that attached after the body", http.lateEnd === "end", http.lateEnd);
     check("the header describing the encoded body is dropped", http.encodingDropped === true);
     check("content-length matches the decoded body", http.length === http.bodyLength, `${http.length} vs ${http.bodyLength}`);
+    check("a HEAD keeps the length of the body it describes", http.headLength === "4096", http.headLength);
+    check("a request reports a socket, which arms node-fetch's timeout", http.socketEmitted === true);
+    check("several Set-Cookie values stay separate", Array.isArray(http.cookies) && http.cookies.length === 2, JSON.stringify(http.cookies));
+    check("a cookie's Expires comma survives the split", http.cookies?.[0]?.includes("Expires=Wed, 21 Oct 2099"), JSON.stringify(http.cookies?.[0]));
     check("a request timeout is a real deadline", http.timedOut === "timeout-event", http.timedOut);
   });
 
