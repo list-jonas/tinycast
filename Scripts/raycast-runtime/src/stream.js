@@ -22,6 +22,17 @@ export class Stream extends EventEmitter {
     this._closed = true;
     this.emit("close");
   }
+
+  /// Deferred like Node: `makeStream().on("error", …)` attaches on the next line, so a synchronous
+  /// emit lands before that listener exists. `close` follows in the same turn to keep the order a
+  /// consumer reads failure from — a `close` that overtook its `error` reports a premature close.
+  _failAndClose(error) {
+    if (!error) return this._emitClose();
+    queueMicrotask(() => {
+      this.emit("error", error);
+      this._emitClose();
+    });
+  }
 }
 
 export class Readable extends Stream {
@@ -60,7 +71,9 @@ export class Readable extends Stream {
     }
     const decode = this._encoding && typeof chunk !== "string";
     const value = decode ? Buffer.from(chunk).toString(this._encoding) : chunk;
-    if (this._flowing) this.emit("data", value);
+    // Queueing while a drain is pending is what keeps a body in order: emitting straight away would
+    // put this chunk in front of the ones already waiting for the microtask to hand them over.
+    if (this._flowing && !this._draining) this.emit("data", value);
     else this._queue.push(value);
     this._wake();
     return true;
@@ -79,8 +92,15 @@ export class Readable extends Stream {
 
   resume() {
     this._flowing = true;
-    while (this._queue.length) this.emit("data", this._queue.shift());
-    this._settleEnd();
+    // Deferred: a second listener attaching in the same tick must not find the queue already
+    // drained by the first, which is how a tee ends up feeding only its first destination.
+    if (this._draining) return this;
+    this._draining = true;
+    queueMicrotask(() => {
+      this._draining = false;
+      while (this._flowing && this._queue.length) this.emit("data", this._queue.shift());
+      this._settleEnd();
+    });
     return this;
   }
 
@@ -101,23 +121,33 @@ export class Readable extends Stream {
     // A destroyed stream is finished either way: without this an iterator parked on a bare
     // `destroy()` finds no failure and no end, and re-parks forever.
     this._ended = true;
-    if (error) this.emit("error", error);
     this._wake();
-    this._emitClose();
+    this._failAndClose(error);
     return this;
   }
 
   async *[Symbol.asyncIterator]() {
-    while (true) {
-      if (this._queue.length) {
-        const chunk = this._queue.shift();
-        if (!this._queue.length) this._settleEnd();
-        yield chunk;
-        continue;
+    // Reads through `data` rather than off the queue: taking chunks straight from `_queue` makes an
+    // iterator and a listener race for the same body, and each one sees only the half it won.
+    const buffered = [];
+    const onData = (chunk) => {
+      buffered.push(chunk);
+      this._wake();
+    };
+    this.on("data", onData);
+    try {
+      while (true) {
+        if (buffered.length) {
+          yield buffered.shift();
+          continue;
+        }
+        if (this._failure) throw this._failure;
+        // `_queue` may still hold chunks whose delivery is only scheduled, and those come first.
+        if (this._ended && !this._queue.length) return;
+        await new Promise((resolve) => this._waiters.push(resolve));
       }
-      if (this._failure) throw this._failure;
-      if (this._ended) return;
-      await new Promise((resolve) => this._waiters.push(resolve));
+    } finally {
+      this.off("data", onData);
     }
   }
 
@@ -212,8 +242,7 @@ export class Writable extends Stream {
 
   destroy(error) {
     this.destroyed = true;
-    if (error) this.emit("error", error);
-    this._emitClose();
+    this._failAndClose(error);
     return this;
   }
 
@@ -317,6 +346,12 @@ export function finished(stream, callback) {
     settled = true;
     callback(error ?? null);
   };
+  // A stream that already finished emits nothing further, so its state has to answer in place of
+  // an event that has been and gone — otherwise an awaited `finished` parks for the whole session.
+  if (stream.destroyed || stream.readableEnded || stream.writableEnded) {
+    queueMicrotask(() => settle(stream._failure ?? prematureClose(stream)));
+    return;
+  }
   stream.on("error", settle);
   stream.on("end", () => settle());
   stream.on("finish", () => settle());

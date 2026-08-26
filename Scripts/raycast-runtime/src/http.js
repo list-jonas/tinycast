@@ -159,14 +159,19 @@ function normalizeHeaders(headers) {
   return out;
 }
 
-function requestURL(input, options) {
+// `hostname` and a bracketed IPv6 literal carry no port; `host` does, and it has to be split off
+// rather than appended after, or a `{ host, port }` pair would name the port twice.
+const HOST_WITH_PORT = /^(\[[^\]]*\]|[^:]*):(\d+)$/;
+
+function requestURL(input, options, fallbackProtocol) {
   if (typeof input === "string") return input;
   if (input instanceof URL) return input.toString();
-  const protocol = options.protocol || input.protocol || "https:";
-  // `hostname` first: `host` carries the port too, and appending `port` after it would repeat it.
-  const named = options.hostname || options.host || input.hostname || input.host || "localhost";
-  const host = String(named).replace(/:\d+$/, "");
-  const port = options.port ?? input.port;
+  // The calling module's own scheme is the fallback: an `http.request` that defaulted to https
+  // would quietly retarget every plain-options call, which is how localhost tooling is reached.
+  const protocol = options.protocol || input.protocol || fallbackProtocol;
+  const named = String(options.hostname || options.host || input.hostname || input.host || "localhost");
+  const [, host = named, embeddedPort] = HOST_WITH_PORT.exec(named) ?? [];
+  const port = options.port ?? input.port ?? embeddedPort;
   const target = pathOf(options) || pathOf(input) || "/";
   return `${protocol}//${host}${port ? `:${port}` : ""}${target}`;
 }
@@ -181,28 +186,22 @@ function pathOf(source) {
   return `${source.pathname}${query === "?" ? "" : query}`;
 }
 
-function request(input, options, callback) {
+function request(input, options, callback, fallbackProtocol) {
   if (typeof options === "function") {
     callback = options;
     options = {};
   }
   const fromInput = typeof input === "object" && !(input instanceof URL) ? input : {};
   const settings = { ...fromInput, ...(options ?? {}) };
-  const call = new ClientRequest(requestURL(input, settings), settings);
+  const call = new ClientRequest(requestURL(input, settings, fallbackProtocol), settings);
   if (callback) call.on("response", callback);
-  return call;
-}
-
-function get(input, options, callback) {
-  const call = request(input, options, callback);
-  call.end();
   return call;
 }
 
 function makeHttpModule(protocol) {
   const module = {
-    request: (input, options, callback) => request(input, options, callback),
-    get,
+    request: (input, options, callback) => request(input, options, callback, protocol),
+    get: (input, options, callback) => request(input, options, callback, protocol).end(),
     validateHeaderName,
     validateHeaderValue,
     globalAgent: {},

@@ -197,6 +197,7 @@ export default function Command() {
 // it type-checks bodies against `stream`, then goes to the network through `http.request`.
 const httpSource = `
 import http from "node:http";
+import https from "node:https";
 import Stream, { PassThrough, Readable, pipeline } from "node:stream";
 
 export default async function Command() {
@@ -238,6 +239,12 @@ export default async function Command() {
     body: response.body,
     spreadPath: await spread("https://example.com/api/tags?q=1"),
     spreadPort: await spread("https://example.com:8443/api"),
+    // The scheme has to come from the module the call was made on: an http.request that defaulted
+    // to https retargets every plain-options call, which is how localhost tooling is reached.
+    plainProtocol: http.request({ hostname: "example.com", port: 8080, path: "/a" }).url,
+    securedProtocol: https.request({ hostname: "example.com", path: "/a" }).url,
+    // A host carries its port, and dropping it sends the request to 80 rather than erroring.
+    hostPort: http.request({ host: "example.com:8443", path: "/a" }).url,
     // An empty body settles immediately, so its end fires before any listener can exist — which is
     // exactly the shape a child's stdout has. Node replays it; missing it hangs an execa-style read.
     lateEnd: await new Promise((resolve) => {
@@ -364,7 +371,56 @@ export default async function Command() {
   late.destroy();
   late.push("dropped");
 
+  // A listener and an async iterator must each see the whole body: an iterator that shifts chunks
+  // off the queue itself races the listener for them, and each side gets only the half it won.
+  const shared2 = new Readable();
+  shared2.push("s1"); shared2.push("s2"); shared2.push(null);
+  const listened = [];
+  shared2.on("data", (chunk) => listened.push(String(chunk)));
+  let iterated2 = "";
+  for await (const chunk of shared2) iterated2 += chunk;
+
+  // A second consumer attaching in the same tick must see the body too: a synchronous drain on the
+  // first listener empties the queue, which turns a tee into a stream only its first branch reads.
+  const shared = new Readable();
+  shared.push("shared"); shared.push(null);
+  const seenA = [], seenB = [];
+  shared.on("data", (chunk) => seenA.push(String(chunk)));
+  shared.on("data", (chunk) => seenB.push(String(chunk)));
+
+  // A chunk pushed while the first delivery is still pending must arrive behind the ones already
+  // queued, not in front of them — a body reassembled out of order is corrupt in total silence.
+  const ordering = new Readable();
+  ordering.push("1"); ordering.push("2");
+  const orderSeen = [];
+  ordering.on("data", (chunk) => orderSeen.push(String(chunk)));
+  ordering.push("3");
+  ordering.push(null);
+
+  // Node defers a destroy error, so the listener attached on the next line still catches it.
+  const failedLate = new Readable();
+  failedLate.destroy(new Error("late"));
+  let lateError = "missed";
+  failedLate.on("error", () => { lateError = "caught"; });
+
+  // A stream that finished before finished() was called emits nothing further, so only its state
+  // can answer — an event that has been and gone otherwise parks the caller for the whole session.
+  const alreadyGone = new Readable();
+  alreadyGone.on("error", () => {});
+  alreadyGone.destroy();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const finishedAfterTheFact = race(
+    new Promise((resolve) => finished(alreadyGone, (error) => resolve(error ? error.code : "null"))),
+    "HUNG",
+  );
+  await new Promise((resolve) => setTimeout(resolve, 40));
+
   globalThis.__streamEdge = {
+    tee: seenA.join("") + "/" + seenB.join(""),
+    ordering: orderSeen.join(""),
+    listenerAndIterator: listened.join("") + "/" + iterated2,
+    lateError,
+    finishedAfterTheFact: await finishedAfterTheFact,
     webNames: ["ReadableStream", "WritableStream", "TransformStream"].every((name) => name in web),
     webThrows: (() => { try { web.ReadableStream; return false; } catch { return true; } })(),
     webProbe: web.__esModule === undefined && web.then === undefined,
@@ -619,6 +675,9 @@ export async function runFixtures() {
     check("the response body arrives intact", http.body.startsWith("stubbed body"), http.body);
     check("a spread URL keeps its path and query", http.spreadPath === "https://example.com/api/tags?q=1", http.spreadPath);
     check("a spread URL names its port exactly once", http.spreadPort === "https://example.com:8443/api", http.spreadPort);
+    check("a plain-options request keeps its module's scheme", http.plainProtocol === "http://example.com:8080/a", http.plainProtocol);
+    check("https keeps its own scheme", http.securedProtocol === "https://example.com/a", http.securedProtocol);
+    check("a port carried by host survives", http.hostPort === "http://example.com:8443/a", http.hostPort);
     check("end reaches a listener that attached after the body", http.lateEnd === "end", http.lateEnd);
     check("the header describing the encoded body is dropped", http.encodingDropped === true);
     check("content-length matches the decoded body", http.length === http.bodyLength, `${http.length} vs ${http.bodyLength}`);
@@ -657,6 +716,11 @@ export async function runFixtures() {
     check("a drained stream emits finish, end and close in order", edge.events === "finish,end,close", edge.events);
     check("finished() fires exactly once", edge.finishedCalls === 1, String(edge.finishedCalls));
     check("a chunk pushed after destroy is dropped", edge.pushedAfterDestroy === 0, String(edge.pushedAfterDestroy));
+    check("every same-tick consumer sees the body", edge.tee === "shared/shared", edge.tee);
+    check("a chunk pushed mid-delivery keeps its place", edge.ordering === "123", edge.ordering);
+    check("a listener and an iterator both read the whole body", edge.listenerAndIterator === "s1s2/s1s2", edge.listenerAndIterator);
+    check("a destroy error reaches a listener attached after it", edge.lateError === "caught", edge.lateError);
+    check("finished() answers a stream that had already closed", edge.finishedAfterTheFact === "ERR_STREAM_PREMATURE_CLOSE", edge.finishedAfterTheFact);
   });
 
   await run("Response takes the Web spec's constructor", responseSource, "no-view", async (harness) => {
