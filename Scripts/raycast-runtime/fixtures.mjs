@@ -309,6 +309,22 @@ export default async function Command() {
       slow.end();
       setTimeout(() => resolve("NEVER"), 600);
     }),
+    // Node arms a request deadline on its socket, so the clock covers the request in flight and
+    // nothing before it. A request whose body is written a chunk at a time is the shape that
+    // exposes the difference: armed at construction, it expires before a byte is ever sent.
+    slowBody: await new Promise((resolve) => {
+      const call = http.request("https://example.com/api", { method: "POST", timeout: 80 });
+      call.on("error", (error) => resolve("error:" + error.code));
+      call.on("response", (message) => resolve("status:" + message.statusCode));
+      setTimeout(() => call.end("written late"), 160);
+      setTimeout(() => resolve("NEVER"), 700);
+    }),
+    // A request that is built and never sent is racing nothing, so its deadline must not fire.
+    unsentQuiet: await new Promise((resolve) => {
+      const idle = http.request("https://example.com/api", { timeout: 40 });
+      idle.on("error", (error) => resolve("errored:" + error.code));
+      setTimeout(() => resolve("quiet"), 200);
+    }),
   };
 }
 `;
@@ -459,6 +475,35 @@ export default async function Command() {
   await new Promise((resolve) => setTimeout(resolve, 40));
   const survivedUnheard = true;
 
+  // The counterpart, and the one that matters more: a failure the caller *does* handle must never be
+  // reported as unheard. An unheard error fails the whole session, so an extension that catches its
+  // own network failure and carries on would still lose the palette to a failure screen. Both
+  // consumption paths have to count as hearing it — async iteration and finished().
+  const claimedByIterator = await (async () => {
+    const source = Readable.from((async function* () { yield "half"; throw new Error("claimed-iter"); })());
+    try {
+      for await (const chunk of source) String(chunk);
+      return "returned";
+    } catch (error) {
+      return "caught:" + error.message;
+    }
+  })();
+  const claimedByFinished = await new Promise((resolve) => {
+    const torn = new Readable();
+    torn.destroy(new Error("claimed-finished"));
+    finished(torn, (error) => resolve(error ? error.message : "clean"));
+    setTimeout(() => resolve("HUNG"), 400);
+  });
+  // A Writable torn down with a reason reports that reason, not the premature close that stands in
+  // when there is none — an upload failure read as a protocol error sends debugging the wrong way.
+  const writableReason = await new Promise((resolve) => {
+    const sink = new Writable();
+    sink.destroy(new Error("upload-failed"));
+    finished(sink, (error) => resolve(error ? error.message : "clean"));
+    setTimeout(() => resolve("HUNG"), 400);
+  });
+  await new Promise((resolve) => setTimeout(resolve, 60));
+
   // A write once the stream has ended must fail rather than append: a body that grew after it was
   // handed on cannot be explained from the call site.
   const ended = new Writable();
@@ -496,6 +541,9 @@ export default async function Command() {
     listenerAndIterator: listened.join("") + "/" + iterated2,
     lateError,
     survivedUnheard,
+    claimedByIterator,
+    claimedByFinished,
+    writableReason,
     afterEnd,
     duplexWriteAfterEnd,
     finishedAfterTheFact: await finishedAfterTheFact,
@@ -740,8 +788,9 @@ export async function runFixtures() {
   });
 
   await run("node:http and node:stream carry node-fetch", httpSource, "no-view", async (harness) => {
-    // The command makes several round trips and waits on a replayed `end`; 60ms lands mid-flight.
-    await wait(300);
+    // The command makes several round trips, waits on a replayed `end` and holds a request open past
+    // its deadline to prove the clock starts at send; 60ms lands mid-flight.
+    await wait(900);
     const result = harness.call("JSON.stringify(globalThis.__http ?? null)");
     const http = result ? JSON.parse(result) : null;
     check("the command completed", !!http, harness.state.failures.join(" | "));
@@ -774,6 +823,8 @@ export async function runFixtures() {
     check("SameSite survives too", http.cookies?.[1]?.includes("SameSite=Strict"), JSON.stringify(http.cookies?.[1]));
     check("a redirect is handed back rather than followed", http.hop === "302:https://example.com/landed", http.hop);
     check("a request timeout is a real deadline", http.timedOut === "timeout-event", http.timedOut);
+    check("a deadline covers the request, not the time before it was sent", http.slowBody === "status:200", http.slowBody);
+    check("a request that was never sent never times out", http.unsentQuiet === "quiet", http.unsentQuiet);
   });
 
   await run("a buffered child replays exit and close", spawnOrderSource, "no-view", async (harness) => {
@@ -802,6 +853,14 @@ export async function runFixtures() {
     check("a destroyed stream never claims it ended", edge.tornEvents === "close", edge.tornEvents);
     check("an unheard error is survivable", edge.survivedUnheard === true);
     check("an unheard error still reaches the log", harness.state.logs.some((line) => line.includes("unheard-failure")), harness.state.logs.length + " logs");
+    check("an iterator's caught failure reaches only the caller", edge.claimedByIterator === "caught:claimed-iter", edge.claimedByIterator);
+    check("finished() claims the failure it reports", edge.claimedByFinished === "claimed-finished", edge.claimedByFinished);
+    check("a destroyed Writable reports its own reason", edge.writableReason === "upload-failed", edge.writableReason);
+    check(
+      "a handled failure never reaches the uncaught sink",
+      !harness.state.failures.some((line) => /claimed-iter|claimed-finished|upload-failed/.test(String(line))),
+      harness.state.failures.join(" | "),
+    );
     check("a write after end never reaches the body", edge.afterEnd === "kept", edge.afterEnd);
     check("a Duplex refuses a late write without throwing", edge.duplexWriteAfterEnd === "no error", edge.duplexWriteAfterEnd);
     check("pipeline reports a stage that fails as it drains", edge.pipelineFailure === "nope", edge.pipelineFailure);

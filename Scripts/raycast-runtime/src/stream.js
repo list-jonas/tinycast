@@ -148,7 +148,12 @@ export class Readable extends Stream {
       buffered.push(chunk);
       this._wake();
     };
+    // Node's iterator listens for `error` itself, which is what makes a failure it reports a
+    // *handled* one. Reading `_failure` alone would leave the emit unheard, and an unheard error
+    // takes the whole command down — for a failure the caller went on to catch in its own `try`.
+    const onError = () => this._wake();
     this.on("data", onData);
+    this.on("error", onError);
     try {
       while (true) {
         if (buffered.length) {
@@ -162,6 +167,7 @@ export class Readable extends Stream {
       }
     } finally {
       this.off("data", onData);
+      this.off("error", onError);
     }
   }
 
@@ -264,6 +270,7 @@ export class Writable extends Stream {
 
   destroy(error) {
     this.destroyed = true;
+    this._failure = error ?? null;
     this._failAndClose(error);
     return this;
   }
@@ -363,21 +370,32 @@ export function pipeline(...stages) {
 /// `finish`, so without that branch an awaited `finished`/`pipeline` parks for the whole session.
 export function finished(stream, callback) {
   let settled = false;
+  const attached = [];
+  const listen = (event, listener) => {
+    attached.push([event, listener]);
+    stream.on(event, listener);
+  };
   const settle = (error) => {
     if (settled) return;
     settled = true;
+    // Detached on the way out, so a later failure on the same stream is still its owner's to hear:
+    // a listener left behind would go on marking errors handled long after this caller stopped caring.
+    for (const [event, listener] of attached) stream.off(event, listener);
     callback(error ?? null);
   };
+  // Attached before the already-finished branch below: a stream destroyed a moment ago still emits
+  // its `error` on a later microtask, and an emit no one heard fails the whole command. Listening
+  // is what marks the failure handled — this callback is the caller who is going to be told about it.
+  listen("error", settle);
   // A stream that already finished emits nothing further, so its state has to answer in place of
   // an event that has been and gone — otherwise an awaited `finished` parks for the whole session.
   if (stream.destroyed || stream.readableEnded || stream.writableEnded) {
     queueMicrotask(() => settle(stream._failure ?? prematureClose(stream)));
     return;
   }
-  stream.on("error", settle);
-  stream.on("end", () => settle());
-  stream.on("finish", () => settle());
-  stream.on("close", () => settle(prematureClose(stream)));
+  listen("end", () => settle());
+  listen("finish", () => settle());
+  listen("close", () => settle(prematureClose(stream)));
 }
 
 /// Node reports a stream that closed before it ended as `ERR_STREAM_PREMATURE_CLOSE`; a clean close

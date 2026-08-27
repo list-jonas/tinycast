@@ -55,6 +55,8 @@ class ClientRequest extends Writable {
     this.aborted = false;
     this._chunks = [];
     this._timeout = null;
+    this._deadline = null;
+    this._sent = false;
     this._socket = new EventEmitter();
     if (options.timeout) this.setTimeout(options.timeout);
   }
@@ -72,14 +74,22 @@ class ClientRequest extends Writable {
   flushHeaders() {}
   // A real deadline, not a no-op: `node-fetch` passes its `timeout` here and reports the request as
   // hung forever otherwise, since nothing cancels the URLSession task across the bridge.
+  // Armed at send rather than here, the way Node arms it on socket assignment: a request whose body
+  // is written a chunk at a time would otherwise spend its whole budget before a byte leaves, and one
+  // that is built and never sent would fail on a deadline it was never actually racing.
   setTimeout(ms, callback) {
     if (callback) this.on("timeout", callback);
-    clearTimeout(this._timeout);
-    this._timeout = setTimeout(() => this._expire(), ms);
+    this._deadline = ms;
+    if (this._sent) this._arm();
     return this;
   }
   setNoDelay() {}
   setSocketKeepAlive() {}
+
+  _arm() {
+    clearTimeout(this._timeout);
+    if (this._deadline != null) this._timeout = setTimeout(() => this._expire(), this._deadline);
+  }
 
   _write(chunk, encoding, callback) {
     const bytes = typeof chunk === "string" ? Buffer.from(chunk, encoding || "utf8") : Buffer.from(chunk);
@@ -121,6 +131,10 @@ class ClientRequest extends Writable {
 
   _send() {
     const body = this._chunks.length ? bytesToBase64(Buffer.concat(this._chunks)) : null;
+    // The deadline starts here, where Node's starts: this is the moment the request is actually
+    // in flight, and the only stretch a `timeout` was ever meant to bound.
+    this._sent = true;
+    this._arm();
     // `node-fetch` v2 arms its `timeout` inside `once("socket")` and never anywhere else, so a
     // request that reports no socket silently loses the deadline the caller asked for. There is no
     // socket to hand over — the stand-in only has to carry `listenerCount`, which its own

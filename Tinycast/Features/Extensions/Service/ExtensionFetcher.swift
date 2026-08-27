@@ -130,8 +130,24 @@ private final class RedirectPolicy: NSObject, URLSessionTaskDelegate, Sendable {
     private func staysInSite(from: URL, to: URL) -> Bool {
         guard let origin = from.host?.lowercased(), let target = to.host?.lowercased() else { return false }
         guard from.scheme?.lowercased() != "https" || to.scheme?.lowercased() == "https" else { return false }
-        return origin == target || target.hasSuffix(".\(origin)") || origin.hasSuffix(".\(target)")
+        guard origin != target else { return true }
+        // The shared suffix has to be a site of its own, not a registry like `co.uk`: matching on the
+        // bare suffix alone makes a hop from `a.co.uk` to `co.uk` look internal and carries the
+        // cookie there. A label count is the cheap approximation — nothing here ships a public suffix
+        // list, and erring towards stripping only ever costs an unauthenticated redirect.
+        let parent = origin.hasSuffix(".\(target)") ? target : (target.hasSuffix(".\(origin)") ? origin : nil)
+        guard let parent else { return false }
+        return parent.split(separator: ".").count >= 2 && !Self.registries.contains(parent)
     }
+
+    /// The multi-label suffixes a label count alone reads as a site. Not exhaustive by design — the
+    /// common ones an extension actually redirects through, and anything missed only strips more.
+    private static let registries: Set<String> = [
+        "co.uk", "org.uk", "ac.uk", "gov.uk", "co.jp", "or.jp", "ne.jp", "co.kr", "com.au", "net.au",
+        "org.au", "com.br", "com.cn", "com.mx", "co.in", "co.za", "co.nz", "com.tr", "com.sg",
+        "github.io", "gitlab.io", "herokuapp.com", "vercel.app", "netlify.app", "pages.dev",
+        "workers.dev", "s3.amazonaws.com", "blob.core.windows.net", "appspot.com", "firebaseapp.com"
+    ]
 }
 
 /// The async half of the `child_process` shim: `exec` / `execFile` without blocking the JS queue while
