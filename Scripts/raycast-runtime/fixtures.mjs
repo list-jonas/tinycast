@@ -722,6 +722,10 @@ export async function runFixtures() {
     check("a request reports a socket, which arms node-fetch's timeout", http.socketEmitted === true);
     check("several Set-Cookie values stay separate", Array.isArray(http.cookies) && http.cookies.length === 2, JSON.stringify(http.cookies));
     check("a cookie's Expires comma survives the split", http.cookies?.[0]?.includes("Expires=Wed, 21 Oct 2099"), JSON.stringify(http.cookies?.[0]));
+    // A cookie rebuilt from a parser keeps only the attributes that parser models, which turns an
+    // expiring cookie into a session one — the values have to cross the bridge as they arrived.
+    check("an attribute the parser drops still arrives", http.cookies?.[1]?.includes("Max-Age=3600"), JSON.stringify(http.cookies?.[1]));
+    check("SameSite survives too", http.cookies?.[1]?.includes("SameSite=Strict"), JSON.stringify(http.cookies?.[1]));
     check("a request timeout is a real deadline", http.timedOut === "timeout-event", http.timedOut);
   });
 

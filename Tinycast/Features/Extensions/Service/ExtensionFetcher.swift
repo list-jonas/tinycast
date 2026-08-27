@@ -57,27 +57,34 @@ final class ExtensionFetcher: Sendable {
             "statusText": HTTPURLResponse.localizedString(forStatusCode: status),
             "headers": headers,
             "url": response.url?.absoluteString ?? urlString,
-            "setCookie": setCookieValues(http, headers: headers),
+            "setCookie": setCookieValues(headers),
             "bodyBase64": data.base64EncodedString()
         ]
     }
 }
 
-/// `allHeaderFields` folds repeated headers into one comma-joined string, which `Set-Cookie` cannot
-/// survive: a cookie's own `Expires` carries a comma, so splitting the joined value by hand tears it
-/// in half. Foundation's cookie parser knows that grammar, so the cookies are re-serialised from it.
-private func setCookieValues(_ response: HTTPURLResponse?, headers: [String: String]) -> [String] {
-    // The parser matches the header name exactly as HTTP spells it, so the lowercased copy the
-    // bridge sends across finds nothing.
-    guard let url = response?.url, let folded = headers["set-cookie"] else { return [] }
-    return HTTPCookie.cookies(withResponseHeaderFields: ["Set-Cookie": folded], for: url).compactMap { cookie in
-        HTTPCookie.requestHeaderFields(with: [cookie])["Cookie"].map { pair in
-            let path = cookie.path.isEmpty ? "/" : cookie.path
-            let attributes = ["Path=\(path)", "Domain=\(cookie.domain)"]
-                + (cookie.isSecure ? ["Secure"] : []) + (cookie.isHTTPOnly ? ["HttpOnly"] : [])
-            return ([pair] + attributes).joined(separator: "; ")
+/// `allHeaderFields` folds repeated headers into one comma-joined string, and `Set-Cookie` is the one
+/// header a site sends several of — so the run has to be cut back into the values it arrived as.
+private func setCookieValues(_ headers: [String: String]) -> [String] {
+    guard let folded = headers["set-cookie"] else { return [] }
+    // Split rather than parsed and rebuilt: `HTTPCookie` keeps only the attributes it models, so a
+    // round trip through it silently drops `Max-Age`, `SameSite` and every unknown one — and a
+    // cookie jar reading the result would treat an expiring cookie as a session cookie.
+    // The split point is not the comma but what follows it: a new cookie opens `name=`, whereas the
+    // comma inside an `Expires` date is followed by its day of the month.
+    var values: [String] = []
+    var current = ""
+    for piece in folded.components(separatedBy: ",") {
+        let opensCookie = piece.prefix { $0 != ";" }.contains("=")
+        if current.isEmpty || !opensCookie {
+            current += current.isEmpty ? piece : "," + piece
+            continue
         }
+        values.append(current.trimmingCharacters(in: .whitespaces))
+        current = piece
     }
+    if !current.isEmpty { values.append(current.trimmingCharacters(in: .whitespaces)) }
+    return values
 }
 
 /// URLSession follows redirects itself, so a bundled HTTP client never sees the 3xx it would have

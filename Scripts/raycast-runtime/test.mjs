@@ -247,7 +247,11 @@ async function stubHostCall(api, method, args) {
           headers: { "content-type": "text/plain", "content-encoding": "gzip", "content-length": "13" },
           url: spec.url,
           // Sent split, the way the Swift bridge sends them: joined, an Expires comma is ambiguous.
-          setCookie: ["a=1; Path=/; Expires=Wed, 21 Oct 2099 07:28:00 GMT", "b=2; Path=/deep"],
+          // Max-Age and SameSite are here because rebuilding a cookie from a parser drops them.
+          setCookie: [
+            "a=1; Path=/; Expires=Wed, 21 Oct 2099 07:28:00 GMT; HttpOnly",
+            "b=2; Path=/deep; Max-Age=3600; SameSite=Strict",
+          ],
           // Echoed, so a fixture can assert the URL the shim built rather than only the body.
           bodyBase64: Buffer.from(`stubbed body ${spec.url}`).toString("base64"),
         };
