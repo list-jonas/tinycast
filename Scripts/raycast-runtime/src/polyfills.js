@@ -80,6 +80,14 @@ export function reportUncaught(error) {
   }
 }
 
+/// An `error` event nobody was listening for. Deliberately not `reportUncaught`: that one fails the
+/// session, which is right for a throw with nowhere left to go, but a peripheral stream dying is not
+/// the command dying — a background prefetch that fails must not replace a rendered view with an
+/// error screen. Node ends the process here; logging is the loudest thing that stays survivable.
+export function reportUnheard(error) {
+  log("error", ["Unhandled error event:", error]);
+}
+
 // ─── fetch ──────────────────────────────────────────────────────────
 // Backed by URLSession on the Swift side. Bodies cross the bridge base64-encoded so binary
 // responses survive; text/JSON go through the same path.

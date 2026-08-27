@@ -378,6 +378,11 @@ erring towards stripping costs an unauthenticated redirect, and erring the other
 `isAnyArrayBuffer` included: node-fetch v3 routes every `Headers` through them, so a missing one
 surfaces as a failed request rather than a missing member, far from the call that caused it.
 
+An `error` event nobody listened for is logged, not escalated. Node ends the process there, and
+failing the session instead would let a background prefetch that died replace an already-rendered
+view with an error screen — a peripheral stream failing is not the command failing. A throw with
+nowhere left to go still fails the session, so a real bug stays as loud as it was.
+
 **Command modes** — `view` renders into the palette; `no-view` runs headless with the palette closed.
 Both receive `props.arguments` and `props.launchType`.
 
@@ -397,7 +402,7 @@ OAuth extensions it excluded are not counted yet — re-measure before quoting t
 | **Aborting a `fetch` already in flight** | `AbortSignal` is complete — `timeout`, `abort` and `any` included — and `fetch` checks it on both sides of the host call, so a caller gets its `AbortError`. The request itself still runs to completion: the signal isn't carried across the bridge, so nothing cancels the `URLSessionTask`. A timeout bounds the caller, not the network. |
 | **Streaming `child_process.spawn`** | `spawn` runs the child to completion and emits its output as one chunk (async-iterable, which is what `get-stream`/`execa` consume). True duplex streaming would need a bidirectional channel across the bridge. Extensions built on `execa`'s deeper stream API can still fail. |
 | **`net` / `tls`** | Resolve but throw on use. A raw socket has no equivalent here. |
-| **Streaming an HTTP response** | `http.request` is request/response, not incremental: the body arrives whole and is then pushed through the `IncomingMessage` in one chunk. A caller that reads it as a stream gets the right bytes; one that wants to act on the first bytes of a slow response waits for all of them. A `timeout` is a real deadline on the caller — armed when the request is sent, as Node arms it on its socket, so building a request slowly never spends it — which emits `timeout` and then fails with `ETIMEDOUT`, though the `URLSessionTask` behind it still runs to completion. |
+| **Streaming an HTTP response** | `http.request` is request/response, not incremental: the body arrives whole and is then pushed through the `IncomingMessage` in one chunk. A caller that reads it as a stream gets the right bytes; one that wants to act on the first bytes of a slow response waits for all of them. A `timeout` is a real deadline on the caller — armed when the request is sent, as Node arms it on its socket, so building a request slowly never spends it. It emits `timeout` and, like Node, leaves the decision there: a caller that listens is left to abort in its own handler, and only a listenerless one is failed with `ETIMEDOUT`, since nothing else would stop it waiting. The `URLSessionTask` behind it still runs to completion either way. |
 | **`stream/web` and `EventTarget`** | JavaScriptCore ships neither. `stream/web` names the web streams but throws when one is reached, so `node-fetch`'s bundled polyfill installs itself instead — the interop keys stay absent, so importing the module is safe and only *using* a stream fails. A bundle that subclasses `EventTarget` at load time still fails. |
 | **Tool/AI-extension entry points (`tools/`)** | Not surfaced. |
 

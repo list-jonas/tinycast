@@ -112,11 +112,14 @@ class ClientRequest extends Writable {
     return this;
   }
 
-  /// Node emits `timeout` and leaves aborting to the caller, but nothing here can cancel the task —
-  /// so the request is abandoned as well, or a listenerless caller would wait on it forever.
+  /// Node emits `timeout` and leaves aborting to the caller, which `setTimeout(ms, () => req.abort())`
+  /// is: a caller that listens has decided for itself, so failing it would fail a deadline it just
+  /// handled. Only a listenerless one is abandoned, since nothing else would ever stop it waiting.
   _expire() {
     if (this.aborted) return;
+    const heard = this.listenerCount("timeout") > 0;
     this.emit("timeout");
+    if (heard) return;
     this.aborted = true;
     const error = new Error(`Request to ${this.url} timed out`);
     error.code = "ETIMEDOUT";

@@ -309,6 +309,23 @@ export default async function Command() {
       slow.end();
       setTimeout(() => resolve("NEVER"), 600);
     }),
+    // Node's documented shape is a timeout listener that aborts, and it raises no error of its own —
+    // a caller that handled its deadline must not then be failed for having handled it.
+    timeoutHandled: await new Promise((resolve) => {
+      const slow = http.request("https://example.com/slow", { timeout: 30 });
+      slow.on("timeout", () => slow.abort());
+      slow.on("error", (error) => resolve("errored:" + error.code));
+      slow.end();
+      setTimeout(() => resolve("quiet"), 200);
+    }),
+    // The listenerless one still has to fail: nothing here can cancel the task, so a caller with no
+    // deadline handling would otherwise wait on a response that never comes.
+    timeoutUnheard: await new Promise((resolve) => {
+      const slow = http.request("https://example.com/slow", { timeout: 30 });
+      slow.on("error", (error) => resolve("errored:" + error.code));
+      slow.end();
+      setTimeout(() => resolve("NEVER"), 400);
+    }),
     // Node arms a request deadline on its socket, so the clock covers the request in flight and
     // nothing before it. A request whose body is written a chunk at a time is the shape that
     // exposes the difference: armed at construction, it expires before a byte is ever sent.
@@ -473,11 +490,11 @@ export default async function Command() {
   const unheard = new Readable();
   unheard.destroy(new Error("unheard-failure"));
   await new Promise((resolve) => setTimeout(resolve, 40));
-  const survivedUnheard = true;
+  // Read after the failure has had its turn to land: reaching a later statement at all is what
+  // "survivable" means, and a constant here would assert nothing.
+  const survivedUnheard = typeof globalThis.__streamEdge === "undefined";
 
-  // The counterpart, and the one that matters more: a failure the caller *does* handle must never be
-  // reported as unheard. An unheard error fails the whole session, so an extension that catches its
-  // own network failure and carries on would still lose the palette to a failure screen. Both
+  // The counterpart: a failure the caller *does* handle must never be reported at all. Both
   // consumption paths have to count as hearing it — async iteration and finished().
   const claimedByIterator = await (async () => {
     const source = Readable.from((async function* () { yield "half"; throw new Error("claimed-iter"); })());
@@ -823,6 +840,8 @@ export async function runFixtures() {
     check("SameSite survives too", http.cookies?.[1]?.includes("SameSite=Strict"), JSON.stringify(http.cookies?.[1]));
     check("a redirect is handed back rather than followed", http.hop === "302:https://example.com/landed", http.hop);
     check("a request timeout is a real deadline", http.timedOut === "timeout-event", http.timedOut);
+    check("a handled timeout raises no error of its own", http.timeoutHandled === "quiet", http.timeoutHandled);
+    check("an unhandled timeout still fails the request", http.timeoutUnheard === "errored:ETIMEDOUT", http.timeoutUnheard);
     check("a deadline covers the request, not the time before it was sent", http.slowBody === "status:200", http.slowBody);
     check("a request that was never sent never times out", http.unsentQuiet === "quiet", http.unsentQuiet);
   });
@@ -853,6 +872,13 @@ export async function runFixtures() {
     check("a destroyed stream never claims it ended", edge.tornEvents === "close", edge.tornEvents);
     check("an unheard error is survivable", edge.survivedUnheard === true);
     check("an unheard error still reaches the log", harness.state.logs.some((line) => line.includes("unheard-failure")), harness.state.logs.length + " logs");
+    // The session is what the palette shows. A peripheral stream dying has to stay a log line: fail
+    // the session for it and a background prefetch replaces a rendered view with an error screen.
+    check(
+      "an unheard error never fails the session",
+      !harness.state.failures.some((line) => String(line).includes("unheard-failure")),
+      harness.state.failures.join(" | "),
+    );
     check("an iterator's caught failure reaches only the caller", edge.claimedByIterator === "caught:claimed-iter", edge.claimedByIterator);
     check("finished() claims the failure it reports", edge.claimedByFinished === "claimed-finished", edge.claimedByFinished);
     check("a destroyed Writable reports its own reason", edge.writableReason === "upload-failed", edge.writableReason);

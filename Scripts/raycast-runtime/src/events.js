@@ -1,7 +1,7 @@
 // Node's `events`. Its own file because `stream` builds on it and `node-shims` imports both — a
 // class shared through the module that also consumes it would be read inside its own TDZ.
 
-import { reportUncaught } from "./polyfills.js";
+import { reportUnheard } from "./polyfills.js";
 
 export class EventEmitter {
   constructor() {
@@ -49,10 +49,10 @@ export class EventEmitter {
   emit(event, ...args) {
     const list = this._events.get(event);
     if (!list?.length) {
-      // Node throws an unheard `error`, which ends the process. Reporting it instead is what keeps
+      // Node throws an unheard `error`, which ends the process. Logging it instead is what keeps
       // one failed stream from taking a whole extension down, while still surfacing the cause —
       // swallowing it silently is how a dead request looks like a hang with no explanation.
-      if (event === "error") reportUncaught(args[0] ?? new Error("Unhandled error event"));
+      if (event === "error") reportUnheard(args[0] ?? new Error("Unhandled error event"));
       return false;
     }
     for (const listener of list.slice()) listener.apply(this, args);
