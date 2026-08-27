@@ -6,7 +6,6 @@ import Foundation
 /// `Sendable` because it holds only an immutable `URLSession`.
 final class ExtensionFetcher: Sendable {
     private let session: URLSession
-    private let redirects = RedirectGuard()
 
     init() {
         let configuration = URLSessionConfiguration.ephemeral
@@ -44,7 +43,12 @@ final class ExtensionFetcher: Sendable {
             request.httpBody = body
         }
 
-        let (data, response) = try await session.data(for: request, delegate: redirects)
+        // Node's `http.request` never follows a redirect, and `node-fetch` implements its own hop
+        // rules on top of that — including the credential stripping this delegate otherwise has to
+        // do on its behalf. Handing the 3xx back is what lets `redirect`, `follow` and
+        // `max-redirect` mean what the library says they mean.
+        let policy = fields["redirect"]?.stringValue == "manual" ? RedirectPolicy.manual : RedirectPolicy.following
+        let (data, response) = try await session.data(for: request, delegate: policy)
         let http = response as? HTTPURLResponse
         var headers: [String: String] = [:]
         for (key, value) in http?.allHeaderFields ?? [:] {
@@ -87,12 +91,23 @@ private func setCookieValues(_ headers: [String: String]) -> [String] {
     return values
 }
 
-/// URLSession follows redirects itself, so a bundled HTTP client never sees the 3xx it would have
-/// stripped credentials on: it is handed the final response with its own `Authorization` and
-/// `Cookie` already replayed at whatever host the hop named. That is the extension's session token
-/// handed to a third party, so the headers are dropped here whenever a redirect leaves the site.
-private final class RedirectGuard: NSObject, URLSessionTaskDelegate, Sendable {
+/// Who follows a redirect, and what a hop is allowed to carry. `node-fetch` implements its own hop
+/// rules and expects the 3xx back, so `http.request` asks for `manual`; the `fetch` polyfill has no
+/// such layer above it and lets URLSession follow. Following on the caller's behalf is what makes
+/// the stripping below necessary: the client that would normally drop its own credentials at a site
+/// boundary never sees the hop where it would have done it.
+private final class RedirectPolicy: NSObject, URLSessionTaskDelegate, Sendable {
+    private let follows: Bool
     private static let scoped = ["authorization", "cookie", "cookie2", "www-authenticate", "proxy-authorization"]
+
+    /// Both modes are stateless, so one instance of each serves every request rather than allocating
+    /// a delegate per call.
+    static let following = RedirectPolicy(follows: true)
+    static let manual = RedirectPolicy(follows: false)
+
+    init(follows: Bool) {
+        self.follows = follows
+    }
 
     func urlSession(
         _ session: URLSession,
@@ -100,6 +115,9 @@ private final class RedirectGuard: NSObject, URLSessionTaskDelegate, Sendable {
         willPerformHTTPRedirection response: HTTPURLResponse,
         newRequest request: URLRequest
     ) async -> URLRequest? {
+        // `nil` hands the 3xx back as the response instead of following it, which is what Node's own
+        // `http.request` does and what every redirect option in `node-fetch` is written against.
+        guard follows else { return nil }
         guard let from = task.originalRequest?.url, let to = request.url else { return request }
         guard !staysInSite(from: from, to: to) else { return request }
         var stripped = request

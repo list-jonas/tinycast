@@ -127,7 +127,15 @@ class ClientRequest extends Writable {
     // chunked-ending guard calls on whatever arrives.
     queueMicrotask(() => this.emit("socket", this._socket));
     hostCall("fetch", "request", [
-      { url: this.url, method: this.method, headers: normalizeHeaders(this.headers), bodyBase64: body },
+      {
+        url: this.url,
+        method: this.method,
+        headers: normalizeHeaders(this.headers),
+        bodyBase64: body,
+        // Node hands a 3xx straight back; whatever sits above this implements its own hop rules,
+        // and following here would take `redirect`, `follow` and `max-redirect` away from it.
+        redirect: "manual",
+      },
     ]).then(
       (raw) => {
         if (this.aborted) return;

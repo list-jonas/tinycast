@@ -292,6 +292,16 @@ export default async function Command() {
     // Node hands back several Set-Cookie values as a list; folding them into one string makes a
     // cookie's own Expires comma impossible to split back out.
     cookies: response.headers["set-cookie"],
+    // A 3xx has to reach whatever sits above this: Node's own http.request never follows one, and a
+    // host that followed on its behalf would take redirect/follow away from the library doing it.
+    hop: await new Promise((resolve) => {
+      const call = http.request("https://example.com/hop1", (message) => {
+        message.on("data", () => {});
+        message.on("end", () => resolve(message.statusCode + ":" + message.headers.location));
+      });
+      call.on("error", (error) => resolve("error:" + error.message));
+      call.end();
+    }),
     timedOut: await new Promise((resolve) => {
       const slow = http.request("https://example.com/slow", { timeout: 30 });
       slow.on("timeout", () => resolve("timeout-event"));
@@ -726,6 +736,7 @@ export async function runFixtures() {
     // expiring cookie into a session one — the values have to cross the bridge as they arrived.
     check("an attribute the parser drops still arrives", http.cookies?.[1]?.includes("Max-Age=3600"), JSON.stringify(http.cookies?.[1]));
     check("SameSite survives too", http.cookies?.[1]?.includes("SameSite=Strict"), JSON.stringify(http.cookies?.[1]));
+    check("a redirect is handed back rather than followed", http.hop === "302:https://example.com/landed", http.hop);
     check("a request timeout is a real deadline", http.timedOut === "timeout-event", http.timedOut);
   });
 

@@ -360,10 +360,12 @@ text — and `Content-Length` is replaced with the decoded body's own length rat
 one, which describes bytes that never arrive. A `HEAD` keeps the length the server sent, since that
 describes the body a `GET` would have returned rather than the nothing that arrived.
 
-URLSession follows redirects itself, so a client never sees the 3xx it would have stripped
-credentials on. `Authorization`, `Cookie` and the other scoped headers are dropped by
-`ExtensionFetcher` whenever a hop leaves the site, which is what keeps an extension's token from
-being replayed at whatever host a redirect names. `Set-Cookie` crosses the bridge already split:
+A redirect is handed back rather than followed: Node's `http.request` never follows one, and the
+library above it implements its own hop rules, so following on its behalf would take `redirect`,
+`follow` and `max-redirect` away from it. The `fetch` polyfill has no such layer, so URLSession
+follows for it — and because the client that would normally drop its own credentials at a site
+boundary never sees that hop, `ExtensionFetcher` drops `Authorization`, `Cookie` and the other
+scoped headers itself whenever one leaves the site. `Set-Cookie` crosses the bridge already split:
 folding several into one string makes a cookie's own `Expires` comma impossible to tell from the
 separator between them.
 
@@ -391,7 +393,6 @@ OAuth extensions it excluded are not counted yet — re-measure before quoting t
 | **Streaming `child_process.spawn`** | `spawn` runs the child to completion and emits its output as one chunk (async-iterable, which is what `get-stream`/`execa` consume). True duplex streaming would need a bidirectional channel across the bridge. Extensions built on `execa`'s deeper stream API can still fail. |
 | **`net` / `tls`** | Resolve but throw on use. A raw socket has no equivalent here. |
 | **Streaming an HTTP response** | `http.request` is request/response, not incremental: the body arrives whole and is then pushed through the `IncomingMessage` in one chunk. A caller that reads it as a stream gets the right bytes; one that wants to act on the first bytes of a slow response waits for all of them. A `timeout` is a real deadline on the caller — it emits `timeout`, then fails the request with `ETIMEDOUT` — but the `URLSessionTask` behind it still runs to completion. |
-| **Choosing how a redirect is followed** | URLSession follows them internally, so `redirect: "manual"`, `redirect: "error"` and `follow` are all silently ignored — a caller is handed the final response and never sees the 3xx. Credentials are stripped across a site boundary on the caller's behalf, since the client that would normally do it never gets the chance. |
 | **`stream/web` and `EventTarget`** | JavaScriptCore ships neither. `stream/web` names the web streams but throws when one is reached, so `node-fetch`'s bundled polyfill installs itself instead — the interop keys stay absent, so importing the module is safe and only *using* a stream fails. A bundle that subclasses `EventTarget` at load time still fails. |
 | **Tool/AI-extension entry points (`tools/`)** | Not surfaced. |
 

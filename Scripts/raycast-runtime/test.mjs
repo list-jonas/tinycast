@@ -241,6 +241,18 @@ async function stubHostCall(api, method, args) {
         if (spec.method === "HEAD") {
           return { status: 200, statusText: "OK", headers: { "content-length": "4096" }, url: spec.url, bodyBase64: "" };
         }
+        // A hop, so a caller's own redirect handling has something to act on. The Swift side honours
+        // `redirect: "manual"` by handing the 3xx back rather than following it, and `http.request`
+        // always asks for that — following on its behalf is what takes `follow` and `redirect` away
+        // from the library layered above it.
+        if (/\/hop(\d*)$/.test(spec.url)) {
+          const remaining = Number(/\/hop(\d*)$/.exec(spec.url)[1] || "1");
+          const next = remaining > 1 ? `https://example.com/hop${remaining - 1}` : "https://example.com/landed";
+          if (spec.redirect === "manual") {
+            return { status: 302, statusText: "Found", headers: { location: next }, url: spec.url, bodyBase64: "" };
+          }
+          return { status: 200, statusText: "OK", headers: {}, url: next, bodyBase64: Buffer.from("followed by the host").toString("base64") };
+        }
         return {
           status: 200,
           statusText: "OK",
@@ -260,6 +272,8 @@ async function stubHostCall(api, method, args) {
         method: spec.method,
         headers: spec.headers,
         body: spec.bodyBase64 ? Buffer.from(spec.bodyBase64, "base64") : undefined,
+        // Mirrors the Swift side: a caller that asked for the 3xx is handed it rather than followed.
+        redirect: spec.redirect === "manual" ? "manual" : "follow",
       });
       const body = Buffer.from(await response.arrayBuffer());
       return {
