@@ -350,7 +350,7 @@ export default async function Command() {
 // destroyed stream that parks its reader forever, and a pipeline that reports a failure as success.
 const streamEdgeSource = `
 import * as web from "node:stream/web";
-import { Readable, Transform, PassThrough, pipeline, finished, promises as sp } from "node:stream";
+import { Readable, Writable, Transform, PassThrough, pipeline, finished, promises as sp } from "node:stream";
 
 export default async function Command() {
   const race = (promise, label) =>
@@ -451,6 +451,39 @@ export default async function Command() {
   alreadyGone.on("error", () => {});
   alreadyGone.destroy();
   await new Promise((resolve) => setTimeout(resolve, 20));
+
+  // Node ends the process on an unheard error; swallowing it instead is how a dead request becomes
+  // a hang with no explanation, so it has to reach the log without taking the command down.
+  const unheard = new Readable();
+  unheard.destroy(new Error("unheard-failure"));
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  const survivedUnheard = true;
+
+  // A write once the stream has ended must fail rather than append: a body that grew after it was
+  // handed on cannot be explained from the call site.
+  const ended = new Writable();
+  ended.on("error", () => {});
+  ended.end("kept");
+  ended.write("dropped");
+  ended.end("dropped-too");
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  const afterEnd = ended._written.map(String).join("");
+
+  // The same refusal on a Duplex, which borrows the writable half by call rather than inheriting it:
+  // anything those methods reach through the instance is missing here unless it sits on the shared
+  // base, and a PassThrough is what every pipe in this runtime is built from.
+  const endedDuplex = new PassThrough();
+  endedDuplex.on("error", () => {});
+  endedDuplex.on("data", () => {});
+  let duplexWriteAfterEnd = "no error";
+  endedDuplex.end("first");
+  try {
+    endedDuplex.write("second");
+  } catch (error) {
+    duplexWriteAfterEnd = "THREW:" + error.message;
+  }
+  await new Promise((resolve) => setTimeout(resolve, 40));
+
   const finishedAfterTheFact = race(
     new Promise((resolve) => finished(alreadyGone, (error) => resolve(error ? error.code : "null"))),
     "HUNG",
@@ -462,6 +495,9 @@ export default async function Command() {
     ordering: orderSeen.join(""),
     listenerAndIterator: listened.join("") + "/" + iterated2,
     lateError,
+    survivedUnheard,
+    afterEnd,
+    duplexWriteAfterEnd,
     finishedAfterTheFact: await finishedAfterTheFact,
     webNames: ["ReadableStream", "WritableStream", "TransformStream"].every((name) => name in web),
     webThrows: (() => { try { web.ReadableStream; return false; } catch { return true; } })(),
@@ -764,6 +800,10 @@ export async function runFixtures() {
     check("destroy() releases a parked reader", edge.destroyed === "returned", edge.destroyed);
     check("destroy(error) still reaches the reader", edge.destroyedWithError === "threw:boom", edge.destroyedWithError);
     check("a destroyed stream never claims it ended", edge.tornEvents === "close", edge.tornEvents);
+    check("an unheard error is survivable", edge.survivedUnheard === true);
+    check("an unheard error still reaches the log", harness.state.logs.some((line) => line.includes("unheard-failure")), harness.state.logs.length + " logs");
+    check("a write after end never reaches the body", edge.afterEnd === "kept", edge.afterEnd);
+    check("a Duplex refuses a late write without throwing", edge.duplexWriteAfterEnd === "no error", edge.duplexWriteAfterEnd);
     check("pipeline reports a stage that fails as it drains", edge.pipelineFailure === "nope", edge.pipelineFailure);
     check("pipeline still reports a clean run", edge.pipelineSuccess === "null", edge.pipelineSuccess);
     check("promises.pipeline rejects on failure", edge.promisedFailure === "nope", edge.promisedFailure);

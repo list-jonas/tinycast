@@ -32,6 +32,21 @@ export class Stream extends EventEmitter {
       this._emitClose();
     });
   }
+
+  /// On the shared base rather than `Writable`: a `Duplex` borrows `Writable`'s `write`/`end` by
+  /// call, but extends `Readable`, so anything those two reach through `this` has to live here or
+  /// it is missing on exactly the streams a pipe is built from.
+  /// Deferred like every other stream failure, so a handler attached on the next line still sees it;
+  /// the callback form is answered too, since that is what a piping stage reads.
+  _failWriteAfterEnd(callback) {
+    const error = new Error("write after end");
+    error.code = "ERR_STREAM_WRITE_AFTER_END";
+    queueMicrotask(() => {
+      callback?.(error);
+      this.emit("error", error);
+    });
+    return false;
+  }
 }
 
 export class Readable extends Stream {
@@ -207,6 +222,10 @@ export class Writable extends Stream {
       callback = encoding;
       encoding = null;
     }
+    // Node refuses a write once the stream has ended rather than appending to a body that has
+    // already been handed on — a request whose payload grew after it was sent is unexplainable
+    // from the call site, so the failure has to be the error Node raises.
+    if (this.writableEnded) return this._failWriteAfterEnd(callback);
     this._write(chunk, encoding, callback ?? (() => {}));
     return true;
   }
@@ -219,8 +238,12 @@ export class Writable extends Stream {
       callback = encoding;
       encoding = null;
     }
+    // The second `end()` is itself a write-after-end, chunk or not.
+    if (this.writableEnded) {
+      this._failWriteAfterEnd(callback);
+      return this;
+    }
     if (chunk !== undefined && chunk !== null) this.write(chunk, encoding);
-    if (this.writableEnded) return this;
     this.writableEnded = true;
     this._final(() => {
       callback?.();
