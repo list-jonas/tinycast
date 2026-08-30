@@ -196,9 +196,6 @@ final class ExtensionCoordinator {
     /// The same recorded target the clipboard and emoji paste paths use.
     var pasteTarget: NSRunningApplication? { paletteCoordinator.targetApp }
 
-    /// `getApplications()` reports what the launcher itself indexes, so the two never disagree.
-    var applicationURLs: [URL] { SearchScopes.appBundles(in: settings.searchScopes) }
-
     /// True while the palette is on screen — a toast has somewhere to render only then.
     var isPaletteVisible: Bool { paletteCoordinator.isVisible }
 

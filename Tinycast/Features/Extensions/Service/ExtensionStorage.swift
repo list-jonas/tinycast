@@ -1,9 +1,10 @@
 import Foundation
 
-/// One JSON file per extension: small, read whole at launch and written rarely.
+/// One JSON file per extension, read whole and written rarely. A `Cache` namespace can hold
+/// megabytes, so the read is preloaded off-main rather than decoded on the launch path.
 @MainActor
 final class ExtensionStorage {
-    private struct Store: Codable {
+    private struct Store: Codable, Sendable {
         var localStorage: [String: StoredValue] = [:]
         var caches: [String: [String: String]] = [:]
         var preferences: [String: StoredValue] = [:]
@@ -160,6 +161,20 @@ final class ExtensionStorage {
         return loaded
     }
 
+    /// Decodes off-main so the first read doesn't block the actor the palette draws on: a `Cache`
+    /// holding an API response runs to megabytes, and `store(for:)` would pay for it inline.
+    /// A store already in memory — or one a write created while this was decoding — always wins.
+    func preload(extension name: String) async {
+        guard stores[name] == nil else { return }
+        let url = fileURL(for: name)
+        let loaded = await Task.detached(priority: .userInitiated) {
+            (try? Data(contentsOf: url))
+                .flatMap { try? JSONDecoder().decode(Store.self, from: $0) }
+        }.value
+        guard let loaded, stores[name] == nil else { return }
+        stores[name] = loaded
+    }
+
     private func mutate(_ name: String, _ body: (inout Store) -> Void) {
         var current = store(for: name)
         body(&current)
@@ -172,19 +187,26 @@ final class ExtensionStorage {
         guard flushTask == nil else { return }
         flushTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(250))
-            self?.flush()
+            await self?.flush()
         }
     }
 
-    func flush() {
+    /// Awaiting it is what makes the write durable, so a caller tearing a command down must.
+    func flush() async {
         flushTask?.cancel()
         flushTask = nil
         let pending = dirty
         dirty.removeAll()
-        for name in pending {
-            guard let store = stores[name], let data = try? JSONEncoder().encode(store) else { continue }
-            try? data.write(to: fileURL(for: name), options: .atomic)
-        }
+        // Snapshot on the actor, encode and write off it: a megabyte-sized `Cache` costs ~9 ms to
+        // serialize, which is a dropped frame if it lands while a command is drawing.
+        let writes = pending.compactMap { name in stores[name].map { ($0, fileURL(for: name)) } }
+        guard !writes.isEmpty else { return }
+        await Task.detached(priority: .utility) {
+            for (store, url) in writes {
+                guard let data = try? JSONEncoder().encode(store) else { continue }
+                try? data.write(to: url, options: .atomic)
+            }
+        }.value
     }
 
     private func fileURL(for name: String) -> URL {

@@ -9,8 +9,8 @@ protocol ExtensionHostContext: AnyObject {
     var storage: ExtensionStorage { get }
     /// The app a paste would land in — the palette's recorded `previousApp`.
     var pasteTarget: NSRunningApplication? { get }
-    /// Every app bundle `getApplications()` reports, from the user's own search scopes.
-    var applicationURLs: [URL] { get }
+    /// Every app `getApplications()` reports, already named by the launcher's own index.
+    var applications: [InstalledApplication] { get }
 
     func closeMainWindow(clearRootSearch: Bool)
     /// Bring the palette back after a command hid it — what `raycast://` means to an extension.
@@ -29,6 +29,17 @@ protocol ExtensionHostContext: AnyObject {
     func getOAuthTokens(providerId: String) -> String?
     func setOAuthTokens(providerId: String, tokens: String)
     func removeOAuthTokens(providerId: String)
+}
+
+/// One app as `getApplications()` reports it. Already named, so answering costs no bundle read.
+struct InstalledApplication: Sendable, Equatable {
+    let name: String
+    let url: URL
+    let bundleID: String?
+
+    var hostValue: [String: Any] {
+        ["name": name, "path": url.path, "bundleId": bundleID ?? NSNull(), "localizedName": name]
+    }
 }
 
 /// A toast as the palette shows it.
@@ -420,15 +431,13 @@ final class ExtensionHostBridge: ExtensionHostAPI {
         context?.reopenPalette()
     }
 
+    /// A path asks which apps open it, so only that branch pays to read the bundles it names.
     private func applications(forPath path: String?) -> [[String: Any]] {
-        let urls: [URL]
-        if let path, !path.isEmpty {
-            let target = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
-            urls = NSWorkspace.shared.urlsForApplications(toOpen: target)
-        } else {
-            urls = context?.applicationURLs ?? []
+        guard let path, !path.isEmpty else {
+            return (context?.applications ?? []).map(\.hostValue)
         }
-        return urls.map(describe(application:))
+        let target = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
+        return NSWorkspace.shared.urlsForApplications(toOpen: target).map(describe(application:))
     }
 
     private func describe(application url: URL) -> [String: Any] {

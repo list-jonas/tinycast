@@ -267,7 +267,11 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
     func run(
         _ owner: InstalledExtension, command: ExtensionCommand, arguments: [String: String] = [:]
     ) async {
+        // Started before the teardown it overlaps: a `Cache` holding an API response runs to
+        // megabytes, and decoding it on the actor the palette draws on stalls the launch.
+        async let preloaded: Void = storage.preload(extension: owner.manifest.name)
         await stop()
+        await preloaded
 
         if let reason = command.mode.unsupportedReason {
             state = .failed(reason)
@@ -345,7 +349,8 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
         await runtime.stop(session: sessionID)
         // Discard the context outright, so nothing left behind reaches the next run.
         runtime.shutdown()
-        storage.flush()
+        // Awaited: the command's last `Cache` writes must land before its session is forgotten.
+        await storage.flush()
         resetSessionState()
     }
 
@@ -409,7 +414,15 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
 
     var activeExtensionName: String? { running?.extensionName }
     var pasteTarget: NSRunningApplication? { coordinator?.pasteTarget }
-    var applicationURLs: [URL] { coordinator?.applicationURLs ?? [] }
+    /// Straight off the launcher's index: rescanning here cost ~110 ms of the launch, on the actor
+    /// the palette draws on.
+    var applications: [InstalledApplication] {
+        (appIndex?.apps ?? [])
+            .filter { $0.kind == .application }
+            .map {
+                InstalledApplication(name: $0.name, url: $0.url, bundleID: $0.bundleID)
+            }
+    }
 
     func closeMainWindow(clearRootSearch: Bool) {
         coordinator?.closeMainWindow()

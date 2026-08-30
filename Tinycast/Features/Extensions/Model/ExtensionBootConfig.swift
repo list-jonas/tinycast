@@ -29,8 +29,8 @@ struct ExtensionBootConfig: Sendable {
 
         return ExtensionBootConfig(
             arch: arch,
-            release: info.operatingSystemVersionString,
-            hostname: info.hostName,
+            release: kernelRelease(),
+            hostname: hostname(),
             username: NSUserName(),
             shell: info.environment["SHELL"] ?? "/bin/zsh",
             homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path,
@@ -39,6 +39,26 @@ struct ExtensionBootConfig: Sendable {
             cpuCount: info.processorCount,
             totalMemory: Double(info.physicalMemory),
             environmentVariables: variables)
+    }
+
+    /// `uname`, which is what Node reports: `operatingSystemVersionString` spells the version as
+    /// "Version 27.0 (Build …)", so an extension's `parseInt(os.release())` reads `NaN`.
+    private static func kernelRelease() -> String {
+        var system = utsname()
+        guard uname(&system) == 0 else { return "" }
+        return withUnsafeBytes(of: &system.release) { nullTerminated($0) }
+    }
+
+    /// `ProcessInfo.hostName` resolves the name over the network, costing 30–90 ms per launch.
+    private static func hostname() -> String {
+        var buffer = [UInt8](repeating: 0, count: Int(NI_MAXHOST))
+        guard gethostname(&buffer, buffer.count) == 0 else { return "localhost" }
+        return buffer.withUnsafeBytes { nullTerminated($0) }
+    }
+
+    /// Both C answers are a fixed-size buffer holding a shorter string; the NUL ends it.
+    private static func nullTerminated(_ raw: UnsafeRawBufferPointer) -> String {
+        String(bytes: raw.prefix { $0 != 0 }, encoding: .utf8) ?? ""
     }
 
     func jsonString() -> String {

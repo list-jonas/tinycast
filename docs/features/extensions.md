@@ -31,6 +31,20 @@ produces, rendered natively into the palette. No Electron, no browser, no Node.j
 - **`SymbolCatalog` reads a system bundle, not API.** The list comes from `CoreGlyphs.bundle` at
   runtime; every read stays optional and falls back to `SymbolCatalog.suggested`, and Apple's restricted
   marks are never offered.
+- **Nothing on the launch path scans the filesystem or the network.** A command's first frames are the
+  slowest thing the feature does, so work that can be answered from something already in memory must be.
+  `getApplications()` reads `AppIndex.apps` rather than walking the search scopes and opening a
+  `Bundle` per app — that scan cost ~110 ms on the main actor, on a list the launcher had already
+  built. `ExtensionBootConfig` reads `gethostname` and `uname` rather than `ProcessInfo.hostName`
+  and `operatingSystemVersionString`, which cost 30–90 ms and resolve the host over the network.
+  `os.release()` must stay `uname`'s "27.0.0" for the same reason Node reports it that way:
+  extensions do `parseInt(os.release())`, and `"Version 27.0 (Build …)"` parses to `NaN`.
+- **A store is decoded off the main actor, and `flush()` is awaited.** An extension's `Cache` holds
+  whatever it fetched — Lucide's is 2.1 MB — so `ExtensionStorage` reads it through
+  `preload(extension:)`, started before the outgoing command's teardown so the decode overlaps work
+  the launch was doing anyway. `store(for:)` still loads inline as a fallback, and a write landing
+  mid-decode wins, so the optimisation can never lose data. Awaiting `flush()` is what makes the
+  write durable: `stop()` must await it, or a command's last `Cache` writes race its own teardown.
 
 ## How it works
 

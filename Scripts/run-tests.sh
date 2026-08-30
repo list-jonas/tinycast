@@ -237,6 +237,16 @@ run ext-cleanup-test       $E/Service/ExtensionCleanup.swift \
 run ext-store-test         $E/Model/ExtensionRegistry.swift \
                            $E/Model/ExtensionPackageManager.swift \
                            $E/Model/ExtensionStoreResponse.swift
+run ext-storage-test       -parse-as-library \
+                           $E/Service/ExtensionStorage.swift \
+                           $E/Service/ExtensionCatalog.swift \
+                           $E/Service/ExtensionRuntime.swift \
+                           $E/Service/ExtensionNodeShims.swift \
+                           $E/Service/ExtensionFetcher.swift \
+                           $E/Model/ExtensionBootConfig.swift \
+                           $E/Model/RenderNode.swift \
+                           $E/Model/ExtensionManifest.swift \
+                           Tinycast/Platform/Compression/Zlib.swift
 run slow ext-test          -parse-as-library \
                            Tinycast/Platform/Appearance.swift \
                            Tinycast/Platform/Images/IconCache.swift \
