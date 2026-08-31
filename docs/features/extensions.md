@@ -35,16 +35,23 @@ produces, rendered natively into the palette. No Electron, no browser, no Node.j
   slowest thing the feature does, so work that can be answered from something already in memory must be.
   `getApplications()` reads `AppIndex.apps` rather than walking the search scopes and opening a
   `Bundle` per app — that scan cost ~110 ms on the main actor, on a list the launcher had already
-  built. `ExtensionBootConfig` reads `gethostname` and `uname` rather than `ProcessInfo.hostName`
+  built, **falling back to a live scan while the index is still empty** — a global hotkey can run a
+  command within the ~330 ms before the first scan lands, and `getApplications()` gates whole
+  commands, so answering "no applications" there reads as "app not installed".
+  `ExtensionBootConfig` reads `gethostname` and `uname` rather than `ProcessInfo.hostName`
   and `operatingSystemVersionString`, which cost 30–90 ms and resolve the host over the network.
   `os.release()` must stay `uname`'s "27.0.0" for the same reason Node reports it that way:
   extensions do `parseInt(os.release())`, and `"Version 27.0 (Build …)"` parses to `NaN`.
 - **A store is decoded off the main actor, and `flush()` is awaited.** An extension's `Cache` holds
   whatever it fetched — Lucide's is 2.1 MB — so `ExtensionStorage` reads it through
   `preload(extension:)`, started before the outgoing command's teardown so the decode overlaps work
-  the launch was doing anyway. `store(for:)` still loads inline as a fallback, and a write landing
-  mid-decode wins, so the optimisation can never lose data. Awaiting `flush()` is what makes the
-  write durable: `stop()` must await it, or a command's last `Cache` writes race its own teardown.
+  the launch was doing anyway. `store(for:)` still loads inline as a fallback. Three rules keep the
+  optimisation from losing data, and each has a harness: a write landing mid-decode wins;
+  `removeAll` bumps `generation`, so a decode that started before an uninstall is discarded rather
+  than restoring the store and its credentials; and `flush()` awaits `writeTask` — an empty
+  `dirty` does not mean idle, because a debounced flush may already have handed its write off, and
+  returning there would report an in-flight write as durable. Writes chain through `writeTask` so
+  two flushes cannot race the same file.
 
 ## How it works
 

@@ -196,6 +196,17 @@ final class ExtensionCoordinator {
     /// The same recorded target the clipboard and emoji paste paths use.
     var pasteTarget: NSRunningApplication? { paletteCoordinator.targetApp }
 
+    /// The pre-index fallback for `getApplications()`: the scopes walked live, as the launcher's
+    /// own scan does. Only reached before the first scan lands, so its cost is not on the hot path.
+    func scannedApplications() -> [InstalledApplication] {
+        SearchScopes.appBundles(in: settings.searchScopes).map { url in
+            let bundle = Bundle(url: url)
+            return InstalledApplication(
+                name: bundle?.installedAppName ?? url.deletingPathExtension().lastPathComponent,
+                url: url, bundleID: bundle?.bundleIdentifier)
+        }
+    }
+
     /// True while the palette is on screen — a toast has somewhere to render only then.
     var isPaletteVisible: Bool { paletteCoordinator.isVisible }
 

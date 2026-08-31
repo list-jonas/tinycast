@@ -415,13 +415,17 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
     var activeExtensionName: String? { running?.extensionName }
     var pasteTarget: NSRunningApplication? { coordinator?.pasteTarget }
     /// Straight off the launcher's index: rescanning here cost ~110 ms of the launch, on the actor
-    /// the palette draws on.
+    /// the palette draws on. The index is empty until its first scan lands, and a hotkey can run a
+    /// command before that, so an empty answer falls back to scanning rather than telling an
+    /// extension no applications exist — `getApplications()` gates whole commands.
     var applications: [InstalledApplication] {
-        (appIndex?.apps ?? [])
+        let indexed = (appIndex?.apps ?? [])
             .filter { $0.kind == .application }
             .map {
                 InstalledApplication(name: $0.name, url: $0.url, bundleID: $0.bundleID)
             }
+        guard indexed.isEmpty else { return indexed }
+        return coordinator?.scannedApplications() ?? []
     }
 
     func closeMainWindow(clearRootSearch: Bool) {

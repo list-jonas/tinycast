@@ -55,6 +55,10 @@ final class ExtensionStorage {
     /// Writes are coalesced, so a busy `Cache` doesn't hit the disk per key.
     private var dirty: Set<String> = []
     private var flushTask: Task<Void, Never>?
+    /// The write a previous `flush()` handed off. Awaiting `dirty` alone would miss it entirely.
+    private var writeTask: Task<Void, Never>?
+    /// Bumped by `removeAll`, so a preload decoded before an uninstall cannot resurrect it.
+    private var generation = 0
 
     init(directory: URL) {
         self.directory = directory
@@ -146,7 +150,10 @@ final class ExtensionStorage {
     }
 
     func removeAll(extension name: String) {
+        // Invalidates any decode already in flight, which would otherwise write the store back.
+        generation &+= 1
         stores.removeValue(forKey: name)
+        dirty.remove(name)
         try? FileManager.default.removeItem(at: fileURL(for: name))
     }
 
@@ -167,11 +174,14 @@ final class ExtensionStorage {
     func preload(extension name: String) async {
         guard stores[name] == nil else { return }
         let url = fileURL(for: name)
+        // `removeAll` leaves `stores[name] == nil` too, so nil-ness alone cannot tell "never loaded"
+        // from "just uninstalled" — without this an uninstall mid-decode restores the whole store.
+        let entered = generation
         let loaded = await Task.detached(priority: .userInitiated) {
             (try? Data(contentsOf: url))
                 .flatMap { try? JSONDecoder().decode(Store.self, from: $0) }
         }.value
-        guard let loaded, stores[name] == nil else { return }
+        guard let loaded, stores[name] == nil, generation == entered else { return }
         stores[name] = loaded
     }
 
@@ -192,6 +202,8 @@ final class ExtensionStorage {
     }
 
     /// Awaiting it is what makes the write durable, so a caller tearing a command down must.
+    /// An empty `dirty` does not mean idle: a previous flush may still be writing, and returning
+    /// there would report a write as durable while it is in flight.
     func flush() async {
         flushTask?.cancel()
         flushTask = nil
@@ -200,13 +212,20 @@ final class ExtensionStorage {
         // Snapshot on the actor, encode and write off it: a megabyte-sized `Cache` costs ~9 ms to
         // serialize, which is a dropped frame if it lands while a command is drawing.
         let writes = pending.compactMap { name in stores[name].map { ($0, fileURL(for: name)) } }
-        guard !writes.isEmpty else { return }
-        await Task.detached(priority: .utility) {
+        // Chained rather than started fresh, so two flushes can never race the same file: the
+        // second writes strictly after the first, keeping the last snapshot the last on disk.
+        let previous = writeTask
+        let task = Task.detached(priority: .utility) {
+            await previous?.value
             for (store, url) in writes {
                 guard let data = try? JSONEncoder().encode(store) else { continue }
                 try? data.write(to: url, options: .atomic)
             }
-        }.value
+        }
+        writeTask = task
+        await task.value
+        // Only the newest write clears the slot; an overlapping flush leaves its own in place.
+        if writeTask == task { writeTask = nil }
     }
 
     private func fileURL(for name: String) -> URL {

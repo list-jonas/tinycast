@@ -45,8 +45,11 @@ struct ExtensionBootConfig: Sendable {
     /// "Version 27.0 (Build …)", so an extension's `parseInt(os.release())` reads `NaN`.
     private static func kernelRelease() -> String {
         var system = utsname()
-        guard uname(&system) == 0 else { return "" }
-        return withUnsafeBytes(of: &system.release) { nullTerminated($0) }
+        guard uname(&system) == 0 else { return "0.0.0" }
+        let release = withUnsafeBytes(of: &system.release) { nullTerminated($0) }
+        // Never empty: an extension's `parseInt(os.release())` reads `NaN` from "", which is the
+        // failure this function exists to prevent.
+        return release.isEmpty ? "0.0.0" : release
     }
 
     /// `ProcessInfo.hostName` resolves the name over the network, costing 30–90 ms per launch.
