@@ -42,12 +42,10 @@ struct ExtensionStorageTests {
             "a flushed preference reloads")
     }
 
-    /// A store big enough that its decode cannot finish before the racing write is scheduled.
-    /// A small one returns from `preload` too early to interleave, which is no test at all.
+    /// Big enough that the decode cannot finish first; a small store never interleaves at all.
     static func seedLargeStore(_ directory: URL, extension name: String, marker: String) async {
         let seed = ExtensionStorage(directory: directory)
-        // Few keys, big values: the decode has to be slow, and the harness compiles at -Onone where
-        // a per-key loop dominates. 2 000 x 4 KB is ~8 MB of JSON either way.
+        // Few keys, big values: the harness is -Onone, where a per-key loop dominates the decode.
         for index in 0..<2_000 {
             seed.setCache(
                 extension: name, namespace: "default", key: "k\(index)",
@@ -65,8 +63,7 @@ struct ExtensionStorageTests {
 
         let storage = ExtensionStorage(directory: directory)
         async let preloading: Void = storage.preload(extension: "demo")
-        // Suspends first, so the write lands while the decode is genuinely in flight — without this
-        // the write runs to completion before `preload` ever reads the file, and nothing races.
+        // Suspends first, or the write completes before `preload` reads the file and nothing races.
         await Task.yield()
         storage.setCache(extension: "demo", namespace: "default", key: "marker", value: "new")
         await preloading
@@ -76,9 +73,7 @@ struct ExtensionStorageTests {
             "a write during preload wins over the decoded copy")
     }
 
-    /// `stop()` treats an awaited flush as durable, so it must also cover a write already running.
-    /// The store is large and the wake lands just past the 250 ms debounce, so the handed-off write
-    /// is still running when `flush()` is called — the window the durability contract has to cover.
+    /// Wakes just past the 250 ms debounce, so the handed-off write is still running at `flush()`.
     static func flushAwaitsAWriteAlreadyInFlight() async {
         let directory = makeDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -98,8 +93,7 @@ struct ExtensionStorageTests {
         expect((size ?? 0) > 0, "an awaited flush covers a write handed off before it")
     }
 
-    /// Deleting the file after the preload is what proves it: the data can only still be readable
-    /// if the decode actually landed in memory, rather than `store(for:)` reloading it inline.
+    /// Deleting the file first: the data is readable afterwards only if the decode really landed.
     static func preloadActuallyLoadsTheStore() async {
         let directory = makeDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -134,7 +128,7 @@ struct ExtensionStorageTests {
             "the newest snapshot is the one left on disk")
     }
 
-    /// An uninstall landing mid-decode must win: otherwise the store — credentials and all — returns.
+    /// An uninstall mid-decode must win, or the store returns with its credentials.
     static func uninstallDuringPreloadIsNotResurrected() async {
         let directory = makeDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }

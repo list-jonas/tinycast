@@ -196,8 +196,7 @@ final class ExtensionCoordinator {
     /// The same recorded target the clipboard and emoji paste paths use.
     var pasteTarget: NSRunningApplication? { paletteCoordinator.targetApp }
 
-    /// The pre-index fallback for `getApplications()`: the scopes walked live, as the launcher's
-    /// own scan does. Only reached before the first scan lands, so its cost is not on the hot path.
+    /// The pre-index fallback: scopes walked live, and only before the launcher's first scan lands.
     func scannedApplications() -> [InstalledApplication] {
         SearchScopes.appBundles(in: settings.searchScopes).map { url in
             let bundle = Bundle(url: url)

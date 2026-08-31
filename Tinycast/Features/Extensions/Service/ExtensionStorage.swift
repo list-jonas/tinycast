@@ -1,7 +1,6 @@
 import Foundation
 
-/// One JSON file per extension, read whole and written rarely. A `Cache` namespace can hold
-/// megabytes, so the read is preloaded off-main rather than decoded on the launch path.
+/// One JSON file per extension; a `Cache` runs to megabytes, so the read is preloaded off-main.
 @MainActor
 final class ExtensionStorage {
     private struct Store: Codable, Sendable {
@@ -168,14 +167,11 @@ final class ExtensionStorage {
         return loaded
     }
 
-    /// Decodes off-main so the first read doesn't block the actor the palette draws on: a `Cache`
-    /// holding an API response runs to megabytes, and `store(for:)` would pay for it inline.
-    /// A store already in memory — or one a write created while this was decoding — always wins.
+    /// Off-main, so the launch never pays `store(for:)`'s decode; anything in memory already wins.
     func preload(extension name: String) async {
         guard stores[name] == nil else { return }
         let url = fileURL(for: name)
-        // `removeAll` leaves `stores[name] == nil` too, so nil-ness alone cannot tell "never loaded"
-        // from "just uninstalled" — without this an uninstall mid-decode restores the whole store.
+        // `removeAll` also leaves nil, so without this an uninstall mid-decode restores the store.
         let entered = generation
         let loaded = await Task.detached(priority: .userInitiated) {
             (try? Data(contentsOf: url))
@@ -201,19 +197,15 @@ final class ExtensionStorage {
         }
     }
 
-    /// Awaiting it is what makes the write durable, so a caller tearing a command down must.
-    /// An empty `dirty` does not mean idle: a previous flush may still be writing, and returning
-    /// there would report a write as durable while it is in flight.
+    /// Awaiting it makes the write durable; an empty `dirty` still leaves one in flight.
     func flush() async {
         flushTask?.cancel()
         flushTask = nil
         let pending = dirty
         dirty.removeAll()
-        // Snapshot on the actor, encode and write off it: a megabyte-sized `Cache` costs ~9 ms to
-        // serialize, which is a dropped frame if it lands while a command is drawing.
+        // Snapshot on the actor, encode off it: ~9 ms of serializing is a dropped frame otherwise.
         let writes = pending.compactMap { name in stores[name].map { ($0, fileURL(for: name)) } }
-        // Chained rather than started fresh, so two flushes can never race the same file: the
-        // second writes strictly after the first, keeping the last snapshot the last on disk.
+        // Chained, so two flushes cannot race the same file and land the older snapshot last.
         let previous = writeTask
         let task = Task.detached(priority: .utility) {
             await previous?.value

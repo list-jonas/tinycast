@@ -41,14 +41,12 @@ struct ExtensionBootConfig: Sendable {
             environmentVariables: variables)
     }
 
-    /// `uname`, which is what Node reports: `operatingSystemVersionString` spells the version as
-    /// "Version 27.0 (Build …)", so an extension's `parseInt(os.release())` reads `NaN`.
+    /// `uname`, as Node reports it: `parseInt("Version 27.0 (Build …)")` is `NaN` to extensions.
     private static func kernelRelease() -> String {
         var system = utsname()
         guard uname(&system) == 0 else { return "0.0.0" }
         let release = withUnsafeBytes(of: &system.release) { nullTerminated($0) }
-        // Never empty: an extension's `parseInt(os.release())` reads `NaN` from "", which is the
-        // failure this function exists to prevent.
+        // Never empty: `parseInt("")` is the same `NaN` this function exists to prevent.
         return release.isEmpty ? "0.0.0" : release
     }
 

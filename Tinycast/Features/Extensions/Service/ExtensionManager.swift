@@ -267,8 +267,7 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
     func run(
         _ owner: InstalledExtension, command: ExtensionCommand, arguments: [String: String] = [:]
     ) async {
-        // Started before the teardown it overlaps: a `Cache` holding an API response runs to
-        // megabytes, and decoding it on the actor the palette draws on stalls the launch.
+        // Started before the teardown it overlaps: a megabyte `Cache` decode would stall launch.
         async let preloaded: Void = storage.preload(extension: owner.manifest.name)
         await stop()
         await preloaded
@@ -414,16 +413,14 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
 
     var activeExtensionName: String? { running?.extensionName }
     var pasteTarget: NSRunningApplication? { coordinator?.pasteTarget }
-    /// Straight off the launcher's index: rescanning here cost ~110 ms of the launch, on the actor
-    /// the palette draws on. The index is empty until its first scan lands, and a hotkey can run a
-    /// command before that, so an empty answer falls back to scanning rather than telling an
-    /// extension no applications exist — `getApplications()` gates whole commands.
+    /// Off the launcher's index; rescanning here cost ~110 ms on the actor the palette draws on.
     var applications: [InstalledApplication] {
         let indexed = (appIndex?.apps ?? [])
             .filter { $0.kind == .application }
             .map {
                 InstalledApplication(name: $0.name, url: $0.url, bundleID: $0.bundleID)
             }
+        // A hotkey can beat the first scan, and an empty list reads as "not installed".
         guard indexed.isEmpty else { return indexed }
         return coordinator?.scannedApplications() ?? []
     }
