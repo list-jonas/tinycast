@@ -62,8 +62,8 @@ refreshes collapse into a single trailing scan.
 
 `FuzzyMatch.score` is a tiered scorer: exact → prefix → substring / word-start → subsequence with
 consecutive / word-boundary bonuses. `LauncherRankingStore` then adds a bounded, query-specific
-frecency boost (frequency plus decaying recency). The boost can reorder results within a relevance
-tier but cannot make a weaker match kind beat a stronger one. Matching strips invisible Unicode
+frecency boost (frequency plus decaying recency). The boost can lift a weaker match above an exact
+display name; only an exact user alias is protected from learning. Matching strips invisible Unicode
 format scalars first, since app metadata can contain bidi/zero-width markers before the visible name.
 
 ## Searchable aliases
@@ -90,15 +90,14 @@ quality = cell(role, tier) + shape        shape ∈ [0, 99]
 usage   = LauncherRankingStore.usage(…)   usage ∈ [0, 2_999]
 ```
 
-**Every gap in the cell table is denominated in learned picks.** A gap of *g* means the weaker match
-overtakes the stronger one once the user has chosen it often enough that `usage ≥ g`. One gap is a
-firewall, and it is the only thing learning can never cross. That is the contract; the numbers below
-are it, not a tuning parameter.
+**Every ordinary match can overtake an unused exact display name through learning.** The weaker
+match wins once its usage advantage exceeds the relevance gap. Only an exactly typed user alias is
+protected: it is an explicit choice by the user, whereas a vendor's app name is not.
 
 | cell | value | | cell | value |
 | --- | ---: | --- | --- | ---: |
 | `userAlias · exact` | 7_000 | | `technical · exact` | 1_400 |
-| `name · exact` | **6_500** | | `translation · substring` | 1_200 |
+| `name · exact` | **3_200** | | `translation · substring` | 1_200 |
 | `userAlias · prefix` | 3_100 | | `owner · substring` | 1_100 |
 | `name · prefix` | 3_000 | | `name · subsequence` | 1_000 |
 | `translation · exact` | 2_700 | | `technical · prefix` | 900 |
@@ -117,25 +116,24 @@ has no subsequence rung and the full bundle id is exact-only.
 Three inequalities make the table binding, each asserted in `fuzz-test` over the published constants:
 
 ```
-P1 firewall    protectionFloor > poolTop + shapeSpan + maximumUsage    6_500 > 6_198
+P1 firewall    protectionFloor > poolTop + shapeSpan + maximumUsage    7_000 > 6_298
 P2 cell key    min adjacent gap (100) > shapeSpan (99)
-P3 reachable   poolBottom + maximumUsage > poolTop + shapeSpan         3_599 > 3_199
+P3 reachable   poolBottom + maximumUsage > poolTop + shapeSpan         3_599 > 3_299
 ```
 
-**P1** is the one absolute guarantee left: an exactly-typed display name or user alias, with nothing
-learned, outranks every weaker match at any usage. **P3** is the point of the redesign — anything the
-index is willing to show can be learned to the top of the unprotected pool. Before this, `.owner` sat
-two bands below `.name` (a 2,000,000 gap) against a 4,500 boost, so typing `zed` for a command owned
-by the Zed extension could never win however often it was chosen.
+**P1** protects an exactly typed user alias, even without learned usage. **P3** means anything the
+index is willing to show can learn to outrank every unused ordinary match, including an exact app
+name. Exact display names still lead initially, but no longer impose a permanent ceiling on commands.
 
 `shape` orders candidates inside one cell: 60% how much of the name the query covered, 40% how early
 the hit sits (by absolute offset — a hit five characters in is equally deep in any name). For a
 subsequence it is the walk's contiguity score over what a run from index 0 would earn.
 
-What this deliberately gives up: **match-kind dominance below `exact` is gone.** Enough picks put an
-owner-only or subsequence hit above another entry's prefix hit. That impossibility was the bug. A
-`name · exact` collision stays unreachable forever — an installed `Zed.app` always takes `zed` — and
-the escape is a user alias, which is what P1 makes worth having.
+For `zed`, Zed.app starts at 3,299 and a command owned by Zed starts at 2,599. Choosing Recent Projects
+once adds 1,175 on the same day, putting it at 3,774, above the unused app. Previously the app scored
+6,599, which even the maximum usage boost could never reach. Existing learned records take effect
+under the new scores without a reset or a storage change. Choosing a sibling command teaches that
+command separately; an explicit `zed` user alias still wins over either learned choice.
 
 Identifier aliases never subsequence-match — reverse-DNS text is a subsequence of nearly every short
 query (`cop` ⊂ `com.apple.Photos`), which would change _which_ apps appear rather than just their
@@ -300,8 +298,8 @@ revealed: `activate` routes to `FallbackCoordinator.run` instead of `LauncherCoo
 
 `AliasStore` (`Launcher/Service/`) keeps one user-chosen alias per entry, keyed by `preferenceKey`
 like favorites and learned ranking, so every entry kind — apps, commands, quicklinks, snippets —
-can carry one. An alias is deliberate in a way no vendor field is, so a hit **from its start** —
-exact or prefix — occupies the top band and ranks its entry first. A hit *inside* the alias ranks
+can carry one. An exact alias match always outranks learned choices. A prefix match starts above
+other prefix matches but below exact display names, and learning can reorder it. A hit *inside* the alias ranks
 with the Spotlight aliases instead (`term` inside `iterm` must not beat Terminal's own prefix),
 and a subsequence of a short alias would be noise, so it never matches at all. `AppIndex` folds the
 alias in as a `.userAlias` at rank time, keying its memos on the store's revision.

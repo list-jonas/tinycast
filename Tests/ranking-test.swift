@@ -29,6 +29,38 @@ struct RankingTest {
         let wick = "com.example.wick"
         let cafe = "com.example.cafe"
 
+        let zed = "Zed"
+        let recentProjects = "Recent Projects"
+        let zedThemes = "Themes"
+        func zedResults(query: String = "zed", alias: String? = nil) -> [String] {
+            let learned = store.usage(query: query)
+            return LauncherOrder.ranked(
+                [zed, recentProjects, zedThemes], query: FuzzyMatch.Query(query), limit: 3,
+                fields: { name in
+                    var fields: SearchFields = [.name(name)]
+                    if name != zed { fields.append(.owner("Zed")) }
+                    if name == zed, let alias { fields.append(.userAlias(alias)) }
+                    return fields
+                },
+                usage: { learned[$0] ?? 0 }, name: { $0 })
+        }
+
+        check("zed starts with the exact app name before learning", zedResults().first == zed)
+        store.record(itemKey: recentProjects, query: " ZED ")
+        check("choosing Recent Projects for zed puts it above Zed.app", zedResults().first == recentProjects)
+        check("the same choice helps while typing ze", zedResults(query: "ze").first == recentProjects)
+        check("an explicit zed alias still wins over learning", zedResults(alias: "zed").first == zed)
+        for _ in 0..<19 { store.record(itemKey: recentProjects, query: "zed") }
+        check("repeated choices keep Recent Projects first", zedResults().first == recentProjects)
+        clock.addTimeInterval(30 * 86_400)
+        check("an established zed preference survives a month away", zedResults().first == recentProjects)
+        check("zed learning does not leak into unrelated queries", store.usage(query: "themes").isEmpty)
+        await store.flush()
+        let learnedZed = LauncherRankingStore(fileURL: fileURL) { clock }
+        check("the zed preference survives reload", learnedZed.usage(query: "zed") == store.usage(query: "zed"))
+        store.reset(itemKey: recentProjects)
+        check("resetting Recent Projects restores Zed.app first", zedResults().first == zed)
+
         check(
             "query key trims surrounding whitespace",
             LauncherRankingStore.normalize(" wha \n") == "wha")
@@ -149,9 +181,9 @@ struct RankingTest {
             SearchRelevance.quality(query: query, fields: fields)!
         }
         check(
-            "P1 no habit lifts anything over an exactly-typed display name",
+            "P1 no habit lifts anything over an exactly-typed user alias",
             relevance([.name("Unrelated"), .technical("openai.codex")], "codex") + saturated
-                < relevance([.name("Codex")], "codex"))
+                < relevance([.name("Editor"), .userAlias("codex")], "codex"))
         check(
             "a habit does lift a weaker match over a stronger one — that is the point",
             relevance([.name("ChatGPT"), .translation("Codex")], "codex") + saturated
@@ -160,6 +192,9 @@ struct RankingTest {
             "the observed ceiling keeps the firewall standing",
             SearchRelevance.protectionFloor
                 > SearchRelevance.poolTop + SearchRelevance.shapeSpan + saturated)
+
+        await store.flush()
+        await reloaded.flush()
 
         // One row per prefix, read as one row per submitted query, would inflate every count.
         let legacyURL = FileManager.default.temporaryDirectory

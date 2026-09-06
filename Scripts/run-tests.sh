@@ -99,7 +99,7 @@ run file-search-session-test Tinycast/Platform/Signposts.swift \
                              $L/SearchRelevance.swift \
                              Tinycast/Features/FileSearch/Model/*.swift \
                              Tinycast/Features/FileSearch/Service/*.swift
-run ranking-test           $L/SearchRelevance.swift $L/LauncherRankingStore.swift
+run ranking-test           $L/SearchRelevance.swift $L/LauncherRankingStore.swift $L/LauncherOrder.swift
 run scopes-test            $L/SearchScopes.swift
 run app-name-test          Tinycast/Platform/AppDisplayName.swift \
                            Tinycast/Platform/BundleLocalization.swift \

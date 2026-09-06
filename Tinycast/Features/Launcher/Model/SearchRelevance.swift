@@ -229,9 +229,9 @@ struct SearchFields: Sendable, Hashable, ExpressibleByArrayLiteral {
 /// How well a query fits an entry: every gap below is a pick count, and one gap is a firewall.
 enum SearchRelevance {
     /// The lowest protected cell. Nothing below it is reachable at any usage.
-    static let protectionFloor = 6_500
+    static let protectionFloor = 7_000
     /// The strongest unprotected cell, and the weakest evidence the index will show at all.
-    static let poolTop = 3_100
+    static let poolTop = 3_200
     static let poolBottom = 600
     /// `shape` orders inside one cell and can never leave it.
     static let shapeSpan = 99
@@ -241,9 +241,9 @@ enum SearchRelevance {
     /// The closed table. A new naming criterion picks a role; it never adds a row here.
     static func cell(_ role: SearchAlias.Role, _ tier: FuzzyMatch.Tier) -> Int? {
         switch (role, tier) {
-        case (.userAlias, .exact): 7_000
-        case (.name, .exact): protectionFloor
-        case (.userAlias, .prefix): poolTop
+        case (.userAlias, .exact): protectionFloor
+        case (.name, .exact): poolTop
+        case (.userAlias, .prefix): 3_100
         case (.name, .prefix): 3_000
         case (.translation, .exact): 2_700
         case (.owner, .exact): 2_500

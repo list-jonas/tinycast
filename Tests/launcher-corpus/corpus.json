@@ -3027,8 +3027,7 @@
       "query": "search",
       "expect": "command:search-notes",
       "criterion": "a rival command is named exactly the query",
-      "protected": true,
-      "note": "the Brew extension ships a command named exactly 'Search'. Escape: a user alias."
+      "note": "Search Notes must learn to outrank the Brew extension's command named exactly 'Search'."
     },
     {
       "query": "not",
@@ -3139,8 +3138,7 @@
       "query": "zed",
       "expect": "extension:zed/recent",
       "criterion": "an installed app is named exactly the owner's title",
-      "protected": true,
-      "note": "Zed.app is named exactly 'zed'. Escape: a user alias. Without it installed the owner hit is reachable, which is what P3 buys."
+      "note": "Choosing Recent Projects must teach it to outrank Zed.app for 'zed'."
     },
     {
       "query": "lucide",
@@ -3181,8 +3179,7 @@
       "query": "notes",
       "expect": "command:show-notes",
       "criterion": "an app named exactly the query",
-      "protected": true,
-      "note": "Notes.app is named exactly 'notes'; P1 protects an exact name hit. Escape: a user alias."
+      "note": "Choosing Show Notes must teach it to outrank Notes.app for 'notes'."
     },
     {
       "query": "exten",

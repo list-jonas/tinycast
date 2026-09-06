@@ -528,7 +528,7 @@ struct FuzzTest {
             (0..<50).allSatisfy { _ in rank("s") == rank("s") })
         // P1: the one gap learning may never close, stated over the published constants.
         check(
-            "P1 an exact name hit survives any rival's habit",
+            "P1 an exact user alias survives any rival's habit",
             SearchRelevance.protectionFloor
                 > SearchRelevance.poolTop + SearchRelevance.shapeSpan + UsageCeiling)
         check(

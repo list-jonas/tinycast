@@ -31,8 +31,6 @@ struct CorpusTest {
         let expect: String
         /// What this case pins — the naming or ranking rule a regression here would have broken.
         let criterion: String
-        /// A rival is named exactly what was typed, so the firewall keeps this one unreachable.
-        var protected: Bool?
         var note: String?
     }
 
@@ -49,10 +47,7 @@ struct CorpusTest {
     /// Cold means zero learned history — how good the ranking is for a brand-new user.
     static let requiredTop1Cold = 39
     static let requiredTop5Cold = 55
-    /// Every unprotected case must be winnable by using it — the assertion the band ladder failed.
-    static let requiredReachable = 55
-    /// Cases the firewall deliberately keeps unreachable; each names its escape in the fixture.
-    static let allowedProtected = 3
+    static let requiredReachable = 58
     /// Picks a user would plausibly spend before giving up on the launcher entirely.
     static let reachablePicks = 20
 
@@ -143,14 +138,9 @@ struct CorpusTest {
             }
         }
         check(
-            "every unprotected case is winnable within \(reachablePicks) picks "
+            "every matching case is winnable within \(reachablePicks) picks "
                 + "(\(reachable)/\(corpus.cases.count))",
             reachable >= requiredReachable, "unreachable: \(stuck)")
-        let declared = corpus.cases.filter { $0.protected == true }
-        check(
-            "the firewall's cost stays enumerated (\(declared.count) protected)",
-            declared.count <= allowedProtected && declared.allSatisfy { $0.note != nil },
-            "each protected case needs a note naming its escape")
 
         // Learning must be monotone: more use never demotes the thing being used.
         var regressions = 0
@@ -202,7 +192,7 @@ struct CorpusTest {
 
         // P1: the firewall, stated as the inequality the whole design rests on.
         check(
-            "P1 an exact name hit outranks every weaker match at maximum usage",
+            "P1 an exact user alias outranks every weaker match at maximum usage",
             SearchRelevance.protectionFloor
                 > SearchRelevance.poolTop + SearchRelevance.shapeSpan
                 + LauncherRankingStore.maximumUsage)
@@ -216,25 +206,29 @@ struct CorpusTest {
 
     static func firewall(_ corpus: Corpus) {
         print("\n# the firewall")
-        // An entry named exactly what was typed must survive any rival's habit.
         var violations = 0
         var checked = 0
         for entry in corpus.entries where entry.name.count >= 3 {
             let rivals = corpus.entries.filter { $0.key != entry.key }
             let usage = Dictionary(uniqueKeysWithValues: rivals.map { ($0.key, 2_999) })
-            guard let first = rank(entry.name, corpus.entries, usage: usage, limit: 1).first else {
+            let ranked = LauncherOrder.ranked(
+                corpus.entries, query: FuzzyMatch.Query(entry.name), limit: 1,
+                fields: { candidate in
+                    var fields = candidate.fields
+                    if candidate.key == entry.key { fields.append(.userAlias(entry.name)) }
+                    return fields
+                },
+                usage: { usage[$0.key] ?? 0 }, name: \.name)
+            guard let first = ranked.first else {
                 continue
             }
             checked += 1
-            // Another entry may legitimately carry the same name; only a weaker match may not win.
-            if first.key != entry.key,
-                FuzzyMatch.normalized(first.name) != FuzzyMatch.normalized(entry.name)
-            {
+            if first.key != entry.key {
                 violations += 1
             }
         }
         check(
-            "an exactly-typed name beats a saturated rival (\(checked) names)", violations == 0,
+            "an exactly-typed user alias beats a saturated rival (\(checked) aliases)", violations == 0,
             "\(violations) violations")
     }
 }
