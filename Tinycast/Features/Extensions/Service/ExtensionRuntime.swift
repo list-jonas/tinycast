@@ -19,7 +19,7 @@ protocol ExtensionRuntimeDelegate: AnyObject {
 
 /// The one `JSContext` a command runs in; every touch is on `queue`, only values cross.
 final class ExtensionRuntime: @unchecked Sendable {
-    private let queue = DispatchQueue(label: "com.tinycast.extensions.js", qos: .userInitiated)
+    private let queue: DispatchQueue
     private var context: JSContext?
     private var timers: [String: DispatchSourceTimer] = [:]
     private var hostTasks: [String: Task<Void, Never>] = [:]
@@ -33,7 +33,8 @@ final class ExtensionRuntime: @unchecked Sendable {
     private let runtimeOverride: URL?
 
     /// `runtimeURL` overrides the bundled runtime; only the harness passes it.
-    init(hostAPI: ExtensionHostAPI, runtimeURL: URL? = nil) {
+    init(hostAPI: ExtensionHostAPI, runtimeURL: URL? = nil, priority: DispatchQoS = .userInitiated) {
+        queue = DispatchQueue(label: "com.tinycast.extensions.js", qos: priority)
         self.hostAPI = hostAPI
         self.runtimeOverride = runtimeURL
     }
@@ -115,7 +116,7 @@ final class ExtensionRuntime: @unchecked Sendable {
                 "start",
                 withArguments: [
                     session, code, file.path, file.deletingLastPathComponent().path,
-                    mode.runtimeName, payload
+                    mode.rawValue, payload
                 ])
         }
     }
