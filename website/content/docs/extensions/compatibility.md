@@ -26,6 +26,7 @@ That number is measured, not estimated, and it moves as gaps close.
 `util`, `events`, `buffer`, `url`, `querystring`, `punycode`, `assert`, `string_decoder`, `timers`.
 
 **Command modes** — `view` renders into the palette; `no-view` runs headless with the palette closed.
+`menu-bar` renders native menu items, with scheduled refresh and no JavaScript held between runs.
 
 `raycast://` URLs stay inside Tinycast. An extension-command URL runs that command if it is
 installed; anything else reopens the palette. Handing them to the system would launch Raycast itself.
@@ -35,7 +36,6 @@ installed; anything else reopens the palette. Handing them to the system would l
 | Gap                                              | Why                                                                                                                                                       |
 | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **OAuth** (`OAuth.PKCEClient`)                   | Routes through Raycast's own redirect service, which is not portable. **The biggest single gap — 3 of the 37 extensions measured, covering 26 commands.** |
-| **`menu-bar` commands**                          | The launcher lists them and explains why they do not open                                                                                                 |
 | **`AI`, `BrowserExtension`, `WindowManagement`** | Raycast services with no local equivalent. Importing them works; calling one throws with a clear reason                                                   |
 | **WebSocket**                                    | No polyfill yet                                                                                                                                           |
 | **Aborting an in-flight `fetch`**                | The caller gets its `AbortError`, but the request still runs to completion                                                                                |

@@ -24,11 +24,20 @@ While off, no directory is scanned, no launcher row is published and no JavaScri
 
 ## The one standing cost
 
-**Exactly one command runs at a time, and a running command holds a JavaScript engine in memory
-until you leave it.** That is the only continuous cost Tinycast has.
+**One foreground command runs at a time and holds a JavaScript engine until you leave it.**
+Menu-bar commands use a separate short-lived engine, released when refresh finishes or the menu closes.
 
-Starting a command stops the previous one and discards its context, so no state survives between
-runs. A fresh boot takes about 7 ms once warm.
+Starting a foreground command stops the previous foreground command and discards its context.
+A fresh boot takes about 7 ms once warm.
+
+## Menu bar commands
+
+Run a menu-bar command once to activate it. Its icon and title stay in the menu bar, and its manifest
+interval controls background refresh. Opening the menu reloads the command; closing it releases the
+engine after any action finishes. Saved items return after restart without executing the extension.
+
+Use **Remove from Menu Bar** in the menu or **Show in menu bar** in the command's configuration to
+stop it. Installing an extension does not activate its menu-bar commands.
 
 ## Where to go next
 

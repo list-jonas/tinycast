@@ -141,7 +141,9 @@ final class ExtensionCoordinator {
     }
 
     /// A view command takes over the palette; a no-view command closes it and runs headless.
-    func runExtensionCommand(_ app: AppEntry, arguments: [String: String] = [:]) {
+    func runExtensionCommand(_ app: AppEntry, arguments: [String: String] = [:],
+                             launchType: ExtensionLaunchType = .userInitiated,
+                             launchContext: [String: RenderValue] = [:]) {
         guard let (owner, command) = extensions.resolve(app) else { return }
         switch command.mode {
         case .view:
@@ -151,11 +153,29 @@ final class ExtensionCoordinator {
             if !paletteCoordinator.isVisible {
                 paletteCoordinator.showPalette(mode: .extensionCommand)
             }
-            Task { await extensions.run(owner, command: command, arguments: arguments) }
+            Task {
+                await extensions.run(owner, command: command, arguments: arguments,
+                                     launchType: launchType, launchContext: launchContext)
+            }
         case .noView, .menuBar:
             // A no-view command's own HUD is the feedback, so the palette gets out of the way.
-            paletteCoordinator.hidePalette(restoreFocus: false)
-            Task { await extensions.run(owner, command: command, arguments: arguments) }
+            if launchType == .userInitiated { paletteCoordinator.hidePalette(restoreFocus: false) }
+            Task {
+                await extensions.run(owner, command: command, arguments: arguments,
+                                     launchType: launchType, launchContext: launchContext)
+            }
+        }
+    }
+
+    func menuBarIsEnabled(_ reference: ExtensionCommandRef) -> Bool {
+        extensions.menuBars?.store.records[reference.entryID] != nil
+    }
+
+    func setMenuBarEnabled(_ enabled: Bool, reference: ExtensionCommandRef) {
+        if enabled {
+            runExtensionCommand(entryID: reference.entryID)
+        } else {
+            extensions.menuBars?.disable(reference.entryID)
         }
     }
 

@@ -131,7 +131,7 @@ struct ExtensionsSettingsView: View {
                         ForEach(matching) { installed in
                             if installed.id != matching.first?.id { Divider() }
                             ExtensionDisclosure(
-                                installed: installed,
+                                installed: installed, coordinator: core.extensionCoordinator,
                                 isExpanded: expanded == installed.manifest.name,
                                 onToggle: {
                                     expanded =
@@ -351,6 +351,7 @@ struct ExtensionsSettingsView: View {
 /// A summary row, and while open its settings on an inset card — separators and fill, never glass.
 private struct ExtensionDisclosure: View {
     let installed: InstalledExtension
+    let coordinator: ExtensionCoordinator
     let isExpanded: Bool
     let onToggle: () -> Void
     let onUninstall: () -> Void
@@ -416,7 +417,7 @@ private struct ExtensionDisclosure: View {
                 ForEach(Array(installed.manifest.commands.enumerated()), id: \.element.id) {
                     index, command in
                     if index > 0 { rule }
-                    CommandRows(installed: installed, command: command)
+                    CommandRows(installed: installed, command: command, coordinator: coordinator)
                 }
             }
             HStack {
@@ -513,14 +514,15 @@ private struct CommandRows: View {
     @Environment(VisibilityStore.self) private var visibility
 
     /// A fact about the command, so it sits by the name as a badge rather than a warning colour.
-    private var badge: String? { command.mode.isSupported ? nil : "Menu Bar" }
+    private var badge: String? { command.mode == .menuBar ? "Menu Bar" : nil }
+    let coordinator: ExtensionCoordinator
+
+    private var reference: ExtensionCommandRef {
+        ExtensionCommandRef(extensionName: installed.manifest.name, commandName: command.name)
+    }
 
     // Same key `AppIndex` already folds into `.userAlias`.
-    private var entryID: String {
-        ExtensionCommandRef(
-            extensionName: installed.manifest.name, commandName: command.name
-        ).entryID
-    }
+    private var entryID: String { reference.entryID }
 
     // Hidden or unpublished commands never reach rank, so typing here would match nothing.
     private var aliasReachesRanker: Bool {
@@ -534,10 +536,16 @@ private struct CommandRows: View {
             HStack(spacing: Theme.Spacing.lg) {
                 AliasField(key: entryID, name: command.title)
                     .settingsEnabled(aliasReachesRanker)
-                if command.mode.isSupported {
-                    // Per command, not per extension: a shortcut has to land on one thing to run.
-                    ShortcutRecorder(action: .extensionCommand(entryID: entryID))
-                }
+                // Per command, not per extension: a shortcut has to land on one thing to run.
+                ShortcutRecorder(action: .extensionCommand(entryID: entryID))
+            }
+        }
+        if command.mode == .menuBar {
+            SettingsCardRow(title: "Show in menu bar", indent: Theme.Spacing.lg) {
+                Toggle("Show in menu bar", isOn: Binding(
+                    get: { coordinator.menuBarIsEnabled(reference) },
+                    set: { coordinator.setMenuBarEnabled($0, reference: reference) }))
+                    .labelsHidden()
             }
         }
         // Indented under its command: at the same inset the association is reading order.

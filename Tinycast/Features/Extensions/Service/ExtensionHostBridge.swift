@@ -28,7 +28,8 @@ protocol ExtensionHostContext: AnyObject {
     func showHUD(_ text: String)
     func confirmAlert(_ alert: ExtensionAlert) async -> Bool
     func openWithPicker(path: String) async
-    func launch(command: String, extensionName: String?, arguments: [String: String]) throws
+    func launch(command: String, extensionName: String?, arguments: [String: String],
+                type: ExtensionLaunchType, context: [String: RenderValue]) throws
     func authorizeOAuth(options: ExtensionOAuthAuthorizeOptions) async throws -> ExtensionOAuthAuthorizeResult
     func getOAuthTokens(providerId: String) -> String?
     func setOAuthTokens(providerId: String, tokens: String)
@@ -129,7 +130,14 @@ final class ExtensionHostBridge: ExtensionHostAPI {
         self.clipboardStore = clipboardStore
     }
 
+    func scoped(to context: ExtensionHostContext) -> ExtensionHostBridge {
+        let bridge = ExtensionHostBridge(clipboardStore: clipboardStore)
+        bridge.context = context
+        return bridge
+    }
+
     func perform(api: String, method: String, arguments: [RenderValue]) async throws -> String {
+        guard context != nil else { throw ExtensionHostError.noActiveExtension }
         let value = try await dispatch(api: api, method: method, arguments: arguments)
         return ExtensionRuntime.jsonString(from: value)
     }
@@ -377,7 +385,9 @@ final class ExtensionHostBridge: ExtensionHostAPI {
             }
             try context?.launch(
                 command: name, extensionName: options["extensionName"]?.stringValue,
-                arguments: launchArguments)
+                arguments: launchArguments,
+                type: ExtensionLaunchType(rawValue: options["type"]?.stringValue ?? "") ?? .userInitiated,
+                context: options["context"]?.objectValue ?? [:])
             return nil
 
         case "updateCommandMetadata":
@@ -421,7 +431,8 @@ final class ExtensionHostBridge: ExtensionHostAPI {
     private func openRaycastURL(_ url: URL) {
         let path = url.pathComponents.filter { $0 != "/" }
         if url.host == "extensions", path.count >= 3,
-            (try? context?.launch(command: path[2], extensionName: path[1], arguments: [:])) != nil
+            (try? context?.launch(command: path[2], extensionName: path[1], arguments: [:],
+                                 type: .userInitiated, context: [:])) != nil
         {
             return
         }
