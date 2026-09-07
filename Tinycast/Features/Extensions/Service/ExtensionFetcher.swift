@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 /// Bodies cross the bridge base64-encoded, so binary responses survive.
 final class ExtensionFetcher: Sendable {
@@ -108,70 +109,209 @@ enum ExtensionAsyncProcess {
         let timeout = fields["timeout"]?.doubleValue
         let detached = fields["detached"]?.boolValue ?? false
 
-        return try await withCheckedThrowingContinuation { continuation in
-            // `Process` termination is delivered on a private queue; run the whole thing off-main.
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    let result = try execute(
-                        command: command, useShell: useShell, args: args, cwd: cwd,
-                        environment: environment, input: input, timeout: timeout,
-                        detached: detached)
-                    continuation.resume(returning: result)
-                } catch {
-                    continuation.resume(throwing: error)
+        let execution = Execution()
+        let output = try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                DispatchQueue.global(qos: .utility).async {
+                    do {
+                        let task = Process()
+                        if useShell {
+                            task.executableURL = URL(fileURLWithPath: "/bin/sh")
+                            task.arguments = ["-c", command]
+                        } else {
+                            guard let resolved = resolveExecutable(command) else { throw ProcessError.notFound(command) }
+                            task.executableURL = resolved
+                            task.arguments = args
+                        }
+                        if let cwd, !cwd.isEmpty {
+                            task.currentDirectoryURL = URL(fileURLWithPath: (cwd as NSString).expandingTildeInPath)
+                        }
+                        task.environment = environment ?? ProcessInfo.processInfo.environment
+                        execution.start(task, input: input, timeout: timeout, detached: detached, continuation: continuation)
+                    } catch { continuation.resume(throwing: error) }
+                }
+            }
+        } onCancel: {
+            execution.stop(cancelled: true)
+        }
+        return ["stdout": output.stdout.base64EncodedString(), "stderr": output.stderr.base64EncodedString(),
+                "status": Int(output.status), "signal": output.signal as Any? ?? NSNull()]
+    }
+
+    private struct Output: Sendable {
+        var stdout = Data()
+        var stderr = Data()
+        var status: Int32 = 0
+        var signal: String?
+    }
+
+    private final class Execution: Sendable {
+        private struct State {
+            var process: Process?
+            var continuation: CheckedContinuation<Output, Error>?
+            var stdout: Pipe?
+            var stderr: Pipe?
+            var stdin: Pipe?
+            var input: Data?
+            var inputOffset = 0
+            var output = Output()
+            var openStreams = 2
+            var exited = false
+            var cancelled = false
+            var stopping = false
+            var detached = false
+            var watchdog: DispatchSourceTimer?
+        }
+
+        private let state = Mutex(State())
+
+        func start(_ process: Process, input: Data?, timeout: Double?, detached: Bool,
+                   continuation: CheckedContinuation<Output, Error>) {
+            state.withLock { state in
+                guard !state.cancelled else { continuation.resume(throwing: CancellationError()); return }
+                state.process = process
+                state.continuation = continuation
+                state.detached = detached
+                if detached {
+                    process.standardOutput = FileHandle.nullDevice
+                    process.standardError = FileHandle.nullDevice
+                } else {
+                    let stdout = Pipe(), stderr = Pipe()
+                    state.stdout = stdout
+                    state.stderr = stderr
+                    process.standardOutput = stdout
+                    process.standardError = stderr
+                    stdout.fileHandleForReading.readabilityHandler = { self.read($0, stderr: false) }
+                    stderr.fileHandleForReading.readabilityHandler = { self.read($0, stderr: true) }
+                    process.terminationHandler = { self.terminated($0) }
+                }
+                if let input, !input.isEmpty {
+                    let stdin = Pipe()
+                    state.stdin = stdin
+                    state.input = input
+                    process.standardInput = stdin
+                    let descriptor = stdin.fileHandleForWriting.fileDescriptor
+                    _ = fcntl(descriptor, F_SETFL, fcntl(descriptor, F_GETFL) | O_NONBLOCK)
+                    _ = fcntl(descriptor, F_SETNOSIGPIPE, 1)
+                } else { process.standardInput = FileHandle.nullDevice }
+                do { try process.run() } catch {
+                    finish(&state, result: .failure(ProcessError.failedToStart(
+                        process.executableURL?.path ?? "", error.localizedDescription)))
+                    return
+                }
+                state.stdin?.fileHandleForWriting.writeabilityHandler = { self.write($0) }
+                if detached {
+                    state.continuation = nil
+                    state.process = nil
+                    continuation.resume(returning: Output())
+                } else if let timeout, timeout > 0 {
+                    let timer = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
+                    timer.schedule(deadline: .now() + timeout / 1000)
+                    timer.setEventHandler { [weak self] in self?.stop(cancelled: false) }
+                    state.watchdog = timer
+                    timer.resume()
                 }
             }
         }
-    }
 
-    private static func execute(
-        command: String, useShell: Bool, args: [String], cwd: String?,
-        environment: [String: String]?, input: Data?, timeout: Double?, detached: Bool = false
-    ) throws -> [String: Any] {
-        let task = Process()
-        if useShell {
-            task.executableURL = URL(fileURLWithPath: "/bin/sh")
-            task.arguments = ["-c", command]
-        } else {
-            guard let resolved = resolveExecutable(command) else {
-                throw ProcessError.notFound(command)
+        private func read(_ handle: FileHandle, stderr: Bool) {
+            state.withLock { state in
+                guard state.continuation != nil, !state.stopping,
+                    (stderr ? state.stderr : state.stdout) != nil else { return }
+                let data = handle.availableData
+                if !data.isEmpty {
+                    if stderr { state.output.stderr.append(data) } else { state.output.stdout.append(data) }
+                } else {
+                    handle.readabilityHandler = nil
+                    try? handle.close()
+                    if stderr { state.stderr = nil } else { state.stdout = nil }
+                    state.openStreams -= 1
+                    completeIfReady(&state)
+                }
             }
-            task.executableURL = resolved
-            task.arguments = args
-        }
-        if let cwd, !cwd.isEmpty {
-            task.currentDirectoryURL = URL(fileURLWithPath: (cwd as NSString).expandingTildeInPath)
-        }
-        task.environment = environment ?? ProcessInfo.processInfo.environment
-
-        let stdout = Pipe()
-        let stderr = Pipe()
-        task.standardOutput = stdout
-        task.standardError = stderr
-        if let input {
-            let stdin = Pipe()
-            task.standardInput = stdin
-            try? stdin.fileHandleForWriting.write(contentsOf: input)
-            try? stdin.fileHandleForWriting.close()
         }
 
-        do {
-            try task.run()
-        } catch {
-            throw ProcessError.failedToStart(command, error.localizedDescription)
+        private func write(_ handle: FileHandle) {
+            state.withLock { state in
+                guard let input = state.input else { return }
+                let count = input.withUnsafeBytes { bytes in
+                    Darwin.write(handle.fileDescriptor, bytes.baseAddress!.advanced(by: state.inputOffset),
+                                 min(65_536, input.count - state.inputOffset))
+                }
+                if count > 0 { state.inputOffset += count }
+                if state.inputOffset == input.count || (count < 0 && errno != EAGAIN && errno != EINTR) {
+                    closeInput(&state)
+                }
+            }
         }
-        // A detached child outlives the call, so answer once running rather than pin a thread.
-        if detached {
-            return ["stdout": "", "stderr": "", "status": 0, "signal": NSNull()]
-        }
-        let (outData, errData) = drain(task, stdout: stdout, stderr: stderr, timeout: timeout)
 
-        return [
-            "stdout": outData.base64EncodedString(),
-            "stderr": errData.base64EncodedString(),
-            "status": Int(task.terminationStatus),
-            "signal": task.terminationReason == .uncaughtSignal ? "SIGTERM" : NSNull()
-        ]
+        private func terminated(_ process: Process) {
+            state.withLock { state in
+                guard state.continuation != nil else { return }
+                state.exited = true
+                state.output.status = process.terminationStatus
+                if process.terminationReason == .uncaughtSignal {
+                    state.output.signal = process.terminationStatus == SIGKILL ? "SIGKILL" : "SIGTERM"
+                }
+                closeInput(&state)
+                completeIfReady(&state)
+            }
+        }
+
+        func stop(cancelled: Bool) {
+            let needsTermination = state.withLock { state in
+                guard !state.detached else { return false }
+                state.cancelled = state.cancelled || cancelled
+                guard !state.stopping else { return false }
+                state.stopping = true
+                closeStreams(&state)
+                state.openStreams = 0
+                if state.process?.isRunning == true { state.process?.terminate() }
+                completeIfReady(&state)
+                return state.process != nil
+            }
+            guard needsTermination else { return }
+            Task {
+                try? await Task.sleep(for: .milliseconds(250))
+                self.state.withLock { state in
+                    if let process = state.process, process.isRunning { kill(process.processIdentifier, SIGKILL) }
+                }
+            }
+        }
+
+        private func completeIfReady(_ state: inout State) {
+            guard state.exited, state.openStreams == 0 else { return }
+            finish(&state, result: state.cancelled ? .failure(CancellationError()) : .success(state.output))
+        }
+
+        private func closeInput(_ state: inout State) {
+            state.stdin?.fileHandleForWriting.writeabilityHandler = nil
+            try? state.stdin?.fileHandleForWriting.close()
+            state.stdin = nil
+            state.input = nil
+        }
+
+        private func closeStreams(_ state: inout State) {
+            for pipe in [state.stdout, state.stderr].compactMap({ $0 }) {
+                pipe.fileHandleForReading.readabilityHandler = nil
+                try? pipe.fileHandleForReading.close()
+            }
+            state.stdout = nil
+            state.stderr = nil
+            closeInput(&state)
+        }
+
+        private func finish(_ state: inout State, result: Result<Output, Error>) {
+            let continuation = state.continuation
+            state.continuation = nil
+            state.process?.terminationHandler = nil
+            state.process = nil
+            state.watchdog?.cancel()
+            state.watchdog = nil
+            closeStreams(&state)
+            state.output = Output()
+            continuation?.resume(with: result)
+        }
     }
 
     /// A child filling the 64 KB pipe blocks before it can exit, so the drain comes first.
@@ -187,14 +327,12 @@ enum ExtensionAsyncProcess {
         return (outData, errData)
     }
 
-    /// Signals the pid rather than the `Process`, which a `@Sendable` timer handler cannot capture.
     private static func terminationWatchdog(
         _ task: Process, after seconds: Double
     ) -> DispatchSourceTimer {
-        let pid = task.processIdentifier
         let timer = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
         timer.schedule(deadline: .now() + seconds)
-        timer.setEventHandler { kill(pid, SIGTERM) }
+        timer.setEventHandler { if task.isRunning { task.terminate() } }
         timer.resume()
         return timer
     }

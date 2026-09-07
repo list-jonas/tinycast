@@ -343,6 +343,7 @@ run ext-accessory-test     $E/Model/RenderNode.swift \
                            $E/Service/ExtensionStorage.swift
 run slow ext-test          -parse-as-library \
                            Tests/ext-menu-bar-test.swift \
+                           Tests/ext-process-test.swift \
                            $E/Model/ExtensionLaunchError.swift \
                            $E/Model/ExtensionMenuBarSnapshot.swift \
                            $E/Service/ExtensionStorage.swift \
