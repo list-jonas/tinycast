@@ -40,13 +40,30 @@ enum CalcCurrency {
     /// The category label used in the mismatch message, mirroring `UnitCategory.displayName`.
     static let categoryName = "Currency"
 
-    /// `expr currency (to|in|->) currency`, shaped like `CalcUnits.parseConversion`, run after it.
+    /// `expr currency (to|in|->) currency`, or `expr currency currency`, run after units.
     static func parseConversion(_ tokens: [CalcToken], rates: CurrencyRates?) -> ConversionParse? {
         let tokens = amountFirst(tokens)
-        guard tokens.count >= 3, CalcUnits.isConnector(tokens[tokens.count - 2]),
-            case .ident(let toName) = tokens[tokens.count - 1],
-            case .ident(let fromName) = tokens[tokens.count - 3]
-        else { return nil }
+        let valueEnd: Int
+        let fromName: String
+        let toName: String
+        if tokens.count >= 3, CalcUnits.isConnector(tokens[tokens.count - 2]),
+            case .ident(let to) = tokens[tokens.count - 1],
+            case .ident(let from) = tokens[tokens.count - 3]
+        {
+            valueEnd = tokens.count - 3
+            fromName = from
+            toName = to
+        } else if tokens.count >= 3,
+            case .ident(let to) = tokens[tokens.count - 1],
+            case .ident(let from) = tokens[tokens.count - 2],
+            byName[from] != nil, byName[to] != nil
+        {
+            valueEnd = tokens.count - 2
+            fromName = from
+            toName = to
+        } else {
+            return nil
+        }
 
         // A side that is neither currency nor unit is just a typo, and gets no card.
         switch (byName[fromName], byName[toName]) {
@@ -59,7 +76,7 @@ enum CalcCurrency {
             guard let from = CalcUnits.byName[fromName] else { return nil }
             return .mismatch(from: from.category.displayName, to: categoryName)
         case (let from?, let to?):
-            let valueTokens = Array(tokens[0..<(tokens.count - 3)])
+            let valueTokens = Array(tokens[0..<valueEnd])
             let input: Double
             if valueTokens.isEmpty {
                 input = 1
