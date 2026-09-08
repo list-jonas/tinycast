@@ -272,7 +272,7 @@ still earns a card where a lone `100000` deliberately doesn't. A literal that ov
 ## Time zones
 
 `CalcTimeZone` answers `time in Tokyo`, `what time is it in London`, `5pm ldn in sf` and
-`9:30am in nyc`. It runs **before the tokenizer** — a zone phrase is words, and `5pm ldn in sf`
+`2 am ist to cet`. It runs **before the tokenizer** — a zone phrase is words, and `5pm ldn in sf`
 is not calculator input — but its grammar always needs an `in` / `to` / `at` connector, so an
 ordinary app search never reaches the zone table at all.
 

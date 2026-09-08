@@ -179,11 +179,17 @@ enum CalcTimeZone {
         }
 
         guard let head = words.first else { return nil }
-        guard head == "time" || head == "now" || head == "clock" || parseClock(head) != nil else {
+        var rest = Array(words.dropFirst())
+        let clock: String
+        if let meridiem = rest.first, meridiem == "am" || meridiem == "pm" {
+            clock = head + meridiem
+            rest.removeFirst()
+        } else {
+            clock = head
+        }
+        guard head == "time" || head == "now" || head == "clock" || parseClock(clock) != nil else {
             return nil
         }
-
-        let rest = Array(words.dropFirst())
         let zone = rest.isEmpty ? calendar.timeZone : (self.zone(named: rest) ?? calendar.timeZone)
         if head == "time" || head == "now" || head == "clock" {
             guard rest.isEmpty || self.zone(named: rest) != nil else { return nil }
@@ -193,7 +199,7 @@ enum CalcTimeZone {
             return SourceMoment(date: shifted, zone: zone)
         }
 
-        guard let clock = parseClock(head) else { return nil }
+        guard let clock = parseClock(clock) else { return nil }
         var source = calendar
         source.timeZone = zone
         let day = source.dateComponents([.year, .month, .day], from: now)
