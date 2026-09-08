@@ -769,6 +769,7 @@ class BufferedChildProcess extends EventEmitter {
     this.stderr = new PassThrough();
     this._input = [];
     this._started = false;
+    this._unref = false;
 
     const self = this;
     this.stdin = {
@@ -799,6 +800,8 @@ class BufferedChildProcess extends EventEmitter {
     if (this._started) return;
     this._started = true;
     const input = this._input.length ? bytesToBase64(Buffer.concat(this._input)) : null;
+    const ignoresStdio = options.stdio === "ignore" ||
+      (Array.isArray(options.stdio) && [0, 1, 2].every((fd) => options.stdio[fd] === "ignore"));
     hostCall("proc", "run", [
       {
         shell: !!options.shell,
@@ -808,8 +811,8 @@ class BufferedChildProcess extends EventEmitter {
         env: options.env,
         timeout: options.timeout,
         input,
-        // A detached child outlives the caller (`caffeinate -t 300 &`); don't wait for it to exit.
-        detached: !!options.detached,
+        // Detached process groups still need their output and exit status while referenced.
+        detached: !!options.detached && this._unref && ignoresStdio,
       },
     ]).then(
       (raw) => {
@@ -839,12 +842,12 @@ class BufferedChildProcess extends EventEmitter {
     return false;
   }
 
-  // Node uses these to detach a child from the event loop. Nothing here keeps the runtime alive, so
-  // they only need to exist and chain — `spawn(...).unref()` is a common one-liner.
   unref() {
+    this._unref = true;
     return this;
   }
   ref() {
+    this._unref = false;
     return this;
   }
 }

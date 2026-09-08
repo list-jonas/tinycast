@@ -1267,7 +1267,14 @@ struct ExtensionTests {
         )
         for toast in host.toasts { print("  toast: \(toast)") }
         for hud in host.huds { print("  hud: \(hud)") }
-        if let tree = recorder.trees.last {
+        if let root = recorder.trees.last?.activeRoot, target.mode == .menuBar {
+            let controller = ExtensionMenuBarController(entryID: "tinycast-live-menu", assetsPath: context.assetsPath,
+                                                         isVisible: false)
+            controller.showMenu(root, session: "s1")
+            print("menu: \(controller.menu.items.count) native rows; loading: \(root.bool("isLoading") == true)")
+            for item in controller.menu.items.prefix(12) { print("  • \(item.title)") }
+            controller.remove()
+        } else if let tree = recorder.trees.last {
             let screen = ExtensionScreen(tree: tree, query: "")
             print("root: \(screen.kind)  rows: \(screen.rows.count)  fields: \(screen.fields.count)")
             for item in screen.items.prefix(12) {

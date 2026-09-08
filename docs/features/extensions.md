@@ -197,8 +197,9 @@ context. The runtime queue drains temporary Objective-C objects after each work 
 context teardown. Loading and closed-menu actions have a 60-second deadline; an open, settled menu is exempt.
 Shutdown cancels owned asynchronous subprocesses and waits for their exit before settling the host
 call. Termination escalates to a kill after 250 ms. Output pipes drain independently as bytes arrive;
-input writes are nonblocking. No worker thread waits for the child. Explicitly detached children
-outlive the call and send output to the null device.
+input writes are nonblocking. No worker thread waits for the child. Detached children with output pipes
+still return their output and exit status. Only detached children with ignored stdio and `unref()`
+called before the queued spawn starts outlive the call and send output to the null device.
 This bounds asynchronous work, but cannot interrupt an extension stuck in synchronous JavaScript or a
 blocking Node shim on the runtime queue.
 

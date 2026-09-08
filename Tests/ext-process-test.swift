@@ -18,6 +18,7 @@ extension ExtensionTests {
 
     @MainActor
     static func processChecks() async {
+        await spawnLifecycleChecks()
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("tinycast-process-\(UUID())")
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -116,5 +117,70 @@ extension ExtensionTests {
             _ = try await ExtensionAsyncProcess.run(.object(["command": .string(missing)]))
             check("spawn failures return an error", false)
         } catch { check("spawn failures return an error", true) }
+    }
+
+    @MainActor
+    private static func spawnLifecycleChecks() async {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("tinycast-spawn-\(UUID())")
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let (runtime, host, recorder) = makeRuntime()
+        defer { runtime.shutdown() }
+        try? await runtime.boot(config: .current(supportDirectory: directory))
+        let code = """
+            const { spawn } = require("child_process");
+            const { showHUD } = require("@raycast/api");
+            module.exports.default = async () => {
+              const cases = [
+                ["default", { detached: true }],
+                ["pipes", { detached: true, stdio: ["ignore", "pipe", "pipe"] }],
+                ["piped-unref", { detached: true }, "unref"],
+                ["ignored", { detached: true, stdio: "ignore" }],
+                ["ref-restored", { detached: true, stdio: "ignore" }, "ref"],
+              ];
+              for (const [name, options, reference] of cases) {
+                await new Promise((resolve, reject) => {
+                  const child = spawn("/bin/sh", ["-c", "sleep 0.05; printf ports; printf warning >&2; exit 7"], options);
+                  if (reference) child.unref();
+                  if (reference === "ref") child.ref();
+                  let stdout = "", stderr = "";
+                  child.stdout.on("data", data => { stdout += data; });
+                  child.stderr.on("data", data => { stderr += data; });
+                  child.on("error", reject);
+                  child.on("close", status => {
+                    showHUD(name + ":" + status + ":" + stdout + ":" + stderr).then(resolve, reject);
+                  });
+                });
+              }
+              const directory = \(ExtensionRuntime.jsonString(from: directory.path));
+              const waitForRelease = 'i=0; while [ ! -f "$1/release" ] && [ "$i" -lt 100 ]; do ' +
+                'sleep 0.05; i=$((i+1)); done; [ -f "$1/release" ] && printf done > "$2"';
+              for (const [index, stdio] of ["ignore", ["ignore", "ignore", "ignore"]].entries()) {
+                spawn("/bin/sh", ["-c", waitForRelease, "fixture", directory, directory + "/" + index],
+                  { detached: true, stdio }).unref();
+              }
+            };
+            """
+        await runtime.start(session: "spawn", code: code, file: directory.appendingPathComponent("fixture.js"),
+                            mode: .noView, context: launchContext(mode: .noView))
+        for _ in 0..<150 where !recorder.finished { await settle(20) }
+        check("spawn lifecycle command finishes", recorder.finished && recorder.failures.isEmpty,
+              recorder.failures.joined())
+        for name in ["default", "pipes", "piped-unref"] {
+            check("detached \(name) retains output and exit status", host.huds.contains("\(name):7:ports:warning"))
+        }
+        for name in ["ignored", "ref-restored"] {
+            check("referenced \(name) waits for exit", host.huds.contains { $0.hasPrefix("\(name):7:") })
+        }
+        await runtime.drainHostCalls()
+        check("unreferenced ignored children do not hold the command open",
+              (0...1).allSatisfy { !FileManager.default.fileExists(atPath: directory.appendingPathComponent("\($0)").path) })
+        runtime.shutdown()
+        try? Data().write(to: directory.appendingPathComponent("release"))
+        await settle(650)
+        check("unreferenced ignored children survive runtime teardown",
+              (0...1).allSatisfy {
+                  (try? String(contentsOf: directory.appendingPathComponent("\($0)"), encoding: .utf8)) == "done"
+              })
     }
 }
