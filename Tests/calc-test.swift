@@ -988,6 +988,7 @@ struct CalcTests {
         expectDisplayAt("5pm london in sf", "9:00 AM")
         expectDisplayAt("9:30am in nyc", "5:30 AM")
         expectDisplayAt("5pm in tokyo", "2:00 AM (tomorrow)")
+        expectDisplayAt("2 am ist to cet", "10:30 PM (yesterday)")
         expectBadgesAt("5pm london in sf", source: "London", target: "Los Angeles")
 
         let zoneNow = clock.calendar.date(
