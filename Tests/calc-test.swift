@@ -666,6 +666,7 @@ struct CalcTests {
         expectDisplay("50 GBP in euros", "58.23 EUR")
         expectDisplay("100 dollars to yen", "15,700.00 JPY")
         expectDisplay("100 usd -> eur", "92.00 EUR")
+        expectDisplay("1 usd idr", "18,053.00 IDR")
         expectDisplay("2*50 usd to eur", "92.00 EUR")  // expression on the value side
         expectDisplay("eur to usd", "1.09 USD")  // implied amount of 1
         expectCopy("100 dollars to yen", "15700.00 JPY")
