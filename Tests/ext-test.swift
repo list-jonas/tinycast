@@ -192,6 +192,7 @@ struct ExtensionTests {
         await nodeContractChecks()
         await menuBarRuntimeChecks()
         await menuBarHostChecks()
+        await ExtensionBackgroundSessionTests.runChecks(check)
         await processChecks()
         await ExtensionFetchTests.runChecks()
 
