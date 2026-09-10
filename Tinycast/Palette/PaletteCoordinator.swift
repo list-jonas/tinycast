@@ -73,6 +73,8 @@ final class PaletteCoordinator {
         if query != nil || !(preserved && (restoreAnyMode || palette.mode == mode)) {
             navigate(to: mode)
         }
+        // Reopened onto the last search: selected, so typing replaces what re-searching would clear.
+        palette.selectsQuery = query == nil && !palette.query.isEmpty
         if let query { palette.query = query }
         windowController.show()
         if palette.mode == .fileSearch { fileSearch.search(palette.query) }

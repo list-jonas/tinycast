@@ -25,6 +25,8 @@ struct RootPaletteView: View {
     @FocusState private var searchFocused: Bool
     /// Kept apart from the search field's own focus. See docs/features/palette.md.
     @FocusState private var argumentFocused: String?
+    /// Written only by the summon that reopens onto a kept query; the field owns it otherwise.
+    @State private var searchSelection: TextSelection?
     /// Which in-window menu is open; at most one, so the state cannot disagree with itself.
     @State private var openMenu: OpenMenu?
     /// Sampled once by `openActions`, so the running-only rows can't appear while the menu is up.
@@ -299,6 +301,10 @@ struct RootPaletteView: View {
             // Every show bumps focusToken: refocus search and drop any menu left open.
             .onChange(of: vm.focusToken) {
                 searchFocused = !screen.hidesSearchField
+                if vm.selectsQuery {
+                    vm.selectsQuery = false
+                    searchSelection = TextSelection(range: vm.query.startIndex..<vm.query.endIndex)
+                }
                 openMenu = nil
             }
             .onChange(of: vm.query) {
@@ -754,7 +760,7 @@ struct RootPaletteView: View {
     /// The one search field — past its text it's a drag handle, matching Spotlight.
     private var searchField: some View {
         @Bindable var vm = vm
-        return TextField("", text: $vm.query)
+        return TextField("", text: $vm.query, selection: $searchSelection)
             .textFieldStyle(.plain)
             .font(Theme.Typography.searchField)
             .tint(Theme.Colors.textPrimary)

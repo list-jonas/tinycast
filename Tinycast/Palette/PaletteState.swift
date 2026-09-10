@@ -24,6 +24,8 @@ final class PaletteState {
     private(set) var isVisible = false
     /// Changes every time the palette is shown so the search field can re-focus.
     var focusToken = UUID()
+    /// Set by a summon that kept the last query, so the focus it drives selects that query whole.
+    var selectsQuery = false
     /// Bumped when a screen opens fresh, so lists snap to the top even when nothing else changed.
     var resetToken = UUID()
     /// Bumped when an action reorders the list, so the highlight scrolls back into view.
@@ -116,6 +118,7 @@ final class PaletteState {
         pendingArgumentEntryID = nil
         clipboardFilter = .all
         forceExpanded = false
+        selectsQuery = false
         dropHoverHighlight()
         menuOpen = false
         focusToken = UUID()

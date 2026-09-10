@@ -68,6 +68,10 @@ are reset together rather than the screen alone. A reply still streaming is the 
 asked for, and resetting would throw the answer away. Nothing is lost either way: a conversation is
 written to Chat History as soon as it has a message.
 
+A re-summon that consumes that reset reopens with the query **selected**, so one keystroke starts a
+different search: `showPalette` sets `selectsQuery`, and the `focusToken` pass spends it on the
+field's `TextSelection` binding.
+
 Each `PaletteMode` maps to one type conforming to `PaletteScreen`, and the protocol is what keeps the
 selection invariant honest: a screen exposes `rows` as its single source of visible order, and the
 palette indexes into it. Adding a mode means adding a conformer, not a branch in `RootPaletteView`.
