@@ -147,14 +147,21 @@ struct CalcTests {
         expectDisplay("450 - 15%", "382.5")
         expectDisplay("20%", "0.2")
 
-        // Modulo — spelled out, so it never competes with the percent cases above
+        // Modulo — `%` only before a literal
         expectDisplay("10 mod 3", "1")
         expectDisplay("17 mod 5", "2")
         expectDisplay("10k mod 3", "1")
         expectDisplay("-10 mod 3", "-1")  // fmod semantics: the sign follows the dividend
         expectDisplay("2 + 10 mod 3", "3")  // same precedence as * and /, binds tighter than +
         expectNil("10 mod 0")
-        expectNil("10 % 3")  // "%" stays percent, whatever follows it
+        expectDisplay("10 % 3", "1")
+        expectDisplay("(23^3) % 5", "2")
+        expectDisplay("2 + 10 % 3", "3")
+        expectDisplay("10k % 3", "1")
+        expectNil("10 % 0")
+        expectDisplay("20% of 450", "90")
+        expectDisplay("10 % pi", "0.3141592654")
+        expectDisplay("20% 450", "20")  // a dropped "of" reads as modulo
         expectDisplay("450 + 20% - 5", "535")
 
         // Unit conversion — length / weight / temperature / time / area / volume / storage

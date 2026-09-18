@@ -422,9 +422,10 @@ the card doesn't already show. `min` and `max` are only told apart by it.
 ## Modulo
 
 `mod` is a binary operator at `*` / `/` precedence, computed with `truncatingRemainder` so the sign
-follows the dividend (`-10 mod 3` → -1). It is spelled out on purpose: `%` already means percent, and
-`20% - 5` offers no local signal to tell a percent from a remainder, so overloading the symbol would
-silently rewrite expressions like `450 + 20% - 5`.
+follows the dividend (`-10 mod 3` → -1). `%` is the same operator **only directly before a numeric
+literal** (`(23^3) % 5` → 2), the one position the percent postfix could not read anyway. Anything
+else after it stays percent, so `450 + 20% - 5` is 535 and `10 % pi` is `0.1 × π`. The literal wins
+unconditionally: `20% 450` is 20, not the 90 that `20% of 450` gives.
 
 A query ending in a binary operator keeps the last complete prefix visible while the next operand is
 being typed: `10 +` shows `10`, `10kg + 500g +` shows `10,500 g`, and `$10 +` shows `10.00 USD`

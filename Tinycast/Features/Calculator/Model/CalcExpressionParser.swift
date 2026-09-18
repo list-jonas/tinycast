@@ -24,6 +24,11 @@ struct CalcExpressionParser {
         position < tokens.count ? tokens[position] : nil
     }
 
+    /// A literal is the only signal: `450 + 20% - 5` must stay 535.
+    private var percentIsModulo: Bool {
+        position + 1 < tokens.count && tokens[position + 1].isNumericLiteral
+    }
+
     mutating func parse() -> CalcValue? {
         guard var value = parseExpression(minBindingPower: 0), position == tokens.count,
             value.effective.isFinite
@@ -79,6 +84,8 @@ struct CalcExpressionParser {
 
     private func peekBinary(left: CalcValue) -> BinaryOp? {
         switch current {
+        case .op(.percent) where percentIsModulo:
+            return BinaryOp(op: .percent, bindingPower: 20, rightBindingPower: 21, consumesToken: true)
         case .op(let op) where op.bindingPower != nil:
             let power = op.bindingPower ?? 0
             return BinaryOp(
@@ -373,7 +380,7 @@ struct CalcExpressionParser {
                 if combined.currency != nil { usedCurrencyRate = true }
                 dimensionCount += 1
                 position = next.end
-            case .op(.percent):
+            case .op(.percent) where !percentIsModulo:
                 guard isScalar(value.kind), !value.isPercent, !value.isBoolean else { return nil }
                 value.isPercent = true
                 position += 1

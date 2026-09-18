@@ -248,7 +248,11 @@ enum CalcQuantity {
             case .op(.close):
                 add(")", attached: true)
             case .op(.percent):
-                add("%", attached: true)
+                if index + 1 < tokens.count, tokens[index + 1].isNumericLiteral {
+                    add("mod")
+                } else {
+                    add("%", attached: true)
+                }
             case .op(.factorial):
                 add("!", attached: true)
             case .op(.multiply):

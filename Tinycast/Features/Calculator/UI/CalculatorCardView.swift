@@ -94,7 +94,7 @@ private enum CalcSyntax {
     private static let connectors: Set<String> = [
         "to", "of", "off", "on", "as", "from", "ago", "at", "tip", "ratio", "average", "avg",
         "mean", "sum", "total", "round", "nearest", "and", "is", "what", "the", "next", "last",
-        "+", "-", "×", "÷", "^", "→", "->", "mod"
+        "+", "-", "×", "÷", "^", "→", "->", "mod", "%"
     ]
 }
 

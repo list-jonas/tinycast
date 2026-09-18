@@ -10,4 +10,11 @@ enum CalcToken: Equatable, Sendable {
     case op(CalcOperator)
     case arrow  // -> or →
     case comma
+
+    var isNumericLiteral: Bool {
+        switch self {
+        case .number, .compactNumber, .intLiteral: true
+        default: false
+        }
+    }
 }
