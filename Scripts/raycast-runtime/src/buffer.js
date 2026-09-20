@@ -604,6 +604,13 @@ export const bufferModule = {
   SlowBuffer: Buffer,
   atob: globalThis.atob,
   btoa: globalThis.btoa,
+  // Lazy: polyfills install these globals after this module evaluates.
+  get Blob() {
+    return globalThis.Blob;
+  },
+  get File() {
+    return globalThis.File;
+  },
   constants: { MAX_LENGTH: 0x7fffffff, MAX_STRING_LENGTH: 0x1fffffe8 },
   kMaxLength: 0x7fffffff,
   isEncoding: (encoding) => Buffer.isEncoding(encoding),

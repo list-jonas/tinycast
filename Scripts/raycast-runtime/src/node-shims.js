@@ -1548,16 +1548,17 @@ class StringDecoder {
 /// so the member has to be a real constructor — and unknown members must exist too, hence the Proxy.
 function unsupportedModule(name, extras = {}) {
   const cache = new Map();
+  // A truthy `__esModule` or `then` fools `__toESM` and `await`, so probing keys stay absent.
+  const lazyMember = (member) => {
+    if (typeof member !== "string" || RESERVED_MEMBERS.has(member)) return Object.prototype[member];
+    if (!cache.has(member)) cache.set(member, makeUnsupported(`${name}.${member}`));
+    return cache.get(member);
+  };
+  // `__toESM` copies own keys but keeps the prototype, so a lazy member rides in on one.
+  const lazyPrototype = new Proxy({}, { get: (_target, member) => lazyMember(member) });
   return new Proxy(extras, {
-    get(target, member) {
-      if (member in target) return target[member];
-      // Interop and probing keys must stay absent: a truthy `__esModule` makes esbuild's `__toESM`
-      // skip the default-wrapping it would otherwise apply, and a truthy `then` makes the module
-      // look like a thenable to `await`.
-      if (typeof member !== "string" || RESERVED_MEMBERS.has(member)) return undefined;
-      if (!cache.has(member)) cache.set(member, makeUnsupported(`${name}.${member}`));
-      return cache.get(member);
-    },
+    get: (target, member) => (member in target ? target[member] : lazyMember(member)),
+    getPrototypeOf: () => lazyPrototype,
   });
 }
 
@@ -1664,7 +1665,10 @@ export const nodeModules = {
   cluster: { isPrimary: true, isMaster: true },
   inspector: {},
   v8: {},
-  async_hooks: { AsyncLocalStorage: class { run(_store, fn) { return fn(); } getStore() { return undefined; } } },
+  async_hooks: {
+    AsyncLocalStorage: class { run(_store, fn) { return fn(); } getStore() { return undefined; } },
+    AsyncResource: class { constructor(type) { this.type = type; } runInAsyncScope(fn, self, ...args) { return fn.apply(self, args); } emitDestroy() { return this; } bind(fn) { return fn.bind(this); } },
+  },
 };
 
 function requireStub(name) {

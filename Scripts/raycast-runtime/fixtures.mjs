@@ -532,6 +532,35 @@ export default async function Command() {
 }
 `;
 
+// Issue #852: a stub reached through a namespace import used to be `undefined` at class-extends time.
+const namespaceStubSource = `
+import * as net from "node:net";
+import { AsyncResource } from "node:async_hooks";
+import { Blob } from "node:buffer";
+
+class Pool extends net.Socket {}
+
+class Task extends AsyncResource {
+  constructor() {
+    super("FIXTURE");
+  }
+
+  run(fn) {
+    return this.runInAsyncScope(fn, this);
+  }
+}
+
+export default async function Command() {
+  let message = "constructed";
+  try {
+    new Pool();
+  } catch (error) {
+    message = error.message;
+  }
+  globalThis.__namespaceStub = { message, scoped: new Task().run(() => 7), blob: typeof Blob };
+}
+`;
+
 // The Homebrew extension streams its package index to disk rather than buffering it: it guards on
 // `response.body`, counts bytes through a `TransformStream`, and pipes the result into a file — then
 // reads it back through a `Transform`. Issue #429: `Response` had no `body`, so it failed at "HTTP 200".
@@ -1033,6 +1062,13 @@ export async function runFixtures() {
 
   const cookieSpecs = [];
   const cookies = ["a=1; Expires=Wed, 21 Oct 2037 07:28:00 GMT; Path=/", "b=2; Path=/"];
+  await run("an unsupported export survives a namespace import", namespaceStubSource, "no-view", async (harness) => {
+    const result = harness.call("globalThis.__namespaceStub");
+    check("a lazy stub still constructs and names itself", String(result?.message).startsWith("net.Socket is not supported"), JSON.stringify(result));
+    check("AsyncResource runs its body in scope", result?.scoped === 7, JSON.stringify(result));
+    check("buffer re-exports Blob", result?.blob === "function", JSON.stringify(result));
+  });
+
   await run(
     "an http.Agent subclass carries cookies between requests",
     cookieAgentSource,

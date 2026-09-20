@@ -656,7 +656,8 @@ directions), `http`/`https` (`request`, `get` and `Agent`, buffered over the sam
 as `fetch`), `stream` (`Readable`, `Writable`, `Duplex`, `Transform`, `PassThrough`, `pipeline`,
 `finished`, plus `stream/promises` and `stream/web`), `util`, `events`, `buffer`, `url`, `querystring`, `punycode`, `assert`,
 `string_decoder`, `timers`. Every other built-in resolves to a stub that throws only when used, so a
-bundle that merely references `http2` or `domain` still loads.
+bundle that merely references `http2` or `domain` still loads. A stub reaches a namespace import
+through the module's prototype, because esbuild's `__toESM` copies own keys and keeps the prototype.
 
 **Streams** — the stream core is Node's real contract, not a stand-in: an extension that ships
 `stream-chain` and `stream-json` to walk a package index builds object-mode pipelines out of it, and
