@@ -491,6 +491,7 @@ private struct ChatImageThumbnail: View {
     @State private var decoded: NSImage?
 
     var body: some View {
+        let key = Key(image: image, pixels: edge * displayScale)
         Group {
             if let decoded {
                 Image(nsImage: decoded).resizable().scaledToFill()
@@ -500,14 +501,20 @@ private struct ChatImageThumbnail: View {
         }
         .frame(width: edge, height: edge)
         .clipShape(RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous))
-        .task(id: image) {
-            let data = image.data
-            let pixels = edge * displayScale
+        // Interface Size and the display both move the pixel target, so either redraws the tile.
+        .task(id: key) {
+            let data = key.image.data
             let thumbnail = await Task.detached(priority: .userInitiated) {
-                Self.thumbnail(of: data, filling: pixels)
+                Self.thumbnail(of: data, filling: key.pixels)
             }.value
+            guard !Task.isCancelled else { return }
             decoded = thumbnail.map { NSImage(cgImage: $0, size: .zero) } ?? NSImage(data: data)
         }
+    }
+
+    private struct Key: Hashable {
+        let image: AIImage
+        let pixels: CGFloat
     }
 
     /// The tile is filled, so the short side, not the long one, must reach the pixel size.
