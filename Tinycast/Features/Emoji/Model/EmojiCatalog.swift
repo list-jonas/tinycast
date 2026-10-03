@@ -58,11 +58,8 @@ enum EmojiCategory: String, CaseIterable, Sendable {
     /// Names the selected character in Actions; Unicode's latter categories are symbol collections.
     var itemTitle: String {
         switch self {
-        case .symbols, .arrows, .currency, .math, .shapesAndPunctuation, .cjk,
-            .keysAndTechnical:
-            "Symbol"
-        default:
-            "Emoji"
+        case .symbols, .arrows, .currency, .math, .shapesAndPunctuation, .cjk, .keysAndTechnical: "Symbol"
+        default: "Emoji"
         }
     }
 }
@@ -74,8 +71,7 @@ enum EmojiCategoryFilter: Hashable, Sendable {
     case frequentlyUsed
     case category(EmojiCategory)
 
-    static let allCases: [Self] =
-        [.all, .pinned, .frequentlyUsed] + EmojiCategory.allCases.map(Self.category)
+    static let allCases: [Self] = [.all, .pinned, .frequentlyUsed] + EmojiCategory.allCases.map(Self.category)
 
     var title: String {
         switch self {
@@ -227,9 +223,7 @@ enum EmojiCatalog {
         var result: [String] = []
         for language in preferred {
             guard
-                let match = Bundle.preferredLocalizations(
-                    from: candidates, forPreferences: [language]
-                ).first,
+                let match = Bundle.preferredLocalizations(from: candidates, forPreferences: [language]).first,
                 match != "en", !result.contains(match)
             else { continue }
             result.append(match)

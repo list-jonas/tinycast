@@ -12,7 +12,5 @@ struct CalcValue {
     var isPercent = false
     var isBoolean = false
 
-    var effective: Double {
-        isPercent ? amount / 100 : amount
-    }
+    var effective: Double { isPercent ? amount / 100 : amount }
 }

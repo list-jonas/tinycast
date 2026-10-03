@@ -56,9 +56,7 @@ enum CalcTokenizer {
                 var isShorthand = false
                 if i < chars.count, chars[i] == "e" || chars[i] == "E" {
                     var digits = i + 1
-                    if digits < chars.count, chars[digits] == "+" || chars[digits] == "-" {
-                        digits += 1
-                    }
+                    if digits < chars.count, chars[digits] == "+" || chars[digits] == "-" { digits += 1 }
                     var end = digits
                     while end < chars.count, isDigit(chars[end]) { end += 1 }
                     if end > digits {
@@ -171,14 +169,10 @@ enum CalcTokenizer {
             case "+", "(", ")", "!", "%", "^", "&", "|", "~", "<", ">", "≤", "≥", "≠", "⊻":
                 guard let op = CalcOperator(rawValue: Character(ch)) else { return nil }
                 tokens.append(.op(op))
-            case ",":
-                tokens.append(.comma)
-            case "*", "×":
-                tokens.append(.op(.multiply))
-            case "/", "÷":
-                tokens.append(.op(.divide))
-            case "−":
-                tokens.append(.op(.subtract))
+            case ",": tokens.append(.comma)
+            case "*", "×": tokens.append(.op(.multiply))
+            case "/", "÷": tokens.append(.op(.divide))
+            case "−": tokens.append(.op(.subtract))
             case "-":
                 if i + 1 < chars.count, chars[i + 1] == ">" {
                     tokens.append(.arrow)
@@ -186,13 +180,11 @@ enum CalcTokenizer {
                 } else {
                     tokens.append(.op(.subtract))
                 }
-            case "→":
-                tokens.append(.arrow)
+            case "→": tokens.append(.arrow)
             case "=":
                 // Tolerate a trailing "=" ("2+2="); anywhere else it's not calculator input.
                 guard i == chars.count - 1 else { return nil }
-            default:
-                return nil
+            default: return nil
             }
             i += 1
         }
@@ -211,13 +203,9 @@ enum CalcTokenizer {
     private static func isMultiplicationX(
         _ chars: [Unicode.Scalar], at index: Int, previous: CalcToken?
     ) -> Bool {
-        guard index > 0, !chars[index - 1].isLetter, let previous, endsOperand(previous) else {
-            return false
-        }
-        if index + 2 < chars.count,
-            ["o", "O"].contains(chars[index + 1]),
-            ["r", "R"].contains(chars[index + 2]),
-            index + 3 == chars.count || !chars[index + 3].isLetter
+        guard index > 0, !chars[index - 1].isLetter, let previous, endsOperand(previous) else { return false }
+        if index + 2 < chars.count, ["o", "O"].contains(chars[index + 1]),
+            ["r", "R"].contains(chars[index + 2]), index + 3 == chars.count || !chars[index + 3].isLetter
         {
             return false
         }
@@ -226,23 +214,17 @@ enum CalcTokenizer {
         while next < chars.count, chars[next].isWhitespace { next += 1 }
         guard next < chars.count else { return !attached }
         switch chars[next] {
-        case ")", "!", "%", "^", "/", ",", "=", "*", "×", "÷", "−", "→":
-            return false
-        default:
-            return true
+        case ")", "!", "%", "^", "/", ",", "=", "*", "×", "÷", "−", "→": return false
+        default: return true
         }
     }
 
     private static func endsOperand(_ token: CalcToken) -> Bool {
         switch token {
-        case .number, .compactNumber, .intLiteral:
-            true
-        case .op(let op):
-            op == .close || op == .factorial || op == .percent
-        case .ident(let name):
-            !["to", "in", "of", "mod", "power", "and"].contains(name)
-        case .arrow, .comma:
-            false
+        case .number, .compactNumber, .intLiteral: true
+        case .op(let op): op == .close || op == .factorial || op == .percent
+        case .ident(let name): !["to", "in", "of", "mod", "power", "and"].contains(name)
+        case .arrow, .comma: false
         }
     }
 
@@ -258,8 +240,7 @@ enum CalcTokenizer {
         while end < chars.count, chars[end].isLetter || chars[end].isNumber { end += 1 }
         guard end > rightStart else { return nil }
         let spelling = (prefix + separator + String(String.UnicodeScalarView(chars[rightStart..<end])))
-            .replacingOccurrences(of: "²", with: "2")
-            .replacingOccurrences(of: "³", with: "3")
+            .replacingOccurrences(of: "²", with: "2").replacingOccurrences(of: "³", with: "3")
         let name = CalcUnits.byName[spelling] != nil ? spelling : spelling.lowercased()
         guard CalcUnits.byName[name] != nil else { return nil }
         return (name, end)
@@ -298,11 +279,9 @@ enum CalcTokenizer {
     /// True when the rest reads as a conversion into a temperature unit, keeping `k` as Kelvin.
     private static func isTemperatureConversion(_ chars: [Unicode.Scalar], from index: Int) -> Bool {
         let remainder = String(String.UnicodeScalarView(chars[index...]))
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         for connector in ["to", "in", "->", "→"] where remainder.hasPrefix(connector) {
-            let target = remainder.dropFirst(connector.count)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let target = remainder.dropFirst(connector.count).trimmingCharacters(in: .whitespacesAndNewlines)
             if CalcUnits.byName[target]?.category == .temperature { return true }
         }
         return false

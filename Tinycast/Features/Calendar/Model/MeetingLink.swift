@@ -27,9 +27,7 @@ struct MeetingLink: Hashable, Sendable {
         return fallback
     }
 
-    static func detect(in text: String) -> MeetingLink? {
-        detect(fields: [text])
-    }
+    static func detect(in text: String) -> MeetingLink? { detect(fields: [text]) }
 
     static func accountAddress(of participantURL: URL, isCurrentUser: Bool) -> String? {
         isCurrentUser ? address(of: participantURL) : nil
@@ -64,14 +62,12 @@ struct MeetingLink: Hashable, Sendable {
         var found: [URL] = []
         var cursor = text.startIndex
         while cursor < text.endIndex,
-            let start = text.range(
-                of: "http", options: .caseInsensitive, range: cursor..<text.endIndex)?.lowerBound
+            let start = text.range(of: "http", options: .caseInsensitive, range: cursor..<text.endIndex)?
+                .lowerBound
         {
             let end = text[start...].firstIndex(where: terminators.contains) ?? text.endIndex
             var candidate = text[start..<end]
-            while let last = candidate.last, trailingNoise.contains(last) {
-                candidate = candidate.dropLast()
-            }
+            while let last = candidate.last, trailingNoise.contains(last) { candidate = candidate.dropLast() }
             let lowered = candidate.lowercased()
             if lowered.hasPrefix("http://") || lowered.hasPrefix("https://"),
                 let url = URL(string: String(candidate))
@@ -120,15 +116,11 @@ extension MeetingLink {
 
         /// Host suffixes, matched whole or as a subdomain. Disjoint by construction.
         private static let hostSuffixes: [Provider: [String]] = [
-            .zoom: ["zoom.us", "zoom.com", "zoomgov.com"],
-            .googleMeet: ["meet.google.com"],
+            .zoom: ["zoom.us", "zoom.com", "zoomgov.com"], .googleMeet: ["meet.google.com"],
             .teams: ["teams.microsoft.com", "teams.microsoft.us", "teams.live.com"],
-            .webex: ["webex.com", "webex.com.cn"],
-            .jitsi: ["meet.jit.si", "8x8.vc"],
-            .whereby: ["whereby.com"],
-            .chime: ["chime.aws"],
-            .gotoMeeting: ["gotomeeting.com", "gotomeet.me", "app.goto.com"],
-            .blueJeans: ["bluejeans.com"],
+            .webex: ["webex.com", "webex.com.cn"], .jitsi: ["meet.jit.si", "8x8.vc"],
+            .whereby: ["whereby.com"], .chime: ["chime.aws"],
+            .gotoMeeting: ["gotomeeting.com", "gotomeet.me", "app.goto.com"], .blueJeans: ["bluejeans.com"],
             .skype: ["join.skype.com"]
         ]
 
@@ -144,12 +136,9 @@ extension MeetingLink {
         func admits(path: String) -> Bool {
             let segments = path.split(separator: "/").map { $0.lowercased() }
             switch self {
-            case .zoom:
-                return segments.contains { ["j", "w", "s", "my"].contains($0) }
-            case .googleMeet:
-                return segments.count == 1 && segments[0] != "tel"
-            case .teams:
-                return segments.contains("meetup-join") || segments.contains("meet")
+            case .zoom: return segments.contains { ["j", "w", "s", "my"].contains($0) }
+            case .googleMeet: return segments.count == 1 && segments[0] != "tel"
+            case .teams: return segments.contains("meetup-join") || segments.contains("meet")
             case .webex, .jitsi, .whereby, .chime, .gotoMeeting, .blueJeans, .skype, .generic:
                 return !segments.isEmpty
             }
@@ -193,8 +182,8 @@ extension MeetingLink {
             components.host = "zoom.us"
             components.path = "/join"
             var query = [URLQueryItem(name: "confno", value: String(conference))]
-            if let password = URLComponents(url: url, resolvingAgainstBaseURL: false)?
-                .queryItems?.first(where: { $0.name == "pwd" })?.value
+            if let password = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(
+                where: { $0.name == "pwd" })?.value
             {
                 query.append(URLQueryItem(name: "pwd", value: password))
             }

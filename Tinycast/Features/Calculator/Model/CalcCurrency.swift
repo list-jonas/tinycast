@@ -51,8 +51,7 @@ enum CalcCurrency {
 
         // A side that is neither currency nor unit is just a typo, and gets no card.
         switch (byName[fromName], byName[toName]) {
-        case (nil, nil):
-            return nil
+        case (nil, nil): return nil
         case (.some, nil):
             guard let to = CalcUnits.byName[toName] else { return nil }
             return .mismatch(from: categoryName, to: to.category.displayName)
@@ -66,9 +65,8 @@ enum CalcCurrency {
             guard let rates else { return .unavailable }
             guard rates.rate(for: from.code) != nil else { return .noRate(code: from.code) }
             guard rates.rate(for: to.code) != nil else { return .noRate(code: to.code) }
-            guard let output = rates.convert(input, from: from.code, to: to.code) else {
-                return .noRate(code: to.code)
-            }
+            guard let output = rates.convert(input, from: from.code, to: to.code)
+            else { return .noRate(code: to.code) }
             return .value(input: input, from: from, to: to, output: output)
         }
     }
@@ -110,29 +108,14 @@ enum CalcCurrency {
 
     /// Hand-written because no standards body names a coin. docs/features/calculator.md
     static let crypto: [(code: String, name: String, aliases: [String])] = [
-        ("ADA", "Cardano", ["cardano"]),
-        ("AVAX", "Avalanche", ["avalanche"]),
-        ("BCH", "Bitcoin Cash", []),
-        ("BNB", "BNB", ["binance"]),
-        ("BSV", "Bitcoin SV", []),
-        ("BTC", "Bitcoin", ["bitcoin"]),
-        ("DASH", "Dash", []),
-        ("DOGE", "Dogecoin", ["dogecoin"]),
-        ("DOT", "Polkadot", ["polkadot"]),
-        ("EOS", "EOS", []),
-        ("ETC", "Ethereum Classic", []),
-        ("ETH", "Ethereum", ["ethereum", "ether"]),
-        ("LTC", "Litecoin", ["litecoin"]),
-        ("LUNA", "Terra", ["terra"]),
-        ("NEO", "Neo", []),
-        ("POL", "Polygon", ["polygon"]),
-        ("SHIB", "Shiba Inu", ["shiba"]),
-        ("SOL", "Solana", ["solana"]),
-        ("TRX", "TRON", ["tron"]),
-        ("USDT", "Tether", ["tether"]),
-        ("XLM", "Stellar", ["stellar"]),
-        ("XMR", "Monero", ["monero"]),
-        ("XRP", "XRP", ["ripple"])
+        ("ADA", "Cardano", ["cardano"]), ("AVAX", "Avalanche", ["avalanche"]), ("BCH", "Bitcoin Cash", []),
+        ("BNB", "BNB", ["binance"]), ("BSV", "Bitcoin SV", []), ("BTC", "Bitcoin", ["bitcoin"]),
+        ("DASH", "Dash", []), ("DOGE", "Dogecoin", ["dogecoin"]), ("DOT", "Polkadot", ["polkadot"]),
+        ("EOS", "EOS", []), ("ETC", "Ethereum Classic", []), ("ETH", "Ethereum", ["ethereum", "ether"]),
+        ("LTC", "Litecoin", ["litecoin"]), ("LUNA", "Terra", ["terra"]), ("NEO", "Neo", []),
+        ("POL", "Polygon", ["polygon"]), ("SHIB", "Shiba Inu", ["shiba"]), ("SOL", "Solana", ["solana"]),
+        ("TRX", "TRON", ["tron"]), ("USDT", "Tether", ["tether"]), ("XLM", "Stellar", ["stellar"]),
+        ("XMR", "Monero", ["monero"]), ("XRP", "XRP", ["ripple"])
     ]
 
     /// `CurrencyRateStore` builds its request from this, so the two lists cannot drift apart.

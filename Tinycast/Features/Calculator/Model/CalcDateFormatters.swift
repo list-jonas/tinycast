@@ -34,8 +34,8 @@ enum CalcDateFormatters {
     ) -> String {
         let locale = calendar.locale ?? Locale(identifier: "en_US")
         let key = Key(
-            layout: layout, zone: zone.identifier, locale: locale.identifier,
-            hourCycle: locale.hourCycle, calendar: calendar.identifier)
+            layout: layout, zone: zone.identifier, locale: locale.identifier, hourCycle: locale.hourCycle,
+            calendar: calendar.identifier)
 
         lock.lock()
         defer { lock.unlock() }

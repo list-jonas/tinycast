@@ -33,8 +33,8 @@ enum CalcTimestamp {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = zone
         let components = DateComponents(
-            year: parts[0], month: parts[1], day: parts[2],
-            hour: parts[3], minute: parts[4], second: parts[5])
+            year: parts[0], month: parts[1], day: parts[2], hour: parts[3], minute: parts[4], second: parts[5]
+        )
         guard let date = calendar.date(from: components),
             calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date) == components
         else { return nil }

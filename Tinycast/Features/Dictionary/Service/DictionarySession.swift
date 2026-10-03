@@ -30,9 +30,8 @@ final class DictionarySession {
         task = Task { [weak self] in
             try? await Task.sleep(for: Self.debounce)
             guard !Task.isCancelled else { return }
-            let entry = await Task.detached(priority: .userInitiated) {
-                DictionaryService.entry(for: term)
-            }.value
+            let entry = await Task.detached(priority: .userInitiated) { DictionaryService.entry(for: term) }
+                .value
             guard !Task.isCancelled else { return }
             self?.lookup = Lookup(term: term, entry: entry)
         }

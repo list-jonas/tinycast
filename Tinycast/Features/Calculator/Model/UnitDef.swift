@@ -16,8 +16,7 @@ final class UnitDef: Equatable, Sendable {
         lhs === rhs
             || (lhs.symbol == rhs.symbol && lhs.name == rhs.name && lhs.category == rhs.category
                 && lhs.factor == rhs.factor && lhs.offset == rhs.offset
-                && lhs.derivedDimension == rhs.derivedDimension
-                && lhs.currency == rhs.currency)
+                && lhs.derivedDimension == rhs.derivedDimension && lhs.currency == rhs.currency)
     }
 
     func isCompatible(with other: UnitDef) -> Bool {
@@ -27,8 +26,8 @@ final class UnitDef: Equatable, Sendable {
     }
 
     @inline(never) init(
-        _ symbol: String, _ name: String, _ category: UnitCategory, _ factor: Double,
-        offset: Double = 0, dimension: CalcDimension? = nil, currency: CurrencyDef? = nil
+        _ symbol: String, _ name: String, _ category: UnitCategory, _ factor: Double, offset: Double = 0,
+        dimension: CalcDimension? = nil, currency: CurrencyDef? = nil
     ) {
         self.symbol = symbol
         self.name = name

@@ -18,17 +18,10 @@ struct MeetingDetails: Equatable, Sendable {
     static func plainText(fromNotes notes: String) -> String? {
         guard notes.contains(/(?i)<\/?(?:a|b|i|u|p|br|div|span|strong|em|ul|ol|li)\b[^>]*>/)
         else { return nonBlank(notes) }
-        let text =
-            notes
-            .replacing(/(?i)(?:<br\s*\/?>|<\/(?:p|div|li)>)/, with: "\n")
-            .replacing(/(?i)<li\b[^>]*>/, with: "• ")
-            .replacing(/<[^>]+>/, with: "")
-            .replacing("&nbsp;", with: " ")
-            .replacing("&lt;", with: "<")
-            .replacing("&gt;", with: ">")
-            .replacing("&quot;", with: "\"")
-            .replacing("&#39;", with: "'")
-            .replacing("&amp;", with: "&")
+        let text = notes.replacing(/(?i)(?:<br\s*\/?>|<\/(?:p|div|li)>)/, with: "\n")
+            .replacing(/(?i)<li\b[^>]*>/, with: "• ").replacing(/<[^>]+>/, with: "")
+            .replacing("&nbsp;", with: " ").replacing("&lt;", with: "<").replacing("&gt;", with: ">")
+            .replacing("&quot;", with: "\"").replacing("&#39;", with: "'").replacing("&amp;", with: "&")
             .replacing(/\n{3,}/, with: "\n\n")
         return nonBlank(text)
     }

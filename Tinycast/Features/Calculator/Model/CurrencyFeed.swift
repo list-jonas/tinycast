@@ -52,7 +52,5 @@ enum CurrencyFeed {
         CalcCurrency.cryptoCodes.contains { snapshot.rates[$0] != nil }
     }
 
-    private static func usable(_ rate: Double) -> Bool {
-        rate > 0 && rate.isFinite
-    }
+    private static func usable(_ rate: Double) -> Bool { rate > 0 && rate.isFinite }
 }

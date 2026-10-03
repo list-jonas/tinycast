@@ -42,12 +42,9 @@ final class CalculatorHistoryStore {
 
     func record(expression: String, result: String) {
         // Re-copying the same answer (Enter twice, or from history) shouldn't stack duplicates.
-        if let latest = entries.first, latest.expression == expression, latest.result == result {
-            return
-        }
+        if let latest = entries.first, latest.expression == expression, latest.result == result { return }
         entries.insert(
-            CalcHistoryEntry(id: UUID(), expression: expression, result: result, createdAt: Date()),
-            at: 0)
+            CalcHistoryEntry(id: UUID(), expression: expression, result: result, createdAt: Date()), at: 0)
         if entries.count > Self.cap { entries.removeLast(entries.count - Self.cap) }
         persist()
     }
@@ -82,8 +79,6 @@ final class CalculatorHistoryStore {
 
     private func persist() {
         revision &+= 1
-        if let data = try? JSONEncoder().encode(entries) {
-            try? data.write(to: fileURL, options: .atomic)
-        }
+        if let data = try? JSONEncoder().encode(entries) { try? data.write(to: fileURL, options: .atomic) }
     }
 }

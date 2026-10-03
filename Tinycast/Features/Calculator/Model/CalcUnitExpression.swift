@@ -5,8 +5,8 @@ enum CalcUnitExpression {
         if let unit = CalcUnits.byName[name] { return unit }
         guard let currency = CalcCurrency.byName[name] else { return nil }
         return UnitDef(
-            currency.code, currency.name, .compound, 1,
-            dimension: CalcDimension(currency: 1), currency: currency)
+            currency.code, currency.name, .compound, 1, dimension: CalcDimension(currency: 1),
+            currency: currency)
     }
 
     static func parse(_ tokens: [CalcToken]) -> UnitDef? {
@@ -33,9 +33,8 @@ enum CalcUnitExpression {
             dividing && (right.symbol.contains("/") || right.symbol.contains("·"))
             ? "(\(right.symbol))" : right.symbol
         return UnitDef(
-            left.symbol + (dividing ? "/" : "·") + rightSymbol,
-            "Compound Units", .compound, factor, dimension: dimension,
-            currency: dimension.currency == 0 ? nil : left.currency ?? right.currency)
+            left.symbol + (dividing ? "/" : "·") + rightSymbol, "Compound Units", .compound, factor,
+            dimension: dimension, currency: dimension.currency == 0 ? nil : left.currency ?? right.currency)
     }
 
     static func power(_ unit: UnitDef, _ exponent: Double) -> UnitDef? {
@@ -61,9 +60,8 @@ enum CalcUnitExpression {
             while current == .op(.multiply) || current == .op(.divide) {
                 let dividing = current == .op(.divide)
                 index += 1
-                guard let right = factor(), let result = combine(left, right, dividing: dividing) else {
-                    return nil
-                }
+                guard let right = factor(), let result = combine(left, right, dividing: dividing)
+                else { return nil }
                 left = result
             }
             return left

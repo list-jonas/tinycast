@@ -3,16 +3,15 @@ import Foundation
 /// Percentage phrasings the arithmetic parser misses: `20% off 500`, `50 as % of 200`.
 enum CalcPercent {
     static func evaluate(_ tokens: [CalcToken], query: String) -> CalcResult? {
-        parseOff(tokens, query: query) ?? parseAsPercentOf(tokens, query: query)
-            ?? parseTip(tokens, query: query) ?? parseWhatPercentOf(tokens, query: query)
-            ?? parseIsPercentOfWhat(tokens, query: query) ?? parseRatio(tokens, query: query)
-            ?? parseAggregate(tokens, query: query) ?? parseRoundToNearest(tokens, query: query)
+        parseOff(tokens, query: query) ?? parseAsPercentOf(tokens, query: query) ?? parseTip(
+            tokens, query: query) ?? parseWhatPercentOf(tokens, query: query) ?? parseIsPercentOfWhat(
+                tokens, query: query) ?? parseRatio(tokens, query: query) ?? parseAggregate(
+                tokens, query: query) ?? parseRoundToNearest(tokens, query: query)
     }
 
     /// `<pct>% off <value>` → the value reduced by pct percent (`20% off 500` → 400).
     private static func parseOff(_ tokens: [CalcToken], query: String) -> CalcResult? {
-        guard let off = tokens.firstIndex(of: .ident("off")), off >= 2,
-            tokens[off - 1] == .op(.percent),
+        guard let off = tokens.firstIndex(of: .ident("off")), off >= 2, tokens[off - 1] == .op(.percent),
             let pct = CalcExpressionParser.scalar(Array(tokens[0..<(off - 1)])),
             let base = CalcExpressionParser.scalar(Array(tokens[(off + 1)...]))
         else { return nil }
@@ -38,15 +37,13 @@ enum CalcPercent {
     ) -> CalcResult {
         CalcResult(
             expression: query.split(whereSeparator: \.isWhitespace).joined(separator: " "),
-            sourceBadge: "Expression",
-            targetBadge: target,
-            payload: payload)
+            sourceBadge: "Expression", targetBadge: target, payload: payload)
     }
 
     /// The tip alone, not the total: it is the number the phrase asks for.
     private static func parseTip(_ tokens: [CalcToken], query: String) -> CalcResult? {
-        guard let tip = tokens.firstIndex(of: .ident("tip")), tip >= 2,
-            tip + 2 < tokens.count, tokens[tip - 1] == .op(.percent),
+        guard let tip = tokens.firstIndex(of: .ident("tip")), tip >= 2, tip + 2 < tokens.count,
+            tokens[tip - 1] == .op(.percent),
             tokens[tip + 1] == .ident("on") || tokens[tip + 1] == .ident("of"),
             let pct = CalcExpressionParser.scalar(Array(tokens[0..<(tip - 1)])),
             let bill = CalcExpressionParser.scalar(Array(tokens[(tip + 2)...]))
@@ -58,10 +55,8 @@ enum CalcPercent {
 
     private static func parseWhatPercentOf(_ tokens: [CalcToken], query: String) -> CalcResult? {
         guard let isIdx = tokens.firstIndex(of: .ident("is")), isIdx + 4 <= tokens.count,
-            isIdx + 3 < tokens.count,
-            tokens[isIdx + 1] == .ident("what"), tokens[isIdx + 2] == .op(.percent),
-            tokens[isIdx + 3] == .ident("of"),
-            let x = CalcExpressionParser.scalar(Array(tokens[0..<isIdx])),
+            isIdx + 3 < tokens.count, tokens[isIdx + 1] == .ident("what"), tokens[isIdx + 2] == .op(.percent),
+            tokens[isIdx + 3] == .ident("of"), let x = CalcExpressionParser.scalar(Array(tokens[0..<isIdx])),
             let y = CalcExpressionParser.scalar(Array(tokens[(isIdx + 4)...])), y != 0
         else { return nil }
         let ratio = x / y * 100
@@ -70,12 +65,10 @@ enum CalcPercent {
     }
 
     private static func parseIsPercentOfWhat(_ tokens: [CalcToken], query: String) -> CalcResult? {
-        guard tokens.count >= 6, tokens.last == .ident("what"),
-            tokens[tokens.count - 2] == .ident("of"), tokens[tokens.count - 3] == .op(.percent),
-            let isIdx = tokens.firstIndex(of: .ident("is")),
+        guard tokens.count >= 6, tokens.last == .ident("what"), tokens[tokens.count - 2] == .ident("of"),
+            tokens[tokens.count - 3] == .op(.percent), let isIdx = tokens.firstIndex(of: .ident("is")),
             let x = CalcExpressionParser.scalar(Array(tokens[0..<isIdx])),
-            let pct = CalcExpressionParser.scalar(Array(tokens[(isIdx + 1)..<(tokens.count - 3)])),
-            pct != 0
+            let pct = CalcExpressionParser.scalar(Array(tokens[(isIdx + 1)..<(tokens.count - 3)])), pct != 0
         else { return nil }
         let whole = x / (pct / 100)
         guard whole.isFinite else { return nil }
@@ -87,8 +80,8 @@ enum CalcPercent {
         guard tokens.count >= 5, tokens[0] == .ident("ratio"), tokens[1] == .ident("of"),
             let toIdx = tokens.firstIndex(of: .ident("to")),
             let a = CalcExpressionParser.scalar(Array(tokens[2..<toIdx])),
-            let b = CalcExpressionParser.scalar(Array(tokens[(toIdx + 1)...])),
-            a.rounded() == a, b.rounded() == b, abs(a) <= 1e15, abs(b) <= 1e15, a != 0 || b != 0
+            let b = CalcExpressionParser.scalar(Array(tokens[(toIdx + 1)...])), a.rounded() == a,
+            b.rounded() == b, abs(a) <= 1e15, abs(b) <= 1e15, a != 0 || b != 0
         else { return nil }
         let divisor = greatestCommonDivisor(abs(a), abs(b))
         guard divisor > 0 else { return nil }
@@ -103,12 +96,11 @@ enum CalcPercent {
     }
 
     private static func parseAggregate(_ tokens: [CalcToken], query: String) -> CalcResult? {
-        guard tokens.count >= 3, case .ident(let name) = tokens[0],
-            let aggregate = aggregates[name], tokens[1] == .ident("of")
+        guard tokens.count >= 3, case .ident(let name) = tokens[0], let aggregate = aggregates[name],
+            tokens[1] == .ident("of")
         else { return nil }
         let values = splitList(Array(tokens[2...]))
-        guard values.count >= 2, let result = aggregate.reduce(values), result.isFinite
-        else { return nil }
+        guard values.count >= 2, let result = aggregate.reduce(values), result.isFinite else { return nil }
         return card(query, .number(result), target: aggregate.name)
     }
 
@@ -136,8 +128,7 @@ enum CalcPercent {
         "avg": Aggregate(name: "Average") { $0.reduce(0, +) / Double($0.count) },
         "mean": Aggregate(name: "Average") { $0.reduce(0, +) / Double($0.count) },
         "sum": Aggregate(name: "Sum") { $0.reduce(0, +) },
-        "total": Aggregate(name: "Sum") { $0.reduce(0, +) },
-        "min": Aggregate(name: "Minimum") { $0.min() },
+        "total": Aggregate(name: "Sum") { $0.reduce(0, +) }, "min": Aggregate(name: "Minimum") { $0.min() },
         "max": Aggregate(name: "Maximum") { $0.max() }
     ]
 

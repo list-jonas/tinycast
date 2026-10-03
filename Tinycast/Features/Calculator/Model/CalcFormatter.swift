@@ -4,14 +4,11 @@ import Foundation
 enum CalcFormatter {
     static func expression(_ query: String) -> String {
         query.split(whereSeparator: \.isWhitespace).joined(separator: " ")
-            .replacingOccurrences(of: "*", with: "×")
-            .replacingOccurrences(of: "/", with: "÷")
+            .replacingOccurrences(of: "*", with: "×").replacingOccurrences(of: "/", with: "÷")
     }
 
     /// Human-facing: ≤10 significant digits, trailing zeros trimmed, thousands separators.
-    static func display(_ value: Double) -> String {
-        grouped(copyText(value))
-    }
+    static func display(_ value: Double) -> String { grouped(copyText(value)) }
 
     /// Every integer up to 2^53 is exactly representable as a Double.
     private static let maxExactInteger = 9_007_199_254_740_992.0
@@ -20,9 +17,7 @@ enum CalcFormatter {
     static func copyText(_ value: Double) -> String {
         let v = value == 0 ? 0 : value  // normalize -0
         // Past 2^53 the precision is genuinely gone, so exponent form is the honest answer there.
-        if v.rounded() == v && abs(v) <= maxExactInteger {
-            return String(Int64(v))
-        }
+        if v.rounded() == v && abs(v) <= maxExactInteger { return String(Int64(v)) }
         return String(format: "%.10g", v)
     }
 

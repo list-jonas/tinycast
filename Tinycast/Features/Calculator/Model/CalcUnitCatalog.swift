@@ -5,9 +5,7 @@ enum CalcUnitCatalog {
         var table: [String: UnitDef] = [:]
         table.reserveCapacity(1024)
         var category = UnitCategory.length
-        func add(_ definition: UnitDef, _ names: [String]) {
-            for name in names { table[name] = definition }
-        }
+        func add(_ definition: UnitDef, _ names: [String]) { for name in names { table[name] = definition } }
         for line in records.split(separator: "\n") {
             let fields = line.split(separator: "|")
             if fields.count == 1 {
@@ -19,9 +17,7 @@ enum CalcUnitCatalog {
             }
             guard fields.count == 4 || fields.count == 5, let factor = Double(fields[2]),
                 let offset = fields.count == 5 ? Double(fields[4]) : 0
-            else {
-                preconditionFailure("Invalid built-in unit record")
-            }
+            else { preconditionFailure("Invalid built-in unit record") }
             let definition = UnitDef(String(fields[0]), String(fields[1]), category, factor, offset: offset)
             for name in fields[3].split(separator: ",") { table[String(name)] = definition }
         }

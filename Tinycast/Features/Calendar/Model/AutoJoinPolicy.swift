@@ -6,14 +6,11 @@ struct AutoJoinPolicy: Sendable {
     let armedAt: Date
 
     func meeting(
-        from events: [MeetingEvent], now: Date, window: UpcomingWindow,
-        joined: Set<MeetingEvent.ID>
+        from events: [MeetingEvent], now: Date, window: UpcomingWindow, joined: Set<MeetingEvent.ID>
     ) -> MeetingEvent? {
         guard let carded = window.carded(from: events, now: now) else { return nil }
         // Never early, never a meeting that was already under way, never the same one twice.
-        guard carded.start >= armedAt, now >= carded.start, !joined.contains(carded.id) else {
-            return nil
-        }
+        guard carded.start >= armedAt, now >= carded.start, !joined.contains(carded.id) else { return nil }
         return carded
     }
 }

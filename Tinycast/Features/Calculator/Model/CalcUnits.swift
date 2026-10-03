@@ -4,13 +4,9 @@ enum CalcUnits {
     static let baseUnits: [CalcDimension: UnitDef] = {
         var units: [CalcDimension: UnitDef] = [:]
         for name in [
-            "m", "kg", "s", "m2", "m3", "b", "m/s", "pa", "bps", "m/s2", "n", "j", "w", "hz",
-            "a", "v", "ohm", "as", "m3/s", "px", "px2", "ppi"
-        ] {
-            if let unit = byName[name], let dimension = unit.category.dimension {
-                units[dimension] = unit
-            }
-        }
+            "m", "kg", "s", "m2", "m3", "b", "m/s", "pa", "bps", "m/s2", "n", "j", "w", "hz", "a", "v", "ohm",
+            "as", "m3/s", "px", "px2", "ppi"
+        ] { if let unit = byName[name], let dimension = unit.category.dimension { units[dimension] = unit } }
         return units
     }()
 
@@ -41,10 +37,8 @@ enum CalcUnits {
     /// `expr unit (to|in|->) unit`. Matching the last position lets "in" double as inches.
     static func parseConversion(_ tokens: [CalcToken]) -> ConversionParse? {
         guard tokens.count >= 3, isConnector(tokens[tokens.count - 2]),
-            case .ident(let toName) = tokens[tokens.count - 1],
-            let to = byName[toName],
-            case .ident(let fromName) = tokens[tokens.count - 3],
-            let from = byName[fromName]
+            case .ident(let toName) = tokens[tokens.count - 1], let to = byName[toName],
+            case .ident(let fromName) = tokens[tokens.count - 3], let from = byName[fromName]
         else { return nil }
 
         let valueTokens = Array(tokens[0..<(tokens.count - 3)])
@@ -65,10 +59,8 @@ enum CalcUnits {
 
     /// `day s` → `1 day` in `s`. Same category only, so two-word searches don't produce a card.
     static func parseUnitPairConversion(_ tokens: [CalcToken]) -> ConversionParse? {
-        guard tokens.count == 2,
-            case .ident(let fromName) = tokens[0], let from = byName[fromName],
-            case .ident(let toName) = tokens[1], let to = byName[toName],
-            from.category == to.category
+        guard tokens.count == 2, case .ident(let fromName) = tokens[0], let from = byName[fromName],
+            case .ident(let toName) = tokens[1], let to = byName[toName], from.category == to.category
         else { return nil }
 
         let output = (1 * from.factor + from.offset - to.offset) / to.factor
@@ -79,10 +71,8 @@ enum CalcUnits {
     /// `expr unit` with no connector. c/f/k are excluded, so `5k` stays an app search.
     static func parseBareConversion(_ tokens: [CalcToken]) -> BareConversion? {
         guard tokens.count >= 2, case .ident(let fromName) = tokens[tokens.count - 1],
-            !["c", "f", "k"].contains(fromName),
-            let from = byName[fromName],
-            let mapping = autoTargets[from.symbol],
-            let to = byName[mapping.to]
+            !["c", "f", "k"].contains(fromName), let from = byName[fromName],
+            let mapping = autoTargets[from.symbol], let to = byName[mapping.to]
         else { return nil }
 
         let valueTokens = Array(tokens[0..<(tokens.count - 1)])
@@ -103,56 +93,49 @@ enum CalcUnits {
     /// Keyword-less counterpart per unit; only `m→ft` is compound.
     static let autoTargets: [String: (to: String, compound: Bool)] = [
         // Length
-        "mm": ("in", false), "cm": ("in", false), "m": ("ft", true), "km": ("mi", false),
-        "dm": ("cm", false), "in": ("cm", false), "ft": ("m", false), "yd": ("m", false), "mi": ("km", false),
+        "mm": ("in", false), "cm": ("in", false), "m": ("ft", true), "km": ("mi", false), "dm": ("cm", false),
+        "in": ("cm", false), "ft": ("m", false), "yd": ("m", false), "mi": ("km", false),
         // Weight
-        "mg": ("g", false), "g": ("oz", false), "kg": ("lb", false), "oz": ("g", false),
-        "lb": ("kg", false),
+        "mg": ("g", false), "g": ("oz", false), "kg": ("lb", false), "oz": ("g", false), "lb": ("kg", false),
         // Temperature (bare form requires a spelled/°-prefixed alias — see parseBareConversion)
         "°C": ("f", false), "°F": ("c", false), "K": ("c", false),
         // Time
         "ms": ("s", false), "s": ("ms", false), "min": ("s", false), "hr": ("min", false),
-        "day": ("hr", false), "week": ("day", false),
-        "workdays": ("hr", false),
+        "day": ("hr", false), "week": ("day", false), "workdays": ("hr", false),
         // Area
         "mm²": ("in2", false), "cm²": ("in2", false), "m²": ("ft2", false), "km²": ("mi2", false),
         "in²": ("cm2", false), "ft²": ("m2", false), "yd²": ("m2", false), "mi²": ("km2", false),
-        "acre": ("m2", false), "ha": ("acre", false),
-        "dm²": ("cm2", false),
+        "acre": ("m2", false), "ha": ("acre", false), "dm²": ("cm2", false),
         // Volume
         "mL": ("floz", false), "L": ("gal", false), "cup": ("ml", false), "tbsp": ("ml", false),
         "tsp": ("ml", false), "gal": ("l", false), "qt": ("l", false), "pt": ("ml", false),
-        "fl oz": ("ml", false),
-        "cL": ("ml", false), "dL": ("ml", false),
-        "mm³": ("ml", false), "cm³": ("ml", false), "dm³": ("l", false), "m³": ("l", false),
-        "in³": ("ml", false), "ft³": ("l", false), "yd³": ("l", false),
-        "L/s": ("l/min", false), "L/min": ("l/h", false), "L/h": ("l/min", false),
-        "m³/s": ("l/s", false), "m³/h": ("l/min", false), "gal/min": ("l/min", false),
+        "fl oz": ("ml", false), "cL": ("ml", false), "dL": ("ml", false), "mm³": ("ml", false),
+        "cm³": ("ml", false), "dm³": ("l", false), "m³": ("l", false), "in³": ("ml", false),
+        "ft³": ("l", false), "yd³": ("l", false), "L/s": ("l/min", false), "L/min": ("l/h", false),
+        "L/h": ("l/min", false), "m³/s": ("l/s", false), "m³/h": ("l/min", false),
+        "gal/min": ("l/min", false),
         // Digital storage
         "bit": ("b", false), "B": ("bit", false), "kB": ("kib", false), "MB": ("mib", false),
         "GB": ("gib", false), "TB": ("tib", false), "PB": ("tb", false), "KiB": ("kb", false),
         "MiB": ("mb", false), "GiB": ("gb", false), "TiB": ("tb", false),
         // Angle
-        "deg": ("rad", false), "rad": ("deg", false), "grad": ("deg", false),
-        "turn": ("deg", false), "arcmin": ("deg", false), "arcsec": ("deg", false),
+        "deg": ("rad", false), "rad": ("deg", false), "grad": ("deg", false), "turn": ("deg", false),
+        "arcmin": ("deg", false), "arcsec": ("deg", false),
         // Speed
-        "km/h": ("mph", false), "mph": ("kmh", false), "m/s": ("kmh", false),
-        "kn": ("kmh", false), "ft/s": ("mph", false),
+        "km/h": ("mph", false), "mph": ("kmh", false), "m/s": ("kmh", false), "kn": ("kmh", false),
+        "ft/s": ("mph", false),
         // Pressure
-        "bar": ("psi", false), "psi": ("bar", false), "atm": ("psi", false),
-        "mbar": ("psi", false), "kPa": ("psi", false), "hPa": ("psi", false),
-        "mmHg": ("psi", false), "Torr": ("psi", false),
+        "bar": ("psi", false), "psi": ("bar", false), "atm": ("psi", false), "mbar": ("psi", false),
+        "kPa": ("psi", false), "hPa": ("psi", false), "mmHg": ("psi", false), "Torr": ("psi", false),
         // Data transfer rate
-        "Mbps": ("kbps", false), "Gbps": ("mbps", false), "Kbps": ("bps", false),
-        "bps": ("kbps", false), "Tbps": ("gbps", false),
-        "Wh": ("kwh", false), "mWh": ("wh", false), "kWh": ("wh", false), "MWh": ("kwh", false),
-        "W": ("kw", false), "mW": ("w", false), "kW": ("w", false), "MW": ("kw", false),
-        "A": ("ma", false), "mA": ("a", false), "µA": ("ma", false), "MA": ("a", false),
-        "V": ("mv", false), "mV": ("v", false), "kV": ("v", false), "MV": ("kv", false),
-        "Ω": ("kohm", false), "mΩ": ("ohm", false), "kΩ": ("ohm", false), "MΩ": ("kohm", false),
-        "As": ("ah", false), "Ah": ("mah", false), "mAh": ("ah", false), "MAh": ("ah", false),
-        "px": ("rem", false), "rem": ("px", false), "em": ("px", false),
-        "ppi": ("px/cm", false), "px/cm": ("ppi", false),
+        "Mbps": ("kbps", false), "Gbps": ("mbps", false), "Kbps": ("bps", false), "bps": ("kbps", false),
+        "Tbps": ("gbps", false), "Wh": ("kwh", false), "mWh": ("wh", false), "kWh": ("wh", false),
+        "MWh": ("kwh", false), "W": ("kw", false), "mW": ("w", false), "kW": ("w", false),
+        "MW": ("kw", false), "A": ("ma", false), "mA": ("a", false), "µA": ("ma", false), "MA": ("a", false),
+        "V": ("mv", false), "mV": ("v", false), "kV": ("v", false), "MV": ("kv", false), "Ω": ("kohm", false),
+        "mΩ": ("ohm", false), "kΩ": ("ohm", false), "MΩ": ("kohm", false), "As": ("ah", false),
+        "Ah": ("mah", false), "mAh": ("ah", false), "MAh": ("ah", false), "px": ("rem", false),
+        "rem": ("px", false), "em": ("px", false), "ppi": ("px/cm", false), "px/cm": ("ppi", false),
         "px/mm": ("ppi", false), "px/m": ("ppi", false)
     ]
 

@@ -90,9 +90,8 @@ final class EmojiIndex {
             let terms = words.count > 1 ? words : []
             let frequentGlyphs = frequent.top(Self.frecencyLimit)
             let frecency = Dictionary(
-                frequentGlyphs.enumerated().map {
-                    ($0.element, Self.frecencyLimit - $0.offset)
-                }, uniquingKeysWith: max)
+                frequentGlyphs.enumerated().map { ($0.element, Self.frecencyLimit - $0.offset) },
+                uniquingKeysWith: max)
             var scored: [ScoredEntry] = []
             for (order, entry) in entries.enumerated() {
                 guard let textScore = Self.textScore(query, terms: terms, folded: foldedEntries[order])
@@ -100,11 +99,8 @@ final class EmojiIndex {
                 let score = textScore + (frecency[entry.glyph] ?? 0)
                 scored.append(ScoredEntry(entry: entry, score: score, order: order))
             }
-            return
-                scored
-                .sorted { $0.score != $1.score ? $0.score > $1.score : $0.order < $1.order }
-                .prefix(limit)
-                .map(\.entry)
+            return scored.sorted { $0.score != $1.score ? $0.score > $1.score : $0.order < $1.order }
+                .prefix(limit).map(\.entry)
         }
     }
 
@@ -117,9 +113,7 @@ final class EmojiIndex {
     private static let nameWordsScore = 60_000
     private static let mixedWordsScore = 50_000
 
-    private static func textScore(
-        _ query: FuzzyMatch.Query, terms: [String], folded: FoldedEntry
-    ) -> Int? {
+    private static func textScore(_ query: FuzzyMatch.Query, terms: [String], folded: FoldedEntry) -> Int? {
         var nameOnly = true
         for term in terms where !containsWordStart(term, in: folded.name.text) {
             guard !term.contains(","), containsWordStart(term, in: folded.keywords.text) else { return nil }
