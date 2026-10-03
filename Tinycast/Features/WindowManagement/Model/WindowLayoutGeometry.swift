@@ -8,9 +8,7 @@ enum WindowLayoutGeometry {
 
     /// The box an entry's fractions are of. A zero gap makes this the plain visible frame.
     static func box(_ screen: WindowPlacementEngine.Screen, gap: CGFloat) -> CGRect {
-        WindowPlacementEngine.canvas(
-            screen.visibleFrame,
-            gap: WindowPlacementEngine.sanitizedGap(gap, in: screen.visibleFrame))
+        WindowPlacementEngine.canvas(screen.visibleFrame, sanitizing: gap)
     }
 
     /// The frame an entry asks for, or nil when the display has no usable visible frame.

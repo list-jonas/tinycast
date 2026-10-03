@@ -119,12 +119,10 @@ final class WindowMover {
         let token = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main
         ) { [weak self] note in
-            guard
-                let app = note.userInfo?[NSWorkspace.applicationUserInfoKey]
-                    as? NSRunningApplication
+            guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
             else { return }
             let pid = app.processIdentifier
-            MainActor.assumeIsolated {
+            Task { @MainActor [weak self] in
                 self?.memory.forget { key in
                     guard case .external(let external) = key else { return false }
                     return external.pid == pid
@@ -247,11 +245,8 @@ final class WindowMover {
         guard surface.canMove else { return false }
         let canResize = placement.resizes && surface.canResize
 
-        let destination = screens.first { $0.id == placement.screenID }
-        let canvas = destination.map {
-            WindowPlacementEngine.canvas(
-                $0.visibleFrame,
-                gap: WindowPlacementEngine.sanitizedGap(gap, in: $0.visibleFrame))
+        let canvas = screens.first { $0.id == placement.screenID }.map {
+            WindowPlacementEngine.canvas($0.visibleFrame, sanitizing: gap)
         }
         let restoreEnhancedUI = canResize ? surface.suppressEnhancedUserInterface() : {}
         defer { restoreEnhancedUI() }

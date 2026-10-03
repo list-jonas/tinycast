@@ -182,16 +182,8 @@ enum RoomRunner {
 
     private static func write(_ frame: CGRect, to window: AXUIElement) {
         AXUIElementSetMessagingTimeout(window, AXWindowAccess.messagingTimeout)
-        if AXWindowAccess.bool(window, kAXMinimizedAttribute) == true {
-            _ = AXWindowAccess.unminimize(window)
-        }
-        // Checked before any write, so an unpositionable window is left untouched.
-        guard AXWindowAccess.isSettable(kAXPositionAttribute, on: window),
-            let current = AXWindowAccess.frame(of: window)
-        else { return }
-        _ = AXWindowAccess.write(
-            frame, anchor: .topLeading, to: window, current: current,
-            canResize: AXWindowAccess.isSettable(kAXSizeAttribute, on: window), canvas: nil)
+        if AXWindowAccess.bool(window, kAXMinimizedAttribute) == true { _ = AXWindowAccess.unminimize(window) }
+        _ = AXWindowAccess.place(frame, anchor: .topLeading, canvas: nil, on: window)
     }
 
     /// AX reports no minimum size, so a refused resize teaches it; a second ask rules out a lag.

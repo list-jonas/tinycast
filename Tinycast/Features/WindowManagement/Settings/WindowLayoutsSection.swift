@@ -63,65 +63,29 @@ struct WindowLayoutsSection: View {
     }
 }
 
-/// One layout's shortcut, launcher checkbox and actions, shaped like the window-command row.
 private struct WindowLayoutSettingsRow: View {
     let layout: WindowLayout
     let onEdit: () -> Void
     let onDelete: () -> Void
 
     @Environment(AppCore.self) private var core
-    @Environment(VisibilityStore.self) private var visibility
 
     var body: some View {
         SettingsRow(title: layout.name, subtitle: layout.summary) {
             SymbolImage(name: layout.symbol, size: 13)
         } trailing: {
             ShortcutRecorder(action: .windowLayout(id: layout.id))
-
-            Button {
+            WindowLibraryRowButton(symbol: "play", help: "Run this layout", label: "Run \(layout.name)") {
                 core.windowLayoutCoordinator.runWindowLayout(id: layout.id)
-            } label: {
-                Image(systemName: "play")
             }
-            .buttonStyle(.plain)
-            .help("Run this layout")
-            .accessibilityLabel("Run \(layout.name)")
-
-            Button(action: onEdit) {
-                Image(systemName: "pencil")
-            }
-            .buttonStyle(.plain)
-            .help("Edit")
-            .accessibilityLabel("Edit \(layout.name)")
-
-            Button {
-                core.windowLayoutCoordinator.duplicateWindowLayout(id: layout.id)
-            } label: {
-                Image(systemName: "plus.square.on.square")
-            }
-            .buttonStyle(.plain)
-            .help("Duplicate")
-            .accessibilityLabel("Duplicate \(layout.name)")
-
-            Button(action: onDelete) {
-                Image(systemName: "trash")
-                    .foregroundStyle(Theme.Colors.destructive)
-            }
-            .buttonStyle(.plain)
-            .help("Delete")
-            .accessibilityLabel("Delete \(layout.name)")
-
-            Toggle("", isOn: visibilityBinding)
-                .labelsHidden()
-                .toggleStyle(.checkbox)
-                .launcherVisibilityHelp()
-                .accessibilityLabel("Show \(layout.name) in launcher")
+            WindowLibraryRowButton(symbol: "pencil", help: "Edit", label: "Edit \(layout.name)", action: onEdit)
+            WindowLibraryRowButton(
+                symbol: "plus.square.on.square", help: "Duplicate", label: "Duplicate \(layout.name)"
+            ) { core.windowLayoutCoordinator.duplicateWindowLayout(id: layout.id) }
+            WindowLibraryRowButton(
+                symbol: "trash", help: "Delete", label: "Delete \(layout.name)", isDestructive: true,
+                action: onDelete)
+            WindowLibraryVisibilityToggle(entry: AppEntry(layout), name: layout.name)
         }
-    }
-
-    private var visibilityBinding: Binding<Bool> {
-        Binding(
-            get: { visibility.isItemVisible(AppEntry(layout)) },
-            set: { visibility.setItemVisible($0, for: AppEntry(layout)) })
     }
 }

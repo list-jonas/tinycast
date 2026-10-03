@@ -83,8 +83,7 @@ struct CustomWindowSize: Codable, Hashable, WindowLibraryRecord, Sendable {
 
     /// The frame this size asks for on a display, in AX space; nil when the display has no room.
     func frame(in visibleFrame: CGRect, gap: CGFloat) -> CGRect? {
-        let canvas = WindowPlacementEngine.canvas(
-            visibleFrame, gap: WindowPlacementEngine.sanitizedGap(gap, in: visibleFrame))
+        let canvas = WindowPlacementEngine.canvas(visibleFrame, sanitizing: gap)
         guard canvas.width > 0, canvas.height > 0 else { return nil }
         let size = CGSize(
             width: width.length(in: canvas.width), height: height.length(in: canvas.height))

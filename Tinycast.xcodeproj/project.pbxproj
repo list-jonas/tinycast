@@ -535,6 +535,7 @@
 		AAFD2C9276D38719E85B675F /* Memo.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB76FDBFE1E306C2A5B1A29B /* Memo.swift */; };
 		AB500AC3DEBFF6EB1CE42812 /* DialogController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94507F8F095D3EBD1A9B3007 /* DialogController.swift */; };
 		AB778D7CE5D7B6B91A4B996F /* DictionaryEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65BCE97EB19D934F786DFAA0 /* DictionaryEntryView.swift */; };
+		AB82E3F3902DFE0DF65192C4 /* WindowLibraryRowControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 256B4D3D5FCA9C8123464FF1 /* WindowLibraryRowControls.swift */; };
 		ABB5079A94F6ACDB276BA461 /* TextDiffEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5870C37FFC77A9B53CA5764 /* TextDiffEngine.swift */; };
 		ABF71DB1EB6741F10CD834DF /* MenuSnapshotPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A39D6A1B28175B4E394ED7A /* MenuSnapshotPolicy.swift */; };
 		ABFC92E6F22D8D6715081D9F /* CalendarAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3F82845FDA307DF71676352 /* CalendarAccess.swift */; };
@@ -940,6 +941,7 @@
 		23F7C8CBD0AA75D016DBFC06 /* SettingsPaneScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPaneScanner.swift; sourceTree = "<group>"; };
 		24386713685FB65FB46A5516 /* DictationAudioDucker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationAudioDucker.swift; sourceTree = "<group>"; };
 		2438C33DEAF16B26E4F195EB /* ExecutableLocator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExecutableLocator.swift; sourceTree = "<group>"; };
+		256B4D3D5FCA9C8123464FF1 /* WindowLibraryRowControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowLibraryRowControls.swift; sourceTree = "<group>"; };
 		2575583134BE03EA9FA719CD /* ActivationPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivationPolicy.swift; sourceTree = "<group>"; };
 		25EA21DCF61666DB736D5B82 /* RaycastQuicklinkImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaycastQuicklinkImport.swift; sourceTree = "<group>"; };
 		261AA09F2C6FE579667B9F97 /* NoteTextViewEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteTextViewEditing.swift; sourceTree = "<group>"; };
@@ -1873,6 +1875,7 @@
 				D245764DB29BFEEB47A024A1 /* WindowLayoutNumberField.swift */,
 				0AB691265C48648210F1F6D7 /* WindowLayoutPreview.swift */,
 				EF202236034AB044CA846B60 /* WindowLayoutsSection.swift */,
+				256B4D3D5FCA9C8123464FF1 /* WindowLibraryRowControls.swift */,
 				CD0A6DDC1C30A6E2C6DF7E7D /* WindowManagementSettingsView.swift */,
 			);
 			path = Settings;
@@ -4519,6 +4522,7 @@
 				52D4B7F8B8223B8BF44C4E99 /* WindowLevel.swift in Sources */,
 				9A6A626BCB8035C1ACD9D1BE /* WindowLibraryRecord.swift in Sources */,
 				37FE645EDC340630E75EC76A /* WindowLibraryReferenceService.swift in Sources */,
+				AB82E3F3902DFE0DF65192C4 /* WindowLibraryRowControls.swift in Sources */,
 				163C9DFF6B22C76F41CE9FD3 /* WindowManagementFileFormat.swift in Sources */,
 				BD0D91ADFEC096476788939C /* WindowManagementSettingsFile.swift in Sources */,
 				EE6A9E899566ACCB8258D901 /* WindowManagementSettingsView.swift in Sources */,

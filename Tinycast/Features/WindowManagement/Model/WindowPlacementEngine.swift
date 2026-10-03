@@ -336,6 +336,11 @@ enum WindowPlacementEngine {
         rounded(visible.insetBy(dx: gap, dy: gap))
     }
 
+    /// The canvas with `gap` sanitized against `visible` first, as every layout and size insets.
+    static func canvas(_ visible: CGRect, sanitizing gap: CGFloat) -> CGRect {
+        canvas(visible, gap: sanitizedGap(gap, in: visible))
+    }
+
     // MARK: - Sizing
 
     /// Never let repeated shrinking collapse a window to nothing.
