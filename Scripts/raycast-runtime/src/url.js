@@ -13,8 +13,6 @@ export class URLSearchParams {
       this._pairs = init._pairs.map((pair) => [pair[0], pair[1]]);
     } else if (typeof init === "string") {
       this._parse(init);
-    } else if (Array.isArray(init)) {
-      for (const pair of init) this._pairs.push([String(pair[0]), String(pair[1])]);
     } else if (typeof init[Symbol.iterator] === "function") {
       for (const pair of init) this._pairs.push([String(pair[0]), String(pair[1])]);
     } else if (typeof init === "object") {

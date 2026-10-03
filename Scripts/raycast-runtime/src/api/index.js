@@ -73,8 +73,7 @@ const Keyboard = {
   },
 };
 
-/// Surfaces Tinycast doesn't implement. They exist so a bundle that merely imports them still loads;
-/// calling one gives the extension (and the user) a clear reason instead of a TypeError.
+/// Surfaces Tinycast doesn't implement: importing one loads, calling one rejects with a reason.
 function rejectingNamespace(name, members) {
   const target = {};
   for (const member of members) target[member] = () => system.unsupported(`${name}.${member}`);
@@ -101,7 +100,6 @@ const WindowManagement = {
 };
 
 export const raycastApi = {
-  // Components
   List,
   Grid,
   Detail,
@@ -119,16 +117,13 @@ export const raycastApi = {
   LaunchType: flatEnums.LaunchType,
   PopToRootType: flatEnums.PopToRootType,
 
-  // Navigation
   useNavigation,
   Navigation,
 
-  // Feedback
   showToast: system.showToast,
   showHUD: system.showHUD,
   confirmAlert: system.confirmAlert,
 
-  // System
   Clipboard: system.Clipboard,
   LocalStorage: system.LocalStorage,
   environment: system.environment,
@@ -153,7 +148,6 @@ export const raycastApi = {
 
   OAuth,
 
-  // Unimplemented namespaces
   AI,
   BrowserExtension,
   WindowManagement,

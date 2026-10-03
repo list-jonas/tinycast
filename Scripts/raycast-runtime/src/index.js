@@ -1,12 +1,11 @@
-// Entry point. Installs the polyfills and the module registry, then exposes `__tinycast` — the only
-// thing Swift calls into.
+// Entry point: installs the polyfills and module registry, then exposes `__tinycast` to Swift.
 
 import "./polyfills.js";
 import "./url.js";
 import { createElement } from "react";
 import * as React from "react";
 import * as JSXRuntime from "react/jsx-runtime";
-import { describeError, log, setUncaughtHandler, settle } from "./host.js";
+import { describeError, hostRaw, log, setUncaughtHandler, settle } from "./host.js";
 import { fireTimer } from "./polyfills.js";
 import { configureNodeShims } from "./node-shims.js";
 import { defineModule, evaluateCommonJS } from "./modules.js";
@@ -46,12 +45,9 @@ globalThis.WebSocket = WebSocket;
 
 const sessions = new Map();
 
-/// One running command. A view command mounts a React tree through `Surface`; a no-view command just
-/// awaits its default export.
 class Session {
-  constructor(id, host) {
+  constructor(id) {
     this.id = id;
-    this.host = host;
     this.surface = null;
     this.navigationDepth = 1;
     this.navigation = {};
@@ -59,7 +55,7 @@ class Session {
 
   mountView(element) {
     this.surface = new Surface(
-      (tree) => this.host.render(this.id, JSON.stringify(tree)),
+      (tree) => hostRaw.render(this.id, JSON.stringify(tree)),
       (error) => this.fail(error),
     );
     this.surface.render(
@@ -68,14 +64,14 @@ class Session {
         controls: this.navigation,
         onStackChange: (depth) => {
           this.navigationDepth = depth;
-          this.host.navigationDepthChanged(this.id, depth);
+          hostRaw.navigationDepthChanged(this.id, String(depth));
         },
       }),
     );
   }
 
   fail(error) {
-    this.host.failed(this.id, describeError(error));
+    hostRaw.failed(this.id, describeError(error));
   }
 
   unmount() {
@@ -85,19 +81,10 @@ class Session {
 }
 
 
-const hostCalls = {
-  render: (sessionId, json) => globalThis.__tinycastHost.render(sessionId, json),
-  failed: (sessionId, message) => globalThis.__tinycastHost.failed(sessionId, message),
-  navigationDepthChanged: (sessionId, depth) =>
-    globalThis.__tinycastHost.navigationDepthChanged(sessionId, String(depth)),
-  finished: (sessionId) => globalThis.__tinycastHost.finished(sessionId),
-};
-
 setUncaughtHandler((error) => {
   const message = describeError(error);
   log("error", [message]);
-  // Attribute an unhandled rejection to the only running session when there is exactly one, so the
-  // palette can show it instead of failing silently.
+  // With exactly one session running, the rejection is surely its own: show it in the palette.
   if (sessions.size === 1) {
     const [session] = sessions.values();
     session.fail(error);
@@ -105,11 +92,10 @@ setUncaughtHandler((error) => {
 });
 
 setFieldCommandHandler((command, fieldId) => {
-  globalThis.__tinycastHost.fieldCommand(String(command), String(fieldId ?? ""));
+  hostRaw.fieldCommand(String(command), String(fieldId ?? ""));
 });
 
 globalThis.__tinycast = {
-  /// Called once, before any command runs.
   boot(configJson) {
     const config = JSON.parse(configJson);
     configureNodeShims(config.node ?? {});
@@ -121,7 +107,7 @@ globalThis.__tinycast = {
   start(sessionId, code, filename, dirname, mode, contextJson) {
     const context = JSON.parse(contextJson || "{}");
     configureSystem(context);
-    const session = new Session(sessionId, hostCalls);
+    const session = new Session(sessionId);
     sessions.set(sessionId, session);
     // Commands declaring `arguments` read `props.arguments.<name>` unguarded, so the bag always exists.
     const launchProps = {
@@ -142,7 +128,7 @@ globalThis.__tinycast = {
           throw new Error("A no-view command must default-export a function.");
         }
         Promise.resolve(entry(launchProps)).then(
-          () => hostCalls.finished(sessionId),
+          () => hostRaw.finished(sessionId),
           (error) => session.fail(error),
         );
       }
@@ -152,16 +138,15 @@ globalThis.__tinycast = {
     return "ok";
   },
 
-  /// Route a UI event back to the callback it came from.
   dispatch(sessionId, handlerId, argsJson, completesSession = false) {
     const session = sessions.get(sessionId);
     if (!session?.surface) return "0";
     try {
       const args = JSON.parse(argsJson || "[]").map(reviveArg);
       const dispatched = session.surface.dispatch(
-        handlerId, args, completesSession ? () => hostCalls.finished(sessionId) : undefined,
+        handlerId, args, completesSession ? () => hostRaw.finished(sessionId) : undefined,
       );
-      if (!dispatched && completesSession) hostCalls.finished(sessionId);
+      if (!dispatched && completesSession) hostRaw.finished(sessionId);
       return dispatched ? "1" : "0";
     } catch (error) {
       session.fail(error);
@@ -169,7 +154,6 @@ globalThis.__tinycast = {
     }
   },
 
-  /// Escape / the back chevron in a pushed screen.
   popNavigation(sessionId) {
     const session = sessions.get(sessionId);
     if (!session?.surface || session.navigationDepth <= 1) return "0";

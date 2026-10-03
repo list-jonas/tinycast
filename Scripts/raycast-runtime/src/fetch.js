@@ -213,8 +213,7 @@ class TinycastResponse {
     this._hasBody = body !== null && body !== undefined;
     this.bodyUsed = false;
   }
-  // The bytes are already here, so the "stream" hands them out in reader-sized pieces — enough for
-  // an extension that guards on `response.body` and pipes it, but never progressive.
+  // The bytes already arrived, so the "stream" replays them in reader-sized pieces.
   get body() {
     if (!this._hasBody) return null;
     if (!this._stream) this._stream = readableStreamOfBytes(this._bytes);
@@ -373,8 +372,7 @@ if (!g.AbortController) {
     throwIfAborted() {
       if (this.aborted) throw this.reason ?? abortError();
     }
-    // The statics, not just the instance shape: a signal missing them still reads as supported at
-    // the type level, so an extension calls `AbortSignal.timeout` and gets "is not a function".
+    // Typed as present, so a missing static fails with "is not a function" rather than a fallback.
     static abort(reason) {
       const signal = new AbortSignal();
       signal._fire(reason);

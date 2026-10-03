@@ -1,11 +1,5 @@
-// Node's stream core. Extensions that parse a large JSON index ship `stream-chain` + `stream-json`,
-// which build real object-mode pipelines: a `Duplex` from an options bag, `Transform` subclasses
-// that `push` from `_transform`, `pipe` chains, and `push()` returning false to stop the source.
-// Nothing short of the actual contract carries that, so this is the contract, not a stand-in.
-//
-// One deliberate shortcut: a `Transform` acknowledges a write as soon as `_transform` calls back
-// rather than waiting for room on its readable side. `pipe` still pauses a source whose destination
-// is full, so a chain stays bounded; only a transform nobody reads from grows.
+// Node's stream core, for real object-mode pipelines like `stream-chain` + `stream-json`. A Transform
+// acks a write once `_transform` calls back, so only a transform nobody reads from grows unbounded.
 
 import { Buffer } from "./buffer.js";
 import { EventEmitter } from "./events.js";
@@ -18,8 +12,7 @@ function sizeOf(chunk, objectMode) {
   return typeof chunk === "string" ? chunk.length : (chunk?.length ?? 0);
 }
 
-/// Node's legacy base. `module.exports = Stream`, and bundles lean on that: node-fetch tests
-/// `body instanceof stream.default` on every Request it builds.
+/// `module.exports = Stream`: node-fetch tests `body instanceof stream.default` on every Request.
 export class Stream extends EventEmitter {}
 
 export class Readable extends Stream {
@@ -151,13 +144,7 @@ export class Readable extends Stream {
     state.buffer.length = 0;
     state.length = 0;
     this._wake();
-    const close = (reason) => {
-      if (reason) this.emit("error", reason);
-      this.emit("close");
-    };
-    if (this._destroy) this._destroy(error ?? null, close);
-    else close(error);
-    return this;
+    return runDestroy(this, error);
   }
 
   async *[Symbol.asyncIterator]() {
@@ -266,6 +253,26 @@ Readable.toWeb = (readable) =>
     cancel: (reason) => readable.destroy(reason),
   });
 
+function runDestroy(stream, error) {
+  const close = (reason) => {
+    if (reason) stream.emit("error", reason);
+    stream.emit("close");
+  };
+  if (stream._destroy) stream._destroy(error ?? null, close);
+  else close(error);
+  return stream;
+}
+
+/// A Node write side over a WHATWG writer.
+const writerSink = (writer) => ({
+  write(chunk, encoding, callback) {
+    writer.write(chunk).then(() => callback(null), callback);
+  },
+  final(callback) {
+    writer.close().then(() => callback(null), callback);
+  },
+});
+
 function initWritable(stream, options) {
   const objectMode = options.writableObjectMode ?? options.objectMode ?? false;
   stream._writableState = {
@@ -355,13 +362,7 @@ export class Writable extends Stream {
     state.destroyed = true;
     state.writable = false;
     state.buffer.length = 0;
-    const close = (reason) => {
-      if (reason) this.emit("error", reason);
-      this.emit("close");
-    };
-    if (this._destroy) this._destroy(error ?? null, close);
-    else close(error);
-    return this;
+    return runDestroy(this, error);
   }
 
   /// One `_write` in flight; the next starts from its callback, so writes stay in order.
@@ -420,16 +421,7 @@ export class Writable extends Stream {
 }
 
 Writable.fromWeb = (stream, options) => {
-  const writer = stream.getWriter();
-  return new Writable({
-    ...options,
-    write(chunk, encoding, callback) {
-      writer.write(chunk).then(() => callback(null), callback);
-    },
-    final(callback) {
-      writer.close().then(() => callback(null), callback);
-    },
-  });
+  return new Writable({ ...options, ...writerSink(stream.getWriter()) });
 };
 
 // Node builds `Duplex` the same way: extend `Readable`, then borrow the writable half wholesale.
@@ -457,17 +449,7 @@ for (const name of ["writable", "writableEnded", "writableFinished", "writableOb
 
 Duplex.fromWeb = (pair, options) => {
   const source = Readable.fromWeb(pair.readable, options);
-  const writer = pair.writable.getWriter();
-  const duplex = new Duplex({
-    ...options,
-    read: () => source.resume(),
-    write(chunk, encoding, callback) {
-      writer.write(chunk).then(() => callback(null), callback);
-    },
-    final(callback) {
-      writer.close().then(() => callback(null), callback);
-    },
-  });
+  const duplex = new Duplex({ ...options, read: () => source.resume(), ...writerSink(pair.writable.getWriter()) });
   source.on("data", (chunk) => duplex.push(chunk));
   source.on("end", () => duplex.push(null));
   source.on("error", (error) => duplex.destroy(error));

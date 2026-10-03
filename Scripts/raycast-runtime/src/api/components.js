@@ -1,6 +1,4 @@
-// The @raycast/api component surface. Every component is a plain React function component that
-// renders one host node; element-valued props (`actions`, `detail`, `metadata`, …) are moved into
-// `__slot` children so the reconciler actually renders them and Swift receives them as structure.
+// The @raycast/api components: each renders one host node, element-valued props move into `__slot`s.
 
 import {
   createContext,
@@ -41,9 +39,7 @@ export function useNavigation() {
 
 export const Navigation = { useNavigation };
 
-/// The mounted root: keeps every pushed screen mounted (so popping back restores its state) and
-/// marks the top one active. Swift renders whichever `__screen` is active. `controls` is filled with
-/// push/pop so the session can pop from Escape without going through a rendered handler.
+/// Keeps every pushed screen mounted so popping restores state; `controls` lets Escape pop directly.
 export function NavigationRoot({ initial, onStackChange, controls }) {
   const [stack, setStack] = useState(() => [{ key: 0, element: initial }]);
   const nextKey = useRef(1);
@@ -108,9 +104,7 @@ function useFieldValue(props, fallback) {
   return [value, setValue];
 }
 
-/// React 19 passes `ref` as an ordinary prop, so no component here needs `forwardRef` — which also
-/// keeps every component directly callable (`List.Dropdown({...props})`), a pattern real extensions
-/// use to share one code path between List and Grid.
+/// No `forwardRef` (React 19 passes `ref` as a prop), so components stay callable as plain functions.
 function useFieldRef(ref, { setValue, initial, id }) {
   useImperativeHandle(ref ?? null, () => ({
     focus: () => hostFieldCommand("focus", id),
@@ -176,9 +170,7 @@ function EmptyView(type) {
   };
 }
 
-/// The search-bar dropdown for List and Grid. Deliberately hook-free: Swift owns the selection (it
-/// renders the control), seeded from `defaultValue`, and reports changes through `onChange`. That
-/// also makes it safe to invoke directly rather than through JSX.
+/// Hook-free, so callable without JSX: Swift owns the selection and reports it through `onChange`.
 function makeSearchDropdown(type) {
   function Dropdown(props) {
     return h(type, omit(props, ["children"]), props.children);
@@ -324,8 +316,7 @@ function Action(props) {
   return h("Action", omit(props, ["children"]));
 }
 
-/// Host bindings the convenience actions need. Injected by index.js to avoid a circular import
-/// between the components and the system APIs they drive.
+/// Injected by api/index.js, which would otherwise be a circular import of the system APIs.
 let effects = {};
 export function setActionEffects(next) {
   effects = next;

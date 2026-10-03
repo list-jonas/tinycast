@@ -1,5 +1,4 @@
-// WebSockets over `URLSessionWebSocketTask`: Swift owns the wire, JS reads by keeping one `receive`
-// outstanding.
+// WebSockets over `URLSessionWebSocketTask`: Swift owns the wire, JS keeps one `receive` pending.
 
 import { Buffer } from "./buffer.js";
 import { hostCall } from "./host.js";

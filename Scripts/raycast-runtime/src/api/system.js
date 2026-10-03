@@ -1,5 +1,4 @@
-// The non-visual half of @raycast/api: clipboard, storage, cache, preferences, app lookup and the
-// window/feedback calls. Everything here is an async host call answered by Swift on the main actor.
+// The non-visual half of @raycast/api; every call is an async host call Swift answers on the main actor.
 
 import { hostCall } from "../host.js";
 import { nestedEnums } from "./enums.generated.js";
@@ -49,8 +48,7 @@ export const LocalStorage = {
 };
 
 // ─── Cache ──────────────────────────────────────────────────────────
-// Raycast's Cache is synchronous. Swift hands the whole namespace over at construction and every
-// mutation is fire-and-forget write-behind, so reads stay synchronous as the API promises.
+// Raycast's Cache is synchronous: Swift hands each namespace over at boot and writes are write-behind.
 
 export class Cache {
   constructor(options = {}) {
@@ -58,8 +56,7 @@ export class Cache {
     this.capacity = options.capacity ?? 10 * 1024 * 1024;
     this._entries = new Map(Object.entries(cacheSnapshot(this.namespace)));
     this._subscribers = new Set();
-    // `useCachedState` hands `cache.subscribe` straight to `useSyncExternalStore`, unbound — so every
-    // method has to survive being detached from the instance.
+    // `useCachedState` hands `cache.subscribe` to `useSyncExternalStore` unbound.
     for (const method of ["has", "get", "set", "remove", "clear", "subscribe"]) {
       this[method] = Cache.prototype[method].bind(this);
     }
@@ -118,8 +115,6 @@ export class Cache {
   }
 }
 
-/// Swift installs the initial contents of every cache namespace at boot; a namespace first touched
-/// later starts empty and fills as the extension writes to it.
 function cacheSnapshot(namespace) {
   return boot.caches?.[namespace] ?? {};
 }
@@ -206,8 +201,7 @@ export class Toast {
     hostCall("feedback", "updateToast", [this._id, this._serialize()]).catch(() => {});
   }
 
-  /// Toast actions carry callbacks, which can't cross the bridge. Register them locally and send only
-  /// the titles plus a token Swift echoes back through `runToastAction`.
+  /// Callbacks can't cross the bridge: Swift gets titles plus a token it echoes to `runToastAction`.
   _serialize() {
     const encode = (action, slotName) => {
       if (!action) return null;

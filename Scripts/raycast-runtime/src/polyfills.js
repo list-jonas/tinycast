@@ -105,8 +105,7 @@ if (!g.structuredClone) {
   g.structuredClone = (value) => (value === undefined ? undefined : JSON.parse(JSON.stringify(value)));
 }
 
-// JavaScriptCore has no TextEncoder/TextDecoder (they're WebCore APIs), and bundled deps reach for
-// them freely. Only the UTF-8 path is real; an exotic requested encoding decodes as UTF-8.
+// WebCore APIs JavaScriptCore lacks; only UTF-8 is real, any other requested encoding decodes as it.
 if (!g.TextEncoder) {
   g.TextEncoder = class TextEncoder {
     get encoding() {

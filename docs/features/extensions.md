@@ -93,6 +93,7 @@ same arrangement as `EmojiData.generated.swift`: building Tinycast never needs N
 | --- | --- |
 | `src/index.js` | the `__tinycast` object Swift calls into (`boot`, `start`, `dispatch`, `popNavigation`, `settle`, `fireTimer`, `stop`) |
 | `src/host.js` | the JS→Swift seam: async `hostCall`, blocking `hostCallSync`, logging |
+| `src/polyfills.js`, `src/fetch.js`, `src/dom-events.js` | the web globals: console, timers, `fetch` and its body types, `AbortController`, `Event`/`EventTarget`/`MessageChannel` |
 | `src/reconciler.js` | `react-reconciler` host config that commits into a JSON tree |
 | `src/api/components.js` | every `@raycast/api` component |
 | `src/api/system.js` | Clipboard, LocalStorage, Cache, Toast, preferences, environment |
@@ -799,7 +800,7 @@ node build.mjs --dev       # unminified, React in development mode (better error
 Then the tests, fastest first:
 
 ```sh
-# 1. JS-only fixtures, in a bare `vm` context (the closest thing Node has to JavaScriptCore)
+# 1. JS-only fixtures (fixtures/*.mjs), in a bare `vm` context (the closest thing Node has to JavaScriptCore)
 node fixtures.mjs
 
 # 2. any prebuilt extension, printing the render tree it produces

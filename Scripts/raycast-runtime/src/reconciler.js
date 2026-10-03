@@ -1,9 +1,5 @@
-// A React host renderer whose "DOM" is a plain JSON tree that Swift renders natively.
-//
-// Two conventions make the Raycast component surface expressible:
-//   * `__slot` instances fold their children into the parent's props under a name, so element-valued
-//     props (`actions={<ActionPanel/>}`, `detail={<List.Item.Detail/>}`) reach Swift as structure.
-//   * function props become `{"$fn": "<nodeId>:<propName>"}` handles; Swift dispatches them back by id.
+// A React renderer committing into a JSON tree Swift renders natively. `__slot` nodes fold into the
+// parent's props by name; function props become `{"$fn": "<nodeId>:<propName>"}` handles.
 
 import Reconciler from "react-reconciler";
 import { DefaultEventPriority } from "react-reconciler/constants";
@@ -102,11 +98,7 @@ const hostConfig = {
   getInstanceFromNode: () => null,
 };
 
-/// A `single` slot (`detail`, `actions`, …) expects one element, but a Fragment passed as the prop
-/// (`detail={<><List.Item.Detail markdown={…} /><List.Item.Detail metadata={…} /></>}`) flattens into
-/// several same-typed siblings by the time the reconciler commits — keeping only the first silently
-/// drops the rest. Merge same-typed siblings into one node instead; a heterogeneous fragment falls
-/// back to the first element, matching the prior behaviour.
+/// A Fragment passed to a `single` slot commits as siblings: same-typed ones merge, else the first wins.
 function mergeSingleSlot(contents) {
   if (contents.length === 1) return contents[0];
   const [first, ...rest] = contents;
@@ -133,9 +125,7 @@ function insert(parent, child, before) {
 
 const reconciler = Reconciler(hostConfig);
 
-/// One mounted command. `onTree` fires after every commit with the serialized tree; handler lookups
-/// go through `handlers`, which is rebuilt on each serialization so a dispatch always hits the
-/// callback from the newest render.
+/// One mounted command. `handlers` is rebuilt per commit, so a dispatch hits the newest callback.
 export class Surface {
   constructor(onTree, onError) {
     this.handlers = new Map();
@@ -209,8 +199,7 @@ export class Surface {
     return { id: node.id, type: node.type, props, children };
   }
 
-  /// JSON-safe encoding of a prop value. Functions become dispatchable handles; Dates keep their
-  /// type so Swift can round-trip a Form.DatePicker value.
+  /// Functions become dispatchable handles; Dates keep their type for Form.DatePicker round trips.
   encode(value, nodeId, key) {
     if (value === undefined || value === null) return value === null ? null : undefined;
     switch (typeof value) {
@@ -234,8 +223,7 @@ export class Surface {
     if (Array.isArray(value)) {
       return value.map((item, index) => this.encode(item, nodeId, `${key}.${index}`) ?? null);
     }
-    // A React element that reached us as a plain prop (rather than through a slot) can't be
-    // rendered; drop it instead of serializing React internals.
+    // An element passed as a plain prop rather than through a slot can't render; skip React internals.
     if (value.$$typeof) return undefined;
     const out = {};
     for (const name of Object.keys(value)) {
