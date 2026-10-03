@@ -90,8 +90,6 @@ struct ExtensionImportPanel: View {
                 .disabled(chosen.isEmpty)
             }
         }
-        .padding(Theme.Spacing.dialogInset)
-        .frame(width: Theme.Size.editorSheetWidth)
         .extensionSettingsEditorPanelSurface()
         .onAppear {
             // Once: re-seeding on every render would fight the user's own deselection.

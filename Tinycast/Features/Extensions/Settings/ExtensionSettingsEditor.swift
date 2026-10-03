@@ -2,8 +2,12 @@ import SwiftUI
 
 extension View {
     /// Extension-owned surface; the Settings shell only hosts it as an opaque box.
-    func extensionSettingsEditorPanelSurface() -> some View {
-        modifier(ExtensionSettingsEditorPanelSurface())
+    func extensionSettingsEditorPanelSurface(
+        width: CGFloat = Theme.Size.editorSheetWidth, height: CGFloat? = nil
+    ) -> some View {
+        padding(Theme.Spacing.dialogInset)
+            .frame(width: width, height: height)
+            .modifier(ExtensionSettingsEditorPanelSurface())
     }
 
     func extensionSettingsEditorTextField() -> some View {

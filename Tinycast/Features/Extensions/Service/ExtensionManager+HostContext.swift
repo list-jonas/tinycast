@@ -90,20 +90,5 @@ extension ExtensionManager {
         return try await oauthSession.authorize(options: options)
     }
 
-    private var oauthExtensionName: String? { running?.extensionName ?? lastOAuthExtensionName }
-
-    func getOAuthTokens(providerId: String) -> String? {
-        guard let name = oauthExtensionName else { return nil }
-        return ExtensionOAuthKeychain.getTokens(extensionName: name, providerId: providerId)
-    }
-
-    func setOAuthTokens(providerId: String, tokens: String) {
-        guard let name = oauthExtensionName else { return }
-        ExtensionOAuthKeychain.setTokens(tokens, extensionName: name, providerId: providerId)
-    }
-
-    func removeOAuthTokens(providerId: String) {
-        guard let name = oauthExtensionName else { return }
-        ExtensionOAuthKeychain.removeTokens(extensionName: name, providerId: providerId)
-    }
+    var oauthExtensionName: String? { running?.extensionName ?? lastOAuthExtensionName }
 }

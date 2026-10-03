@@ -45,8 +45,6 @@ struct ExtensionGitHubPanel: View {
                     .disabled(source == nil || isInstalling)
             }
         }
-        .padding(Theme.Spacing.dialogInset)
-        .frame(width: Theme.Size.editorSheetWidth)
         .extensionSettingsEditorPanelSurface()
         .onChange(of: repository) {
             failure = nil

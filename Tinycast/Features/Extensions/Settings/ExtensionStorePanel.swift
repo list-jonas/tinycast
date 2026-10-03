@@ -27,9 +27,7 @@ struct ExtensionStorePanel: View {
             Divider()
             footer
         }
-        .padding(Theme.Spacing.dialogInset)
-        .frame(width: 620, height: 560)
-        .extensionSettingsEditorPanelSurface()
+        .extensionSettingsEditorPanelSurface(width: 620, height: 560)
         .onChange(of: query) { _, value in scheduleSearch(value) }
         .onDisappear { searchTask?.cancel() }
     }

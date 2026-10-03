@@ -102,9 +102,7 @@ final class ExtensionRuntime: @unchecked Sendable {
             self?.report(level: "error", message: ExtensionRuntime.describe(exception))
         }
 
-        let payload = config.jsonString()
-        _ = context.objectForKeyedSubscript("__tinycast")?
-            .invokeMethod("boot", withArguments: [payload])
+        Self.call("boot", [config.jsonString()], in: context)
     }
 
     /// Load and mount one command. `code` is its prebuilt CommonJS bundle.
@@ -112,51 +110,40 @@ final class ExtensionRuntime: @unchecked Sendable {
         session: String, code: String, file: URL, mode: ExtensionCommandMode,
         context launchContext: ExtensionLaunchContext
     ) async {
-        let payload = launchContext.jsonString()
-        await onQueue { context in
-            let compiled = context.objectForKeyedSubscript("__tinycast")
-            _ = compiled?.invokeMethod(
-                "start",
-                withArguments: [
-                    session, code, file.path, file.deletingLastPathComponent().path,
-                    mode.rawValue, payload
-                ])
-        }
+        let arguments = [
+            session, code, file.path, file.deletingLastPathComponent().path, mode.rawValue,
+            launchContext.jsonString()
+        ]
+        await onQueue { Self.call("start", arguments, in: $0) }
     }
 
     /// Pre-encoded: `[Any]` isn't Sendable, so only the JSON string crosses onto the queue.
     func dispatch(session: String, handler: String, payload: String, completesSession: Bool = false) async {
-        await onQueue { context in
-            _ = context.objectForKeyedSubscript("__tinycast")?
-                .invokeMethod("dispatch", withArguments: [session, handler, payload, completesSession])
-        }
+        await onQueue { Self.call("dispatch", [session, handler, payload, completesSession], in: $0) }
     }
 
     /// Escape or the back chevron inside a pushed screen; true when one was popped.
     func popNavigation(session: String) async -> Bool {
         await withCheckedContinuation { continuation in
             queue.async {
-                guard let context = self.context else { return continuation.resume(returning: false) }
-                let result = context.objectForKeyedSubscript("__tinycast")?
-                    .invokeMethod("popNavigation", withArguments: [session])
+                let result = Self.call("popNavigation", [session], in: self.context)
                 continuation.resume(returning: result?.toString() == "1")
             }
         }
     }
 
     func runToastAction(token: String) async {
-        await onQueue { context in
-            _ = context.objectForKeyedSubscript("__tinycast")?
-                .invokeMethod("runToastAction", withArguments: [token])
-        }
+        await onQueue { Self.call("runToastAction", [token], in: $0) }
     }
 
     func stop(session: String) async {
-        await onQueue { context in
-            _ = context.objectForKeyedSubscript("__tinycast")?
-                .invokeMethod("stop", withArguments: [session])
-        }
+        await onQueue { Self.call("stop", [session], in: $0) }
         queue.async { self.nodeShims.closeFiles() }
+    }
+
+    @discardableResult
+    private static func call(_ method: String, _ arguments: [Any], in context: JSContext?) -> JSValue? {
+        context?.objectForKeyedSubscript("__tinycast")?.invokeMethod(method, withArguments: arguments)
     }
 
     private func onQueue(_ body: @escaping @Sendable (JSContext) -> Void) async {
@@ -181,20 +168,14 @@ final class ExtensionRuntime: @unchecked Sendable {
             self?.deliverRender(session: session, json: json)
         }
         let failed: @convention(block) (String, String) -> Void = { [weak self] session, message in
-            guard let self else { return }
-            let delegate = self.delegate
-            Task { @MainActor in delegate?.runtime(self, session: session, didFail: message) }
+            self?.notify { $0.runtime($1, session: session, didFail: message) }
         }
         let navigation: @convention(block) (String, String) -> Void = { [weak self] session, depth in
-            guard let self else { return }
-            let delegate = self.delegate
             let value = Int(depth) ?? 1
-            Task { @MainActor in delegate?.runtime(self, session: session, navigationDepth: value) }
+            self?.notify { $0.runtime($1, session: session, navigationDepth: value) }
         }
         let finished: @convention(block) (String) -> Void = { [weak self] session in
-            guard let self else { return }
-            let delegate = self.delegate
-            Task { @MainActor in delegate?.runtime(self, session: session, didFinish: ()) }
+            self?.notify { $0.runtime($1, session: session, didFinish: ()) }
         }
         let fieldCommand: @convention(block) (String, String) -> Void = { _, _ in
             // Field focus requests have no native target yet; the palette focuses the first field.
@@ -263,8 +244,7 @@ final class ExtensionRuntime: @unchecked Sendable {
                 defer { continuation.resume() }
                 guard generation == self.generation else { return }
                 self.hostTasks[callId] = nil
-                _ = self.context?.objectForKeyedSubscript("__tinycast")?
-                    .invokeMethod("settle", withArguments: [callId, ok, payload])
+                Self.call("settle", [callId, ok, payload], in: self.context)
                 if self.hostTasks.isEmpty { self.resumeIdleWaiters() }
             }
         }
@@ -289,18 +269,22 @@ final class ExtensionRuntime: @unchecked Sendable {
     }
 
     private func deliverRender(session: String, json: String) {
-        guard let delegate else { return }
+        guard delegate != nil else { return }
         // Parsing a large list is the expensive part, and it belongs off the main actor.
         guard let tree = RenderTree(json: json) else {
             report(level: "error", message: "Could not decode the render tree for \(session).")
             return
         }
-        Task { @MainActor in delegate.runtime(self, session: session, didRender: tree) }
+        notify { $0.runtime($1, session: session, didRender: tree) }
     }
 
     private func report(level: String, message: String) {
+        notify { $0.runtime($1, log: level, message: message) }
+    }
+
+    private func notify(_ event: @escaping @MainActor (ExtensionRuntimeDelegate, ExtensionRuntime) -> Void) {
         guard let delegate else { return }
-        Task { @MainActor in delegate.runtime(self, log: level, message: message) }
+        Task { @MainActor in event(delegate, self) }
     }
 
     // MARK: - Timers
@@ -316,8 +300,7 @@ final class ExtensionRuntime: @unchecked Sendable {
         timer.setEventHandler { [weak self] in
             guard let self else { return }
             if !repeats { self.timers[id] = nil }
-            _ = self.context?.objectForKeyedSubscript("__tinycast")?
-                .invokeMethod("fireTimer", withArguments: [id])
+            Self.call("fireTimer", [id], in: self.context)
         }
         timers[id]?.cancel()
         timers[id] = timer

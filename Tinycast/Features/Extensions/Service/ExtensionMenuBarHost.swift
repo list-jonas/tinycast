@@ -71,15 +71,5 @@ final class ExtensionMenuBarHost: ExtensionHostContext {
         return try await oauth.authorize(options: options)
     }
 
-    func getOAuthTokens(providerId: String) -> String? {
-        ExtensionOAuthKeychain.getTokens(extensionName: owner.manifest.name, providerId: providerId)
-    }
-
-    func setOAuthTokens(providerId: String, tokens: String) {
-        ExtensionOAuthKeychain.setTokens(tokens, extensionName: owner.manifest.name, providerId: providerId)
-    }
-
-    func removeOAuthTokens(providerId: String) {
-        ExtensionOAuthKeychain.removeTokens(extensionName: owner.manifest.name, providerId: providerId)
-    }
+    var oauthExtensionName: String? { owner.manifest.name }
 }
