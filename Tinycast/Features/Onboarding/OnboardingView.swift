@@ -1,17 +1,15 @@
 import AppKit
-import Combine
 import SwiftUI
 
 /// The first-launch wizard, built from the app's own controls; re-runnable from Settings.
 struct OnboardingView: View {
     @State private var step = 0
-    @State private var model = OnboardingModel()
+    @State private var model = RaycastImportSession()
     @Environment(AppCore.self) private var core
     @Environment(AppSettings.self) private var settings
     @Environment(HotKeyManager.self) private var hotKeys
 
     @State private var accessibilityTrusted = Permissions.isAccessibilityTrusted()
-    private let refreshTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     private static let lastStep = 3
     static let width: CGFloat = 520
@@ -46,10 +44,13 @@ struct OnboardingView: View {
         // Onboarding's shortcut step has a recorder too, and it isn't inside a `SettingsPane`.
         .shortcutRecorderPopoverHost()
         .animation(.easeInOut(duration: 0.2), value: step)
-        .onAppear { accessibilityTrusted = Permissions.isAccessibilityTrusted() }
-        .onReceive(refreshTimer) { _ in
-            let trusted = Permissions.isAccessibilityTrusted()
-            if trusted != accessibilityTrusted { accessibilityTrusted = trusted }
+        // Polled: macOS posts nothing when the Accessibility grant changes.
+        .task {
+            while !Task.isCancelled {
+                let trusted = Permissions.isAccessibilityTrusted()
+                if trusted != accessibilityTrusted { accessibilityTrusted = trusted }
+                try? await Task.sleep(for: .seconds(1))
+            }
         }
     }
 
@@ -184,7 +185,8 @@ struct OnboardingView: View {
             OnboardingCard {
                 OnboardingRow(
                     title: "Raycast Export",
-                    subtitle: model.fileSubtitle,
+                    subtitle: model.fileSubtitle(
+                        placeholder: "Choose a .rayconfig file exported from Raycast v2.0 or newer."),
                     systemImage: "doc.badge.gearshape", tint: .orange
                 ) {
                     Button("Choose…") { model.chooseFile() }.controlSize(.small)
@@ -316,7 +318,7 @@ struct OnboardingView: View {
     }
 
     @ViewBuilder
-    private func importStatus(_ status: OnboardingModel.ImportStatus) -> some View {
+    private func importStatus(_ status: RaycastImportSession.Status) -> some View {
         switch status {
         case .success(let message):
             statusLine(message, systemImage: "checkmark.circle.fill", tint: .green)
@@ -359,60 +361,4 @@ struct OnboardingView: View {
         }
         return NSApp.applicationIconImage
     }()
-}
-
-/// The import step's state and async call, off the view so the body stays declarative.
-@MainActor
-@Observable
-final class OnboardingModel {
-    enum ImportStatus {
-        case success(String)
-        case failure(String)
-    }
-
-    var file: URL?
-    var passphrase = ""
-    var importing = false
-    var status: ImportStatus?
-    var selection: RaycastImportOptions = .all
-    var isRaycastExport = false
-
-    var canImport: Bool {
-        isRaycastExport && !passphrase.isEmpty && !selection.isEmpty && !importing
-    }
-    var didImport: Bool {
-        if case .success = status { return true }
-        return false
-    }
-
-    var fileSubtitle: String {
-        guard let name = file?.lastPathComponent else {
-            return "Choose a .rayconfig file exported from Raycast v2.0 or newer."
-        }
-        return "\(name) — \(isRaycastExport ? "Raycast export" : "not a Raycast export")"
-    }
-
-    func chooseFile() {
-        guard let url = BackupActions.pickRaycastFile() else { return }
-        file = url
-        isRaycastExport = BackupActions.isRaycastExport(url)
-        status = nil
-    }
-
-    func run(core: AppCore) {
-        guard canImport, let file else { return }
-        importing = true
-        status = nil
-        Task {
-            defer { importing = false }
-            do {
-                let outcome = try await BackupActions.importRaycast(
-                    core: core, file: file, passphrase: passphrase, options: selection)
-                status = .success(BackupActions.raycastText(outcome))
-                passphrase = ""
-            } catch {
-                status = .failure(error.localizedDescription)
-            }
-        }
-    }
 }
