@@ -379,15 +379,8 @@ struct AIProvidersPanel: View {
             }
             if let executable = subscription.executable { commandRow(executable) }
         case .unavailable(let message):
-            LabeledContent {
-                HStack(spacing: Theme.Spacing.sm) {
-                    Button("Install Codex CLI…") { NSWorkspace.shared.open(InstalledAIKind.codex.installURL) }
-                    Button("Check Again") { subscription.refresh() }
-                }
-                .fixedSize()
-            } label: {
-                Text("Not installed")
-                Text(message)
+            notInstalledRow(.codex, install: "Install Codex CLI…", detail: message) {
+                subscription.refresh()
             }
         case .failed(let message):
             failedRow(message, retry: { subscription.refresh() })
@@ -413,20 +406,28 @@ struct AIProvidersPanel: View {
         case .signInRequired:
             signInRow(kind, check: { installedAI.refresh(kind: kind) })
         case .notInstalled:
-            LabeledContent {
-                HStack(spacing: Theme.Spacing.sm) {
-                    Button("Install…") { NSWorkspace.shared.open(kind.installURL) }
-                    Button("Check Again") { installedAI.refresh(kind: kind) }
-                }
-                .fixedSize()
-            } label: {
-                Text("Not installed")
-                Text("Tinycast could not find the \(kind.command) command.")
-            }
+            notInstalledRow(
+                kind, install: "Install…", detail: "Tinycast could not find the \(kind.command) command."
+            ) { installedAI.refresh(kind: kind) }
         case .failed(let message):
             failedRow(message, retry: { installedAI.refresh(kind: kind) })
         }
         if let executable = status.executable { commandRow(executable) }
+    }
+
+    private func notInstalledRow(
+        _ kind: InstalledAIKind, install: String, detail: String, check: @escaping () -> Void
+    ) -> some View {
+        LabeledContent {
+            HStack(spacing: Theme.Spacing.sm) {
+                Button(install) { NSWorkspace.shared.open(kind.installURL) }
+                Button("Check Again", action: check)
+            }
+            .fixedSize()
+        } label: {
+            Text("Not installed")
+            Text(detail)
+        }
     }
 
     private func commandRow(_ executable: URL) -> some View {

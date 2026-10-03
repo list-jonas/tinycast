@@ -373,13 +373,9 @@ final class AIChatCoordinator {
         case .appleIntelligence?: return .appleIntelligence
         case .codex?: return .codex
         case .claude?: return .claudeCommand
-        case .grok?, .openCode?, .cursor?:
-            return AIModelCapabilities(
-                images: false, documents: false, webSearch: false, tools: false)
         case .api(let connection, let model, _)?:
-            return core.aiSettings.connection(id: connection)?.capabilities(for: model)
-                ?? AIModelCapabilities.none
-        case nil: return AIModelCapabilities.none
+            return core.aiSettings.connection(id: connection)?.capabilities(for: model) ?? .none
+        case .grok?, .openCode?, .cursor?, nil: return .none
         }
     }
 

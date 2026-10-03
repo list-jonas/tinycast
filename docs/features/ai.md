@@ -346,7 +346,7 @@ or `InstalledCLIProvider`. A consumer should hold neither settings nor credentia
 `selection` and `guardrails` overload lets Quick Actions pick its own route and ask for permissive
 content transformations without a second factory.
 
-`AIModelOption.groupedCatalog` is the Settings picker catalog for both AI and Quick Actions. Provider
+`AIModelOption.availableGroups` is the Settings picker catalog for both AI and Quick Actions. Provider
 sections, ordering and model labels therefore cannot drift between the panes. Each route stores its
 own complete `AIModelSelection`, including the selected reasoning effort for installed models and
 OpenRouter models that offer one.
