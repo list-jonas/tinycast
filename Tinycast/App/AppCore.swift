@@ -429,25 +429,18 @@ final class AppCore {
 
     /// Clicking the Dock icon: raise whichever window is already open, else summon the launcher.
     func handleReopen() {
-        if settingsCoordinator.focusExisting() { return }
-        if aiChatCoordinator.focusExisting() { return }
-        if onboardingCoordinator.focusExisting() { return }
-        if updateCoordinator.focusExisting() { return }
-        if supportCoordinator.focusExisting() { return }
-        if customCommandCoordinator.focusOutputWindow() { return }
-        paletteCoordinator.showPalette(mode: .launcher, restoreAnyMode: true)
+        let raised =
+            settingsCoordinator.focusExisting() || aiChatCoordinator.focusExisting()
+            || onboardingCoordinator.focusExisting() || updateCoordinator.focusExisting()
+            || supportCoordinator.focusExisting() || customCommandCoordinator.focusOutputWindow()
+        if !raised { paletteCoordinator.showPalette(mode: .launcher, restoreAnyMode: true) }
     }
 
     func handleOpenURL(_ url: URL) {
         switch ExtensionOAuthSession.handleCallbackURL(url) {
-        case .delivered:
-            paletteCoordinator.showPalette(mode: .extensionCommand, restoreAnyMode: true)
-            return
-        case .expired:
-            showMessage("Sign-in expired — run the command again", tone: .danger)
-            return
-        case .ignored:
-            break
+        case .delivered: return paletteCoordinator.showPalette(mode: .extensionCommand, restoreAnyMode: true)
+        case .expired: return showMessage("Sign-in expired — run the command again", tone: .danger)
+        case .ignored: break
         }
         guard ExtensionDeepLink.claims(url) else { return }
         guard let link = ExtensionDeepLink.parse(url: url) else {
@@ -461,30 +454,20 @@ final class AppCore {
     private func hotKeyDisplayName(for action: HotKeyAction) -> String? {
         switch action {
         case .app(let bundleID):
-            return appIndex.apps.first { $0.kind == .application && $0.bundleID == bundleID }?.name
+            appIndex.apps.first { $0.kind == .application && $0.bundleID == bundleID }?.name
         case .settingsPane(let bundleID):
-            return appIndex.apps.first { $0.kind == .systemSettings && $0.bundleID == bundleID }?
-                .name
-        case .customCommand(let id):
-            return customCommands.command(id: id)?.name
-        case .quicklink(let id):
-            return quicklinks.quicklink(id: id)?.name
-        case .quickAction(let id):
-            return customQuickActions.action(id: id)?.name
-        case .windowLayout(let id):
-            return windowLayouts.layout(id: id)?.name
-        case .windowRoom(let id):
-            return rooms.room(id: id)?.name
-        case .customWindowSize(let id):
-            return customWindowSizes.size(id: id)?.name
-        case .appleShortcut(let id):
-            return appleShortcutCoordinator.name(of: id)
-        case .snippet(let id):
-            return snippetsStore.record(id: id)?.snippet.name
+            appIndex.apps.first { $0.kind == .systemSettings && $0.bundleID == bundleID }?.name
+        case .customCommand(let id): customCommands.command(id: id)?.name
+        case .quicklink(let id): quicklinks.quicklink(id: id)?.name
+        case .quickAction(let id): customQuickActions.action(id: id)?.name
+        case .windowLayout(let id): windowLayouts.layout(id: id)?.name
+        case .windowRoom(let id): rooms.room(id: id)?.name
+        case .customWindowSize(let id): customWindowSizes.size(id: id)?.name
+        case .appleShortcut(let id): appleShortcutCoordinator.name(of: id)
+        case .snippet(let id): snippetsStore.record(id: id)?.snippet.name
         case .extensionCommand(let entryID):
-            return appIndex.apps.first { $0.kind == .extensionCommand && $0.id == entryID }?.name
-        case .togglePalette, .dictation, .command, .systemAction, .windowCommand:
-            return nil
+            appIndex.apps.first { $0.kind == .extensionCommand && $0.id == entryID }?.name
+        case .togglePalette, .dictation, .command, .systemAction, .windowCommand: nil
         }
     }
 
