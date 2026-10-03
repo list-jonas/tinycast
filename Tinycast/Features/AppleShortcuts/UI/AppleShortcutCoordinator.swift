@@ -90,9 +90,7 @@ final class AppleShortcutCoordinator {
         favorites.remove(keys: entryIDs)
         visibility.removeItemKeys(entryIDs)
         aliases.removeKeys(entryIDs)
-        for entryID in entryIDs {
-            ranking.reset(itemKey: entryID)
-        }
+        entryIDs.forEach(ranking.reset(itemKey:))
     }
 
     // MARK: - Running

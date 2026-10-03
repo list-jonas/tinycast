@@ -70,33 +70,12 @@ struct HeaderMenuButton: View {
     let title: String
     let icon: PopoverMenuIcon
     /// A symbol's point size before scaling; a menu beside a brand mark matches the mark instead.
-    let symbolSize: CGFloat
+    var symbolSize = Theme.Typography.menuSymbolSize
     let isOpen: Bool
     let help: String
     let action: () -> Void
     @Environment(\.metrics) private var metrics
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    init(
-        title: String, icon: PopoverMenuIcon, symbolSize: CGFloat = Theme.Typography.menuSymbolSize,
-        isOpen: Bool, help: String, action: @escaping () -> Void
-    ) {
-        self.title = title
-        self.icon = icon
-        self.symbolSize = symbolSize
-        self.isOpen = isOpen
-        self.help = help
-        self.action = action
-    }
-
-    init(
-        title: String, systemImage: String, symbolSize: CGFloat = Theme.Typography.menuSymbolSize,
-        isOpen: Bool, help: String, action: @escaping () -> Void
-    ) {
-        self.init(
-            title: title, icon: .symbol(systemImage), symbolSize: symbolSize, isOpen: isOpen,
-            help: help, action: action)
-    }
 
     var body: some View {
         BarButton(chrome: .rounded, action: action) {
@@ -129,5 +108,16 @@ struct HeaderMenuButton: View {
             .foregroundStyle(Theme.Colors.textSecondary)
         }
         .help(help)
+    }
+}
+
+extension HeaderMenuButton {
+    init(
+        title: String, systemImage: String, symbolSize: CGFloat = Theme.Typography.menuSymbolSize,
+        isOpen: Bool, help: String, action: @escaping () -> Void
+    ) {
+        self.init(
+            title: title, icon: .symbol(systemImage), symbolSize: symbolSize, isOpen: isOpen,
+            help: help, action: action)
     }
 }

@@ -463,7 +463,6 @@ enum Theme {
         /// The Settings card: a faint surface whose border doubles as the row divider.
         static let cardFill = ramp(dark: 0.05, light: 0.04)
         static let cardStroke = ramp(dark: 0.10, light: 0.10)
-        /// White in both: the frost brightens glass, and light glass needs more to read at all.
         /// A window on the preview's plate. White in both, since the plate is always dark.
         static let layoutPreviewWindow = adaptive(
             dark: .srgbInk(1, alpha: 0.22), light: .srgbInk(1, alpha: 0.28))
