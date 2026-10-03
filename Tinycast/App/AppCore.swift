@@ -281,171 +281,165 @@ final class AppCore {
             pinnedEmoji.onPersistenceFailure = { [weak self] in
                 self?.showMessage("Couldn't save Emoji & Symbols pins", tone: .danger)
             }
-
-            appIndex.start(settings: settings)
-            clipboardCoordinator.applyEnabled()
-            extensions.start(appIndex: appIndex, coordinator: extensionCoordinator)
-            extensionCoordinator.applyEnabled()
-            fileSearchCoordinator.applyEnabled()
-            windowSwitchCoordinator.applyEnabled()
-            menuSearchCoordinator.applyEnabled()
-            fileSearchCoordinator.applyPolicy()
-            notesCoordinator.applyEnabled()
-            installedAI.launchSettings = { [aiSettings] in aiSettings.launch(for: $0) }
-            chatGPTSubscription.launchSettings = { [aiSettings] in aiSettings.launch(for: .codex) }
-            aiChatCoordinator.applyEnabled()
-            mcpCoordinator.applyEnabled()
-            customQuickActions.onChange = { [weak self] _ in
-                self?.quickActionCoordinator.applyCustomQuickActionsPresence()
-            }
-            // Before `hotKeys.start` even when off: the prune reads it.
-            customQuickActions.load()
-            quickActionCoordinator.applyEnabled()
-            customCommands.onChange = { [weak self] _ in
-                self?.customCommandCoordinator.applyCustomCommandsPresence()
-            }
-            customCommandCoordinator.applyCustomCommandsPresence()
-            applyWindowCommandsPresence()
-            customWindowSizes.onChange = { [weak self] _ in
-                self?.customWindowSizeCoordinator.applyCustomWindowSizesPresence()
-            }
-            customWindowSizeCoordinator.applyCustomWindowSizesPresence()
-            windowLayouts.onChange = { [weak self] _ in
-                self?.windowLayoutCoordinator.applyWindowLayoutsPresence()
-            }
-            windowLayoutCoordinator.applyWindowLayoutsPresence()
-            rooms.onChange = { [weak self] _ in self?.roomCoordinator.applyRoomsPresence() }
-            roomCoordinator.applyRoomsPresence()
-            // A crash can leave windows parked off-screen; they come home before anything else.
-            roomCoordinator.recoverParkedWindows()
-            quicklinks.onChange = { [weak self] _ in
-                self?.quicklinkCoordinator.applyQuicklinksPresence()
-            }
-            // Before `hotKeys.start` even when off: the prune reads it. docs/features/quicklinks.md
-            quicklinks.load()
-            quicklinkCoordinator.applyQuicklinksPresence()
-            appleShortcutCoordinator.applyPresence()
-            paletteCoordinator.onLauncherShown = { [weak self] in
-                self?.appleShortcutCoordinator.refresh()
-            }
-            paletteCoordinator.onScreenOpening = { [weak self] mode in
-                switch mode {
-                case .menuSearch: self?.menuSearchCoordinator.load()
-                case .switchWindows: self?.windowSwitchCoordinator.load()
-                case .rooms, .roomWindows: self?.roomCoordinator.load()
-                default: break
-                }
-            }
-            updateCoordinator.applyEnabled()
-            calendarCoordinator.applyEnabled()
-            Task { await appIndex.refresh() }
-            Task { await emojiIndex.load(languages: Locale.preferredLanguages) }
-            currencyRates.start()
-            updateChecker.onUpdateAvailable = { [weak self] release in
-                self?.updateCoordinator.presentIfAvailable(release) ?? true
-            }
-            updateChecker.start()
-            supportReminders.onDue = { [weak self] in self?.supportCoordinator.presentIfDue() }
-            supportReminders.start()
-
-            hyperKeyTap.healthTicker = healthTicker
-            hotKeys.modifierTapMonitor.healthTicker = healthTicker
-            snippetListener.healthTicker = healthTicker
-
-            hotKeys.onTogglePalette = { [weak self] in self?.paletteCoordinator.togglePalette() }
-            hotKeys.dictationEnabled = settings.dictationEnabled
-            hotKeys.dictationHoldToTalk = settings.dictationMode == .pushToTalk
-            hotKeys.onDictationPressed = { [weak self] in self?.dictationCoordinator.pressed() }
-            hotKeys.onDictationReleased = { [weak self] in self?.dictationCoordinator.released() }
-            hotKeys.onDictationCancelled = { [weak self] in self?.dictationCoordinator.cancel() }
-            hotKeys.onRunCommand = { [weak self] id in self?.launcherCoordinator.runCommand(id) }
-            hotKeys.onRunCustomCommand = { [weak self] id in
-                self?.customCommandCoordinator.runCustomCommand(id: id)
-            }
-            hotKeys.onRunSystemAction = { [weak self] id in
-                self?.systemActionCoordinator.runSystemAction(id: id)
-            }
-            hotKeys.onRunWindowCommand = { [weak self] id in
-                self?.windowCommandCoordinator.runWindowCommand(id: id)
-            }
-            hotKeys.onRunWindowLayout = { [weak self] id in
-                self?.windowLayoutCoordinator.runWindowLayout(id: id)
-            }
-            hotKeys.onEnterRoom = { [weak self] id in self?.roomCoordinator.enterRoom(id: id) }
-            hotKeys.onRunCustomWindowSize = { [weak self] id in
-                self?.windowCommandCoordinator.runCustomWindowSize(id: id)
-            }
-            hotKeys.onOpenQuicklink = { [weak self] id in
-                self?.quicklinkCoordinator.openQuicklink(id: id)
-            }
-            hotKeys.onRunQuickAction = { [weak self] id in
-                self?.quickActionCoordinator.run(id: id)
-            }
-            hotKeys.onRunAppleShortcut = { [weak self] id in
-                self?.appleShortcutCoordinator.run(id: id)
-            }
-            hotKeys.onExpandSnippet = { [weak self] id in
-                self?.snippetCoordinator.expandSnippetFromHotKey(id: id)
-            }
-            hotKeys.onRunExtensionCommand = { [weak self] entryID in
-                self?.extensionCoordinator.runExtensionCommand(entryID: entryID)
-            }
-            extensions.onDidUninstall = { [weak self] entryIDs in
-                self?.extensionCoordinator.removeExtensionReferences(entryIDs: entryIDs)
-            }
-            appIndex.onScan = { [weak self] in
-                guard let self else { return }
-                hotKeys.removeAppBindings(where: appIndex.isUninstalled)
-            }
-            hotKeys.displayName = { [weak self] action in self?.hotKeyDisplayName(for: action) }
-            hotKeys.allowsAction = { [weak self] action in
-                guard let self, visibility.allowsHotKey(action) else { return false }
-                if action == .dictation { return settings.dictationEnabled }
-                // A disabled feature drops its commands from the launcher; their shortcuts go too.
-                guard case .command(let id) = action else { return true }
-                return appIndex.isCommandEnabled(id)
-            }
-            KeyShortcut.displayedHyperChord = { [settings] in
-                guard settings.hyperKey != .none else { return nil }
-                return KeyShortcut.hyperChord(includesShift: settings.hyperKeyIncludesShift)
-            }
-            SystemActionRunner.onAsyncFailure = { [weak self] id, failure in
-                self?.systemActionCoordinator.presentSystemActionFailure(id: id, failure: failure)
-            }
-            hotKeys.start(
-                customCommandIDs: Set(customCommands.commands.map(\.id)),
-                quicklinkIDs: Set(quicklinks.quicklinks.map(\.id)),
-                windowLayoutIDs: Set(windowLayouts.layouts.map(\.id)),
-                windowRoomIDs: Set(rooms.rooms.map(\.id)),
-                customWindowSizeIDs: Set(customWindowSizes.sizes.map(\.id)),
-                quickActionIDs: Set(customQuickActions.actions.map(\.id)))
-            // Keeps running while Carbon pauses: the recorder needs its rewritten flags.
-            hyperKeyTap.start(settings: settings)
-
-            snippetsStore.onSnapshot = { [weak self] snapshot in
-                guard let self else { return }
-                self.snippetCoordinator.applySnippetsLauncherPresence()
-                self.snippetListener.update(snapshot.records)
-                self.hotKeys.removeSnippetBindings(keeping: snapshot.fileIDs)
-            }
-            // Off out of the box, so an unused feature costs no load, watcher or tap.
-            if settings.snippetsEnabled {
-                Task { await snippetsStore.start() }
-                snippetCoordinator.startSnippetKeywordListener()
-            }
-            // Unconditional: a disabled feature has to take its command rows down with it.
-            snippetCoordinator.applySnippetsLauncherPresence()
-
+            startFeatures()
+            startBackgroundServices()
+            startHotKeys()
+            startSnippets()
             observeFeatureSwitches()
             // Last, so an edit made while Tinycast was quit reaches every sink wired above.
             if settings.settingsFileEnabled { startSettingsFile(importing: true) }
-
             // First launch binds no hotkey, so guide once; the marker is written at show-time.
             if !OnboardingState.hasOnboarded {
                 OnboardingState.markShown()
                 onboardingCoordinator.showOnboarding()
             }
         }
+    }
+
+    private func startFeatures() {
+        appIndex.start(settings: settings)
+        clipboardCoordinator.applyEnabled()
+        extensions.start(appIndex: appIndex, coordinator: extensionCoordinator)
+        extensionCoordinator.applyEnabled()
+        fileSearchCoordinator.applyEnabled()
+        windowSwitchCoordinator.applyEnabled()
+        menuSearchCoordinator.applyEnabled()
+        fileSearchCoordinator.applyPolicy()
+        notesCoordinator.applyEnabled()
+        installedAI.launchSettings = { [aiSettings] in aiSettings.launch(for: $0) }
+        chatGPTSubscription.launchSettings = { [aiSettings] in aiSettings.launch(for: .codex) }
+        aiChatCoordinator.applyEnabled()
+        mcpCoordinator.applyEnabled()
+        customQuickActions.onChange = { [weak self] _ in
+            self?.quickActionCoordinator.applyCustomQuickActionsPresence()
+        }
+        // Before `hotKeys.start` even when off: the prune reads it.
+        customQuickActions.load()
+        quickActionCoordinator.applyEnabled()
+        customCommands.onChange = { [weak self] _ in
+            self?.customCommandCoordinator.applyCustomCommandsPresence()
+        }
+        customCommandCoordinator.applyCustomCommandsPresence()
+        applyWindowCommandsPresence()
+        customWindowSizes.onChange = { [weak self] _ in
+            self?.customWindowSizeCoordinator.applyCustomWindowSizesPresence()
+        }
+        customWindowSizeCoordinator.applyCustomWindowSizesPresence()
+        windowLayouts.onChange = { [weak self] _ in
+            self?.windowLayoutCoordinator.applyWindowLayoutsPresence()
+        }
+        windowLayoutCoordinator.applyWindowLayoutsPresence()
+        rooms.onChange = { [weak self] _ in self?.roomCoordinator.applyRoomsPresence() }
+        roomCoordinator.applyRoomsPresence()
+        // A crash can leave windows parked off-screen; they come home before anything else.
+        roomCoordinator.recoverParkedWindows()
+        quicklinks.onChange = { [weak self] _ in self?.quicklinkCoordinator.applyQuicklinksPresence() }
+        // Before `hotKeys.start` even when off: the prune reads it. docs/features/quicklinks.md
+        quicklinks.load()
+        quicklinkCoordinator.applyQuicklinksPresence()
+        appleShortcutCoordinator.applyPresence()
+        paletteCoordinator.onLauncherShown = { [weak self] in self?.appleShortcutCoordinator.refresh() }
+        paletteCoordinator.onScreenOpening = { [weak self] mode in
+            switch mode {
+            case .menuSearch: self?.menuSearchCoordinator.load()
+            case .switchWindows: self?.windowSwitchCoordinator.load()
+            case .rooms, .roomWindows: self?.roomCoordinator.load()
+            default: break
+            }
+        }
+        updateCoordinator.applyEnabled()
+        calendarCoordinator.applyEnabled()
+    }
+
+    private func startBackgroundServices() {
+        Task { await appIndex.refresh() }
+        Task { await emojiIndex.load(languages: Locale.preferredLanguages) }
+        currencyRates.start()
+        updateChecker.onUpdateAvailable = { [weak self] release in
+            self?.updateCoordinator.presentIfAvailable(release) ?? true
+        }
+        updateChecker.start()
+        supportReminders.onDue = { [weak self] in self?.supportCoordinator.presentIfDue() }
+        supportReminders.start()
+    }
+
+    private func startHotKeys() {
+        hyperKeyTap.healthTicker = healthTicker
+        hotKeys.modifierTapMonitor.healthTicker = healthTicker
+        snippetListener.healthTicker = healthTicker
+        hotKeys.onTogglePalette = { [weak self] in self?.paletteCoordinator.togglePalette() }
+        hotKeys.dictationEnabled = settings.dictationEnabled
+        hotKeys.dictationHoldToTalk = settings.dictationMode == .pushToTalk
+        hotKeys.onDictationPressed = { [weak self] in self?.dictationCoordinator.pressed() }
+        hotKeys.onDictationReleased = { [weak self] in self?.dictationCoordinator.released() }
+        hotKeys.onDictationCancelled = { [weak self] in self?.dictationCoordinator.cancel() }
+        hotKeys.onRunCommand = { [weak self] in self?.launcherCoordinator.runCommand($0) }
+        hotKeys.onRunCustomCommand = { [weak self] in
+            self?.customCommandCoordinator.runCustomCommand(id: $0)
+        }
+        hotKeys.onRunSystemAction = { [weak self] in self?.systemActionCoordinator.runSystemAction(id: $0) }
+        hotKeys.onRunWindowCommand = { [weak self] in
+            self?.windowCommandCoordinator.runWindowCommand(id: $0)
+        }
+        hotKeys.onRunWindowLayout = { [weak self] in self?.windowLayoutCoordinator.runWindowLayout(id: $0) }
+        hotKeys.onEnterRoom = { [weak self] in self?.roomCoordinator.enterRoom(id: $0) }
+        hotKeys.onRunCustomWindowSize = { [weak self] in
+            self?.windowCommandCoordinator.runCustomWindowSize(id: $0)
+        }
+        hotKeys.onOpenQuicklink = { [weak self] in self?.quicklinkCoordinator.openQuicklink(id: $0) }
+        hotKeys.onRunQuickAction = { [weak self] in self?.quickActionCoordinator.run(id: $0) }
+        hotKeys.onRunAppleShortcut = { [weak self] in self?.appleShortcutCoordinator.run(id: $0) }
+        hotKeys.onExpandSnippet = { [weak self] in self?.snippetCoordinator.expandSnippetFromHotKey(id: $0) }
+        hotKeys.onRunExtensionCommand = { [weak self] in
+            self?.extensionCoordinator.runExtensionCommand(entryID: $0)
+        }
+        extensions.onDidUninstall = { [weak self] in
+            self?.extensionCoordinator.removeExtensionReferences(entryIDs: $0)
+        }
+        appIndex.onScan = { [weak self] in
+            guard let self else { return }
+            hotKeys.removeAppBindings(where: appIndex.isUninstalled)
+        }
+        hotKeys.displayName = { [weak self] action in self?.hotKeyDisplayName(for: action) }
+        hotKeys.allowsAction = { [weak self] action in
+            guard let self, visibility.allowsHotKey(action) else { return false }
+            if action == .dictation { return settings.dictationEnabled }
+            // A disabled feature drops its commands from the launcher; their shortcuts go too.
+            guard case .command(let id) = action else { return true }
+            return appIndex.isCommandEnabled(id)
+        }
+        KeyShortcut.displayedHyperChord = { [settings] in
+            guard settings.hyperKey != .none else { return nil }
+            return KeyShortcut.hyperChord(includesShift: settings.hyperKeyIncludesShift)
+        }
+        SystemActionRunner.onAsyncFailure = { [weak self] id, failure in
+            self?.systemActionCoordinator.presentSystemActionFailure(id: id, failure: failure)
+        }
+        hotKeys.start(
+            customCommandIDs: Set(customCommands.commands.map(\.id)),
+            quicklinkIDs: Set(quicklinks.quicklinks.map(\.id)),
+            windowLayoutIDs: Set(windowLayouts.layouts.map(\.id)),
+            windowRoomIDs: Set(rooms.rooms.map(\.id)),
+            customWindowSizeIDs: Set(customWindowSizes.sizes.map(\.id)),
+            quickActionIDs: Set(customQuickActions.actions.map(\.id)))
+        // Keeps running while Carbon pauses: the recorder needs its rewritten flags.
+        hyperKeyTap.start(settings: settings)
+    }
+
+    private func startSnippets() {
+        snippetsStore.onSnapshot = { [weak self] snapshot in
+            guard let self else { return }
+            snippetCoordinator.applySnippetsLauncherPresence()
+            snippetListener.update(snapshot.records)
+            hotKeys.removeSnippetBindings(keeping: snapshot.fileIDs)
+        }
+        // Off out of the box, so an unused feature costs no load, watcher or tap.
+        if settings.snippetsEnabled {
+            Task { await snippetsStore.start() }
+            snippetCoordinator.startSnippetKeywordListener()
+        }
+        // Unconditional: a disabled feature has to take its command rows down with it.
+        snippetCoordinator.applySnippetsLauncherPresence()
     }
 
     /// Clicking the Dock icon: raise whichever window is already open, else summon the launcher.
@@ -618,115 +612,73 @@ final class AppCore {
     // MARK: - Feature switches
 
     private func observeFeatureSwitches() {
-        track(
-            {
-                _ = $0.windowManagementEnabled
-                _ = $0.windowManagementShowInLauncher
-            },
-            reproject: {
-                $0.applyWindowCommandsPresence()
-                $0.customWindowSizeCoordinator.applyCustomWindowSizesPresence()
-            })
-        track(
-            {
-                _ = $0.windowManagementEnabled
-                _ = $0.windowLayoutsShowInLauncher
-            }, reproject: { $0.windowLayoutCoordinator.applyWindowLayoutsPresence() })
-        track(
-            {
-                _ = $0.windowManagementEnabled
-                _ = $0.windowRoomsShowInLauncher
-            }, reproject: { $0.roomCoordinator.applyEnabled() })
-        track(
-            {
-                _ = $0.customCommandsEnabled
-                _ = $0.customCommandsShowInLauncher
-            }, reproject: { $0.customCommandCoordinator.applyCustomCommandsPresence() })
-        track(
-            {
-                _ = $0.quicklinksEnabled
-                _ = $0.quicklinksShowInLauncher
-            }, reproject: { $0.quicklinkCoordinator.applyQuicklinksPresence() })
-        track(
-            { _ = $0.appleShortcutsEnabled },
-            reproject: { $0.appleShortcutCoordinator.applyPresence() })
-        track(
-            { _ = $0.clipboardEnabled }, reproject: { $0.clipboardCoordinator.applyEnabled() })
-        track(
-            { _ = $0.clipboardTextSearchEnabled }, reproject: { $0.applyClipboardTextSearch() })
-        track({ _ = $0.fileSearchEnabled }, reproject: { $0.fileSearchCoordinator.applyEnabled() })
+        track({ ($0.windowManagementEnabled, $0.windowManagementShowInLauncher) }) {
+            $0.applyWindowCommandsPresence()
+            $0.customWindowSizeCoordinator.applyCustomWindowSizesPresence()
+        }
+        track({ ($0.windowManagementEnabled, $0.windowLayoutsShowInLauncher) }) {
+            $0.windowLayoutCoordinator.applyWindowLayoutsPresence()
+        }
+        track({ ($0.windowManagementEnabled, $0.windowRoomsShowInLauncher) }) {
+            $0.roomCoordinator.applyEnabled()
+        }
+        track({ ($0.customCommandsEnabled, $0.customCommandsShowInLauncher) }) {
+            $0.customCommandCoordinator.applyCustomCommandsPresence()
+        }
+        track({ ($0.quicklinksEnabled, $0.quicklinksShowInLauncher) }) {
+            $0.quicklinkCoordinator.applyQuicklinksPresence()
+        }
+        track({ $0.appleShortcutsEnabled }) { $0.appleShortcutCoordinator.applyPresence() }
+        track({ $0.clipboardEnabled }) { $0.clipboardCoordinator.applyEnabled() }
+        track({ $0.clipboardTextSearchEnabled }) { $0.applyClipboardTextSearch() }
+        track({ $0.fileSearchEnabled }) { $0.fileSearchCoordinator.applyEnabled() }
         // Two features, one switch: each coordinator gates only its own command and mode.
-        track(
-            { _ = $0.navigationEnabled },
-            reproject: {
-                $0.windowSwitchCoordinator.applyEnabled()
-                $0.menuSearchCoordinator.applyEnabled()
-            })
-        track({ _ = $0.notesEnabled }, reproject: { $0.notesCoordinator.applyEnabled() })
-        track({ _ = $0.aiEnabled }, reproject: { $0.aiChatCoordinator.applyEnabled() })
-        track(
-            { _ = $0.dictationIdleRelease },
-            reproject: {
-                $0.dictationModels.setIdleRelease($0.settings.dictationIdleRelease)
-            })
-        track(
-            {
-                _ = $0.dictationEnabled
-                _ = $0.dictationMode
-            },
-            reproject: {
-                $0.hotKeys.dictationHoldToTalk = $0.settings.dictationMode == .pushToTalk
-                $0.hotKeys.dictationEnabled = $0.settings.dictationEnabled
-            })
-        track(
-            {
-                _ = $0.aiEnabled
-                _ = $0.mcpEnabled
-            }, reproject: { $0.mcpCoordinator.applyEnabled() })
-        track(
-            { _ = $0.quickActionsEnabled },
-            reproject: { $0.quickActionCoordinator.applyEnabled() })
-        track({ _ = $0.calendarEnabled }, reproject: { $0.calendarCoordinator.applyEnabled() })
-        track(
-            {
-                _ = $0.calendarShowInLauncher
-                _ = $0.calendarLauncherLimit
-            }, reproject: { $0.calendarCoordinator.publishEntries() })
-        track(
-            { _ = $0.calendarSpan },
-            reproject: { $0.calendarCoordinator.applySpan() })
-        track(
-            {
-                _ = $0.autoJoinMeetings
-                _ = $0.menuBarEvents
-                _ = $0.calendarMenuBarDisplay
-                _ = $0.menuBarLinkedEventsOnly
-                _ = $0.hideCurrentEvent
-            }, reproject: { $0.calendarCoordinator.applyClock() })
-        track(
-            {
-                _ = $0.fileSearchScopes
-                _ = $0.fileSearchIgnorePatterns
-            }, reproject: { $0.fileSearchCoordinator.applyPolicy() })
-        track({ _ = $0.snippetsEnabled }, reproject: { $0.snippetCoordinator.applySnippetsEnabled() })
+        track({ $0.navigationEnabled }) {
+            $0.windowSwitchCoordinator.applyEnabled()
+            $0.menuSearchCoordinator.applyEnabled()
+        }
+        track({ $0.notesEnabled }) { $0.notesCoordinator.applyEnabled() }
+        track({ $0.aiEnabled }) { $0.aiChatCoordinator.applyEnabled() }
+        track({ $0.dictationIdleRelease }) {
+            $0.dictationModels.setIdleRelease($0.settings.dictationIdleRelease)
+        }
+        track({ ($0.dictationEnabled, $0.dictationMode) }) {
+            $0.hotKeys.dictationHoldToTalk = $0.settings.dictationMode == .pushToTalk
+            $0.hotKeys.dictationEnabled = $0.settings.dictationEnabled
+        }
+        track({ ($0.aiEnabled, $0.mcpEnabled) }) { $0.mcpCoordinator.applyEnabled() }
+        track({ $0.quickActionsEnabled }) { $0.quickActionCoordinator.applyEnabled() }
+        track({ $0.calendarEnabled }) { $0.calendarCoordinator.applyEnabled() }
+        track({ ($0.calendarShowInLauncher, $0.calendarLauncherLimit) }) {
+            $0.calendarCoordinator.publishEntries()
+        }
+        track({ $0.calendarSpan }) { $0.calendarCoordinator.applySpan() }
+        track({
+            ($0.autoJoinMeetings, $0.menuBarEvents, $0.calendarMenuBarDisplay,
+             $0.menuBarLinkedEventsOnly, $0.hideCurrentEvent)
+        }) { $0.calendarCoordinator.applyClock() }
+        track({ ($0.fileSearchScopes, $0.fileSearchIgnorePatterns) }) {
+            $0.fileSearchCoordinator.applyPolicy()
+        }
+        track({ $0.snippetsEnabled }) { $0.snippetCoordinator.applySnippetsEnabled() }
         // Not a feature switch, but the same re-projection: a combo has the chord's ⇧ bit baked in.
-        track({ _ = $0.hyperKeyIncludesShift }, reproject: { $0.applyHyperChord() })
-        track(
-            { _ = $0.snippetsShowInLauncher },
-            reproject: { $0.snippetCoordinator.applySnippetsLauncherPresence() })
-        track({ _ = $0.appearance }, reproject: { $0.applyAppearance() })
-        track({ _ = $0.interfaceSize }, reproject: { $0.windowController.applyInterfaceSize() })
+        track({ $0.hyperKeyIncludesShift }) { $0.applyHyperChord() }
+        track({ $0.snippetsShowInLauncher }) {
+            $0.snippetCoordinator.applySnippetsLauncherPresence()
+        }
+        track({ $0.appearance }) { $0.applyAppearance() }
+        track({ $0.interfaceSize }) { $0.windowController.applyInterfaceSize() }
         // Settings panes did these on change; settings.json can change them with no pane open.
-        track(
-            { _ = $0.clipboardRetention },
-            reproject: { $0.clipboardCoordinator.applyRetention($0.settings.clipboardRetention) })
-        track(aiSettings, { _ = $0.retention }, reproject: { $0.aiChatCoordinator.applyRetention() })
-        track(aiSettings, { _ = $0.launchRevisions }, reproject: { $0.applyInstalledLaunches() })
-        track(
-            { _ = $0.extensionsShowInLauncher },
-            reproject: { $0.extensionCoordinator.applyExtensionsLauncherPresence() })
-        track({ _ = $0.snippetsFolder }, reproject: { $0.applySnippetsFolder() })
-        track({ _ = $0.notesFolder }, reproject: { $0.applyNotesFolder() })
+        track({ $0.clipboardRetention }) {
+            $0.clipboardCoordinator.applyRetention($0.settings.clipboardRetention)
+        }
+        track(aiSettings, { $0.retention }) { $0.aiChatCoordinator.applyRetention() }
+        track(aiSettings, { $0.launchRevisions }) { $0.applyInstalledLaunches() }
+        track({ $0.extensionsShowInLauncher }) {
+            $0.extensionCoordinator.applyExtensionsLauncherPresence()
+        }
+        track({ $0.snippetsFolder }) { $0.applySnippetsFolder() }
+        track({ $0.notesFolder }) { $0.applyNotesFolder() }
         trackChatRoute()
     }
 
@@ -743,21 +695,21 @@ final class AppCore {
         }
     }
 
-    private func track(
-        _ reads: @escaping @Sendable @MainActor (AppSettings) -> Void,
+    private func track<Value>(
+        _ reads: @escaping @Sendable @MainActor (AppSettings) -> Value,
         reproject: @escaping @Sendable @MainActor (AppCore) -> Void
     ) {
         track(settings, reads, reproject: reproject)
     }
 
     /// Fires synchronously on main before the write lands, so the task re-arms and re-reads.
-    private func track<Store: AnyObject & Sendable>(
+    private func track<Store: AnyObject & Sendable, Value>(
         _ store: Store,
-        _ reads: @escaping @Sendable @MainActor (Store) -> Void,
+        _ reads: @escaping @Sendable @MainActor (Store) -> Value,
         reproject: @escaping @Sendable @MainActor (AppCore) -> Void
     ) {
         withObservationTracking {
-            reads(store)
+            _ = reads(store)
         } onChange: { [weak self] in
             Task { @MainActor in
                 guard let self else { return }
