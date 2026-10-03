@@ -84,6 +84,9 @@ struct AIMessage: Equatable, Sendable {
         self.toolCalls = toolCalls
         self.toolResult = toolResult
     }
+
+    /// Words or a picture: something a model could answer.
+    var hasPrompt: Bool { !images.isEmpty || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 }
 
 struct AIRequest: Equatable, Sendable {
@@ -111,6 +114,15 @@ struct AIRequest: Equatable, Sendable {
         AIRequest(
             instructions: instructions, messages: messages, maxOutputTokens: maxOutputTokens,
             webSearch: webSearch, tools: tools)
+    }
+
+    /// The instruction, then any system turns, trimmed: what a route sends as its system text.
+    var systemParts: [String] {
+        ([instructions] + messages.map { $0.role == .system ? $0.text : nil }).compactMap {
+            guard let trimmed = $0?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty
+            else { return nil }
+            return trimmed
+        }
     }
 }
 

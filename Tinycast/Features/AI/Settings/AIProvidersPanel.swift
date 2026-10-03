@@ -153,9 +153,7 @@ struct AIProvidersPanel: View {
             VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
                 Text(title(for: route))
                     .lineLimit(1)
-                Text(caption(for: route))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                footnote(caption(for: route))
                     .lineLimit(1)
             }
             Spacer(minLength: 0)
@@ -248,9 +246,7 @@ struct AIProvidersPanel: View {
                 Text(title(for: route))
                     .font(Theme.Typography.panelTitle)
                     .lineLimit(1)
-                Text(kindCaption(for: route))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                footnote(kindCaption(for: route))
                     .lineLimit(1)
             }
             Spacer(minLength: Theme.Spacing.lg)
@@ -295,9 +291,7 @@ struct AIProvidersPanel: View {
         } header: {
             Text("Status")
         } footer: {
-            Text("Choose the default model on the AI pane.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            footnote("Choose the default model on the AI pane.")
         }
     }
 
@@ -316,17 +310,11 @@ struct AIProvidersPanel: View {
                 modelsSection(route: .installed(kind), models: installedModels(kind))
             } else {
                 Section {
-                    if kind == .codex {
-                        codexStatusRows
-                    } else {
-                        installedStatusRows(kind)
-                    }
+                    statusRows(kind)
                 } header: {
                     Text("Status")
                 } footer: {
-                    Text(installedFooter(kind))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    footnote(installedFooter(kind))
                 }
             }
         }
@@ -342,100 +330,115 @@ struct AIProvidersPanel: View {
             }
         } footer: {
             if let footer {
-                Text(footer)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                footnote(footer)
             }
         }
     }
 
-    @ViewBuilder
-    private var codexStatusRows: some View {
-        switch subscription.phase {
-        case .idle, .starting:
-            checkingRow("Codex")
-        case .signedOut:
-            signInRow(.codex, check: { subscription.refresh() })
-        case .connected:
-            LabeledContent {
-                Button("Refresh") { subscription.refresh() }
-            } label: {
-                Text("Ready")
-                Text(modelCount(subscription.models.count) + " available")
-            }
-            if let account = subscription.account {
-                accountRow(
-                    email: account.email,
-                    plan: account.planTitle == "API key" ? "Codex API key" : "ChatGPT \(account.planTitle)")
-            }
-            if let limits = subscription.rateLimits {
-                if let primary = limits.primary { usageRow(primary, fallbackTitle: "Primary window") }
-                if let secondary = limits.secondary {
-                    usageRow(secondary, fallbackTitle: "Secondary window")
-                }
-            }
-            if let executable = subscription.executable { commandRow(executable) }
-        case .unavailable(let message):
-            notInstalledRow(.codex, install: "Install Codex CLI…", detail: message) {
-                subscription.refresh()
-            }
-        case .failed(let message):
-            failedRow(message, retry: { subscription.refresh() })
-        }
+    /// Codex's app-server and the other commands report alike, so one set of rows reads both.
+    private enum ProviderCheck {
+        case checking
+        case ready(models: Int)
+        case signInRequired
+        case notInstalled(detail: String)
+        case failed(String)
     }
 
-    @ViewBuilder
-    private func installedStatusRows(_ kind: InstalledAIKind) -> some View {
+    private func check(for kind: InstalledAIKind) -> ProviderCheck {
+        if kind == .codex {
+            switch subscription.phase {
+            case .idle, .starting: return .checking
+            case .signedOut: return .signInRequired
+            case .connected: return .ready(models: subscription.models.count)
+            case .unavailable(let message): return .notInstalled(detail: message)
+            case .failed(let message): return .failed(message)
+            }
+        }
         let status = installedAI.status(for: kind)
         switch status.phase {
-        case .idle, .checking:
+        case .idle, .checking: return .checking
+        case .ready: return .ready(models: status.models.count)
+        case .signInRequired: return .signInRequired
+        case .notInstalled:
+            return .notInstalled(detail: "Tinycast could not find the \(kind.command) command.")
+        case .failed(let message): return .failed(message)
+        }
+    }
+
+    private func refresh(_ kind: InstalledAIKind) {
+        if kind == .codex { subscription.refresh() } else { installedAI.refresh(kind: kind) }
+    }
+
+    @ViewBuilder
+    private func statusRows(_ kind: InstalledAIKind) -> some View {
+        let check = check(for: kind)
+        switch check {
+        case .checking:
             checkingRow(kind.title)
-        case .ready:
+        case .ready(let models):
             LabeledContent {
-                Button("Refresh") { installedAI.refresh(kind: kind) }
+                Button("Refresh") { refresh(kind) }
             } label: {
                 Text("Ready")
-                Text(modelCount(status.models.count) + " available")
+                Text(modelCount(models) + " available")
             }
-            if let account = status.account {
+            if kind == .codex {
+                if let account = subscription.account {
+                    accountRow(email: account.email, plan: codexPlan(apiKeyTitle: "Codex API key"))
+                }
+                if let primary = subscription.rateLimits?.primary {
+                    usageRow(primary, fallbackTitle: "Primary window")
+                }
+                if let secondary = subscription.rateLimits?.secondary {
+                    usageRow(secondary, fallbackTitle: "Secondary window")
+                }
+            } else if let account = installedAI.status(for: kind).account {
                 accountRow(email: account.email, plan: account.planTitle.map { "\(kind.title) \($0)" })
             }
         case .signInRequired:
-            signInRow(kind, check: { installedAI.refresh(kind: kind) })
-        case .notInstalled:
-            notInstalledRow(
-                kind, install: "Install…", detail: "Tinycast could not find the \(kind.command) command."
-            ) { installedAI.refresh(kind: kind) }
+            LabeledContent {
+                HStack(spacing: Theme.Spacing.sm) {
+                    Button("Copy Sign-In Command") { copySignInCommand(kind) }
+                    Button("Check Again") { refresh(kind) }
+                }
+                .fixedSize()
+            } label: {
+                Text("Sign in required")
+                Text("Run \(kind.signInCommand) in Terminal, then check again.")
+            }
+        case .notInstalled(let detail):
+            LabeledContent {
+                HStack(spacing: Theme.Spacing.sm) {
+                    Button(kind == .codex ? "Install Codex CLI…" : "Install…") {
+                        NSWorkspace.shared.open(kind.installURL)
+                    }
+                    Button("Check Again") { refresh(kind) }
+                }
+                .fixedSize()
+            } label: {
+                Text("Not installed")
+                Text(detail)
+            }
         case .failed(let message):
-            failedRow(message, retry: { installedAI.refresh(kind: kind) })
+            LabeledContent {
+                Button("Try Again") { refresh(kind) }
+            } label: {
+                Label("Check failed", systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+                Text(message)
+            }
         }
-        if let executable = status.executable { commandRow(executable) }
+        // Codex names its command only once connected; the others whenever they found one.
+        if kind != .codex || isReady(check), let executable = executable(for: kind) { commandRow(executable) }
     }
 
-    private func notInstalledRow(
-        _ kind: InstalledAIKind, install: String, detail: String, check: @escaping () -> Void
-    ) -> some View {
-        LabeledContent {
-            HStack(spacing: Theme.Spacing.sm) {
-                Button(install) { NSWorkspace.shared.open(kind.installURL) }
-                Button("Check Again", action: check)
-            }
-            .fixedSize()
-        } label: {
-            Text("Not installed")
-            Text(detail)
-        }
+    private func isReady(_ check: ProviderCheck) -> Bool {
+        if case .ready = check { return true }
+        return false
     }
 
     private func commandRow(_ executable: URL) -> some View {
-        LabeledContent("Command") {
-            Text((executable.path as NSString).abbreviatingWithTildeInPath)
-                .font(.callout.monospaced())
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .textSelection(.enabled)
-        }
+        LabeledContent("Command") { monospaced((executable.path as NSString).abbreviatingWithTildeInPath) }
     }
 
     private func accountRow(email: String?, plan: String?) -> some View {
@@ -460,29 +463,6 @@ struct AIProvidersPanel: View {
         HStack(spacing: Theme.Spacing.md) {
             ProgressView().controlSize(.small)
             Text("Checking \(title)…").foregroundStyle(.secondary)
-        }
-    }
-
-    private func signInRow(_ kind: InstalledAIKind, check: @escaping () -> Void) -> some View {
-        LabeledContent {
-            HStack(spacing: Theme.Spacing.sm) {
-                Button("Copy Sign-In Command") { copySignInCommand(kind) }
-                Button("Check Again", action: check)
-            }
-            .fixedSize()
-        } label: {
-            Text("Sign in required")
-            Text("Run \(kind.signInCommand) in Terminal, then check again.")
-        }
-    }
-
-    private func failedRow(_ message: String, retry: @escaping () -> Void) -> some View {
-        LabeledContent {
-            Button("Try Again", action: retry)
-        } label: {
-            Label("Check failed", systemImage: "exclamationmark.triangle")
-                .foregroundStyle(.orange)
-            Text(message)
         }
     }
 
@@ -528,14 +508,7 @@ struct AIProvidersPanel: View {
     private func connectionSection(_ connection: AIConnection) -> some View {
         Section {
             LabeledContent("Provider", value: connection.provider.title)
-            LabeledContent("Base URL") {
-                Text(connection.baseURL)
-                    .font(.callout.monospaced())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .textSelection(.enabled)
-            }
+            LabeledContent("Base URL") { monospaced(connection.baseURL) }
             LabeledContent("API key") {
                 Text(keyStatus(connection))
                     .foregroundStyle(
@@ -548,9 +521,7 @@ struct AIProvidersPanel: View {
         } header: {
             Text("Connection")
         } footer: {
-            Text("Keys stay in your login Keychain, tied to the endpoint they were saved for.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            footnote("Keys stay in your login Keychain, tied to the endpoint they were saved for.")
         }
     }
 
@@ -599,12 +570,9 @@ struct AIProvidersPanel: View {
                         })
                 }
             } footer: {
-                Text(
+                footnote(
                     "Ticked models appear in the model picker. The default model always does; "
-                        + "choose it on the AI pane."
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                        + "choose it on the AI pane.")
             }
         }
     }
@@ -653,7 +621,7 @@ struct AIProvidersPanel: View {
             return settings.isAppleIntelligenceAvailable() ? "Ready · Runs on this Mac" : "Unavailable"
         case .installed(let kind):
             guard settings.enabledInstalledProviders.contains(kind) else { return "Off" }
-            return kind == .codex ? codexCaption : installedCaption(kind)
+            return installedCaption(kind)
         case .api(let id):
             guard let connection = settings.connection(id: id) else { return "" }
             guard settings.isRouteEnabled(.api(id)) else { return "Off" }
@@ -663,29 +631,21 @@ struct AIProvidersPanel: View {
         }
     }
 
-    private var codexCaption: String {
-        switch subscription.phase {
-        case .idle, .starting: return "Checking…"
-        case .signedOut: return "Sign in required"
-        case .unavailable: return "Not installed"
-        case .failed: return "Check failed"
-        case .connected:
-            let count = modelCount(subscription.models.count)
-            guard let account = subscription.account else { return "Ready · " + count }
-            let plan = account.planTitle == "API key" ? "API key" : "ChatGPT \(account.planTitle)"
-            return "\(plan) · \(count)"
-        }
-    }
-
     private func installedCaption(_ kind: InstalledAIKind) -> String {
-        let status = installedAI.status(for: kind)
-        switch status.phase {
-        case .idle, .checking: return "Checking…"
-        case .ready: return "Ready · " + modelCount(status.models.count)
+        switch check(for: kind) {
+        case .checking: return "Checking…"
         case .signInRequired: return "Sign in required"
         case .notInstalled: return "Not installed"
         case .failed: return "Check failed"
+        case .ready(let models):
+            let count = modelCount(models)
+            let plan = kind == .codex ? codexPlan(apiKeyTitle: "API key") : nil
+            return "\(plan ?? "Ready") · \(count)"
         }
+    }
+
+    private func codexPlan(apiKeyTitle: String) -> String? {
+        subscription.account.map { $0.planTitle == "API key" ? apiKeyTitle : "ChatGPT \($0.planTitle)" }
     }
 
     private func icon(for route: AIProviderRoute) -> PopoverMenuIcon {
@@ -699,6 +659,19 @@ struct AIProvidersPanel: View {
             return AIModelOption.icon(
                 AIBrand.resolve(provider: connection.provider, model: connection.models.first ?? ""))
         }
+    }
+
+    private func monospaced(_ text: String) -> some View {
+        Text(text)
+            .font(.callout.monospaced())
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .textSelection(.enabled)
+    }
+
+    private func footnote(_ text: String) -> some View {
+        Text(text).font(.caption).foregroundStyle(.secondary)
     }
 
     private func modelCount(_ count: Int) -> String {

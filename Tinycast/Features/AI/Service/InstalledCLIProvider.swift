@@ -92,30 +92,17 @@ private final class InstalledCLITurnRunner {
     private func start(
         _ request: AIRequest, continuation: AIProviderStream.Continuation, token: TurnToken
     ) async {
-        guard kind != .codex else {
-            continuation.finish(
-                throwing: AIProviderError.unavailable("Codex requires its app-server adapter."))
-            return
-        }
-        guard
-            request.messages.contains(where: {
-                $0.role == .user
-                    && (!$0.images.isEmpty
-                        || !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            })
-        else {
-            continuation.finish(throwing: AIProviderError.unavailable("There is no user message to send."))
-            return
+        func refuse(_ message: String) { continuation.finish(throwing: AIProviderError.unavailable(message)) }
+        guard kind != .codex else { return refuse("Codex requires its app-server adapter.") }
+        guard request.messages.contains(where: { $0.role == .user && $0.hasPrompt }) else {
+            return refuse("There is no user message to send.")
         }
         let resolvedExecutable: URL?
         switch launch.command() {
         case .executable(let url):
             resolvedExecutable = url
         case .missing(let path):
-            continuation.finish(
-                throwing: AIProviderError.unavailable(
-                    InstalledAILaunch.missingCommandMessage(path)))
-            return
+            return refuse(InstalledAILaunch.missingCommandMessage(path))
         case .automatic:
             if let configuredExecutable {
                 resolvedExecutable = configuredExecutable
@@ -125,10 +112,7 @@ private final class InstalledCLITurnRunner {
             }
         }
         guard let executable = resolvedExecutable else {
-            continuation.finish(
-                throwing: AIProviderError.unavailable(
-                    "Install " + kind.title + " before using this model."))
-            return
+            return refuse("Install " + kind.title + " before using this model.")
         }
         if Task.isCancelled {
             continuation.finish(throwing: CancellationError())
@@ -139,10 +123,7 @@ private final class InstalledCLITurnRunner {
             try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
             try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: workspace.path)
         } catch {
-            continuation.finish(
-                throwing: AIProviderError.unavailable(
-                    "Tinycast could not prepare its private AI workspace."))
-            return
+            return refuse("Tinycast could not prepare its private AI workspace.")
         }
 
         activeServers = await resolvedToolServers()
@@ -156,10 +137,7 @@ private final class InstalledCLITurnRunner {
             } catch {
                 try? FileManager.default.removeItem(at: url)
                 activeServers = []
-                continuation.finish(
-                    throwing: AIProviderError.unavailable(
-                        "Tinycast could not write its private MCP configuration."))
-                return
+                return refuse("Tinycast could not write its private MCP configuration.")
             }
             configURL = url
         }
@@ -178,10 +156,7 @@ private final class InstalledCLITurnRunner {
                 try await Self.writePromptFile(prompt, to: url)
             } catch {
                 try? FileManager.default.removeItem(at: url)
-                continuation.finish(
-                    throwing: AIProviderError.unavailable(
-                        "Tinycast could not write its private AI prompt."))
-                return
+                return refuse("Tinycast could not write its private AI prompt.")
             }
             grokPrompt = url
             process.standardInput = FileHandle.nullDevice
@@ -222,9 +197,8 @@ private final class InstalledCLITurnRunner {
         do {
             try process.run()
         } catch {
-            abandon(
-                AIProviderError.responseFailed(
-                    kind.title + " could not start: " + error.localizedDescription))
+            abandon(AIProviderError.responseFailed(
+                kind.title + " could not start: " + error.localizedDescription))
             return
         }
         promptFileURL = grokPrompt
@@ -264,9 +238,7 @@ private final class InstalledCLITurnRunner {
     }
 
     nonisolated private static func writePromptFile(_ prompt: String, to url: URL) async throws {
-        try await Task.detached {
-            try Data(prompt.utf8).write(to: url)
-        }.value
+        try await Task.detached { try Data(prompt.utf8).write(to: url) }.value
     }
 
     /// Created `0600`: `createFile` writes a `0644` temporary first and restricts it after.
@@ -282,9 +254,7 @@ private final class InstalledCLITurnRunner {
 
     /// What this turn may offer: nothing at all unless the route is Claude and MCP armed it.
     private func resolvedToolServers() async -> [AIToolServer] {
-        guard kind == .claude, let toolServers, !InstalledAIManager.hasManagedMCPPolicy else {
-            return []
-        }
+        guard kind == .claude, let toolServers, !InstalledAIManager.hasManagedMCPPolicy else { return [] }
         return await toolServers.servers()
     }
 
@@ -373,9 +343,7 @@ private final class InstalledCLITurnRunner {
     }
 
     private func prompt(for request: AIRequest) -> String {
-        var sections = [
-            activeServers.isEmpty ? Self.safetyInstructions : Self.toolSafetyInstructions
-        ]
+        var sections = [activeServers.isEmpty ? Self.safetyInstructions : Self.toolSafetyInstructions]
         if let instructions = request.instructions?.trimmingCharacters(in: .whitespacesAndNewlines),
             !instructions.isEmpty
         {
@@ -409,9 +377,8 @@ private final class InstalledCLITurnRunner {
             }
             start = outputBuffer.index(after: newline)
             guard !line.isEmpty else { continue }
-            apply(
-                InstalledAIStreamDecoder.decode(
-                    Data(line), kind: kind, servers: activeServers), token: token)
+            let frame = InstalledAIStreamDecoder.decode(Data(line), kind: kind, servers: activeServers)
+            apply(frame, token: token)
         }
         outputBuffer.removeSubrange(..<start)
         if outputBuffer.count > maximumPartialLineBytes {
@@ -525,8 +492,7 @@ private final class InstalledCLITurnRunner {
         case .openCode, .grok:
             guard let executable = activeExecutable else { return }
             let arguments =
-                kind == .grok
-                ? ["sessions", "delete", sessionID] : ["session", "delete", sessionID, "--pure"]
+                kind == .grok ? ["sessions", "delete", sessionID] : ["session", "delete", sessionID, "--pure"]
             let workspace = workspace
             let environment = environment(for: executable)
             Task.detached {
@@ -567,9 +533,7 @@ private final class InstalledCLITurnRunner {
     }
 
     private static func cursorChatsRoot() -> URL {
-        if let override = ProcessInfo.processInfo.environment["TC_CURSOR_CHATS_ROOT"],
-            !override.isEmpty
-        {
+        if let override = ProcessInfo.processInfo.environment["TC_CURSOR_CHATS_ROOT"], !override.isEmpty {
             return URL(fileURLWithPath: override, isDirectory: true)
         }
         return FileManager.default.homeDirectoryForCurrentUser.appending(

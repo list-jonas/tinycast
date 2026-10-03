@@ -35,16 +35,16 @@ struct AIConnectionEditorPanel: View {
     var body: some View {
         VStack(spacing: 0) {
             SettingsEditorHeader(title: target.isNew ? "Add API Connection" : "Edit API Connection")
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, Theme.Spacing.dialogInset)
-            .padding(.top, Theme.Spacing.dialogInset)
-            .padding(.bottom, Theme.Spacing.xl)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Theme.Spacing.dialogInset)
+                .padding(.top, Theme.Spacing.dialogInset)
+                .padding(.bottom, Theme.Spacing.xl)
 
             Form {
                 Section {
                     editorField("Name") {
                         TextField("Name", text: $connection.name, prompt: Text("Optional label"))
-                        .settingsEditorTextField()
+                            .settingsEditorTextField()
                     }
                     editorField("Provider") {
                         Picker("Provider", selection: $connection.provider) {
@@ -141,7 +141,7 @@ struct AIConnectionEditorPanel: View {
     private var modelDiscoveryContent: some View {
         switch discovery {
         case .waitingForKey:
-            ForEach(connection.models, id: \.self) { model in selectedModelRow(model) }
+            selectedModelRows
             if AIEndpointPolicy.isLoopback(connection.baseURL) {
                 Label("Checking this local endpoint for models…", systemImage: "network")
                     .foregroundStyle(.secondary)
@@ -150,13 +150,13 @@ struct AIConnectionEditorPanel: View {
                     .foregroundStyle(.secondary)
             }
         case .loading:
-            ForEach(connection.models, id: \.self) { model in selectedModelRow(model) }
+            selectedModelRows
             HStack(spacing: Theme.Spacing.md) {
                 ProgressView().controlSize(.small)
                 Text("Loading available models…").foregroundStyle(.secondary)
             }
         case .loaded(let models):
-            ForEach(connection.models, id: \.self) { model in selectedModelRow(model) }
+            selectedModelRows
             if models.isEmpty {
                 Label("No compatible text models were returned.", systemImage: "info.circle")
                     .foregroundStyle(.secondary)
@@ -164,8 +164,8 @@ struct AIConnectionEditorPanel: View {
             } else {
                 editorField("Find a model") {
                     TextField("Find a model", text: $modelQuery, prompt: Text(modelSearchPlaceholder))
-                    .settingsEditorTextField()
-                    .onSubmit { addExactMatch(from: models) }
+                        .settingsEditorTextField()
+                        .onSubmit { addExactMatch(from: models) }
                 }
                 modelSearchResults(models)
             }
@@ -176,9 +176,7 @@ struct AIConnectionEditorPanel: View {
                 Label(message, systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.orange)
             }
-            ForEach(connection.models, id: \.self) { model in
-                selectedModelRow(model)
-            }
+            selectedModelRows
             if allowsManualEntry { manualModelField }
         }
     }
@@ -204,9 +202,7 @@ struct AIConnectionEditorPanel: View {
             }
         } else {
             ForEach(matches) { model in
-                Button {
-                    addModel(model)
-                } label: {
+                Button(action: { addModel(model) }) {
                     HStack(spacing: Theme.Spacing.md) {
                         VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
                             Text(model.name)
@@ -232,7 +228,7 @@ struct AIConnectionEditorPanel: View {
         editorField("Model ID") {
             TextField("Model ID", text: $modelQuery, prompt: Text(modelPlaceholder))
                 .settingsEditorTextField()
-                .onSubmit(addManualModel)
+                .onSubmit { addModel(modelQuery) }
         }
     }
 
@@ -242,15 +238,15 @@ struct AIConnectionEditorPanel: View {
         SettingsEditorField(title, labelFont: .callout.weight(.medium), content: content)
     }
 
-    private func selectedModelRow(_ model: String) -> some View {
-        LabeledContent(model) {
-            Button {
-                removeModel(model)
-            } label: {
-                Image(systemName: "minus.circle").foregroundStyle(.red)
+    private var selectedModelRows: some View {
+        ForEach(connection.models, id: \.self) { model in
+            LabeledContent(model) {
+                Button(action: { removeModel(model) }) {
+                    Image(systemName: "minus.circle").foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Remove \(model)")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Remove \(model)")
         }
     }
 
@@ -275,8 +271,7 @@ struct AIConnectionEditorPanel: View {
     }
 
     private var modelSearchPlaceholder: String {
-        connection.provider == .openRouter
-            ? "Search by model or company" : "Search available models"
+        connection.provider == .openRouter ? "Search by model or company" : "Search available models"
     }
 
     private func matchingModels(in models: [AIModelDiscovery.Model]) -> [AIModelDiscovery.Model] {
@@ -309,8 +304,8 @@ struct AIConnectionEditorPanel: View {
             do {
                 apiKey = try KeychainSecretStore.aiAPIKeys.secret(for: connection.id) ?? ""
             } catch {
-                discovery = .failed(
-                    "The saved key could not be read from Keychain.", allowsManualEntry: false)
+                let message = "The saved key could not be read from Keychain."
+                discovery = .failed(message, allowsManualEntry: false)
                 return
             }
         } else if AIEndpointPolicy.isLoopback(connection.baseURL) {
@@ -324,10 +319,7 @@ struct AIConnectionEditorPanel: View {
         do {
             baseURL = try AIEndpointPolicy.validate(connection.baseURL)
         } catch {
-            discovery = .failed(
-                (error as? LocalizedError)?.errorDescription
-                    ?? "Enter a valid provider base URL.",
-                allowsManualEntry: false)
+            discovery = .failed(Self.endpointMessage(error), allowsManualEntry: false)
             return
         }
         discovery = .loading
@@ -342,14 +334,9 @@ struct AIConnectionEditorPanel: View {
             guard !Task.isCancelled else { return }
             let catalogError = error as? AIModelDiscovery.DiscoveryError
             discovery = .failed(
-                catalogError?.errorDescription
-                    ?? "The provider could not load models. Enter one manually.",
+                catalogError?.errorDescription ?? "The provider could not load models. Enter one manually.",
                 allowsManualEntry: catalogError != .rejectedKey)
         }
-    }
-
-    private func addManualModel() {
-        addModel(modelQuery)
     }
 
     private func addModel(_ model: AIModelDiscovery.Model) {
@@ -357,8 +344,7 @@ struct AIConnectionEditorPanel: View {
     }
 
     private func addModel(
-        _ value: String, acceptsImages: Bool? = nil,
-        reasoningOptions: AIConnection.ReasoningOptions? = nil
+        _ value: String, acceptsImages: Bool? = nil, reasoningOptions: AIConnection.ReasoningOptions? = nil
     ) {
         let model = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !model.isEmpty else { return }
@@ -366,9 +352,7 @@ struct AIConnectionEditorPanel: View {
         if acceptsImages == true, !connection.visionModels.contains(model) {
             connection.visionModels.append(model)
         }
-        if connection.provider == .openRouter, let reasoningOptions,
-            !reasoningOptions.efforts.isEmpty
-        {
+        if connection.provider == .openRouter, let reasoningOptions, !reasoningOptions.efforts.isEmpty {
             if connection.reasoningOptions == nil { connection.reasoningOptions = [:] }
             connection.reasoningOptions?[model] = reasoningOptions
         }
@@ -387,12 +371,14 @@ struct AIConnectionEditorPanel: View {
         do {
             _ = try AIEndpointPolicy.validate(connection.baseURL)
         } catch {
-            self.error =
-                (error as? LocalizedError)?.errorDescription
-                ?? "Enter a valid provider base URL."
+            self.error = Self.endpointMessage(error)
             return
         }
         error = onSave(connection, key, target.isNew)
+    }
+
+    private static func endpointMessage(_ error: any Error) -> String {
+        (error as? LocalizedError)?.errorDescription ?? "Enter a valid provider base URL."
     }
 }
 

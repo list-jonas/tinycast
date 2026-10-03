@@ -44,9 +44,7 @@ enum AIRequestBody {
     }
 
     private static func anthropic(_ input: AIRequest, configuration: AIHTTPConfiguration) -> [String: Any] {
-        let systemParts =
-            ([input.instructions] + input.messages.compactMap { $0.role == .system ? $0.text : nil })
-            .compactMap { $0?.nonEmpty }
+        let systemParts = input.systemParts
         var body: [String: Any] = [
             "model": configuration.model,
             "messages": anthropicMessages(input.messages),

@@ -68,8 +68,7 @@ final class CodexTurnRunner {
     var isActive: Bool { !turns.isEmpty }
 
     nonisolated func stream(
-        _ request: AIRequest, model: String, effort: String?,
-        toolServers: AIToolServerSession? = nil
+        _ request: AIRequest, model: String, effort: String?, toolServers: AIToolServerSession? = nil
     ) -> AIProviderStream {
         AIProviderStream { continuation in
             let token = TurnToken()
@@ -154,8 +153,7 @@ final class CodexTurnRunner {
             guard params["willRetry"]?.boolValue != true else { return }
             continuation.finish(
                 throwing: AIProviderError.responseFailed(
-                    params["error"]?.objectValue?["message"]?.stringValue
-                        ?? "Codex returned an error."))
+                    params["error"]?.objectValue?["message"]?.stringValue ?? "Codex returned an error."))
             clear(key)
         default:
             break
@@ -176,9 +174,8 @@ final class CodexTurnRunner {
         turn.spentCalls += 1
         guard let roundCap = turn.roundCap, turn.spentCalls > roundCap else { return }
         // Finished before the interrupt, whose own cleanup would otherwise name a different reason.
-        turn.continuation.finish(
-            throwing: AIProviderError.responseFailed(
-                "Stopped after \(roundCap) rounds of tool calls."))
+        let message = "Stopped after \(roundCap) rounds of tool calls."
+        turn.continuation.finish(throwing: AIProviderError.responseFailed(message))
         interrupt(turn, key: key)
     }
 
@@ -217,20 +214,10 @@ final class CodexTurnRunner {
     }
 
     private func startTurn(
-        _ request: AIRequest,
-        model: String,
-        effort: String?,
-        toolServers: AIToolServerSession?,
-        continuation: AIProviderStream.Continuation,
-        token: TurnToken
+        _ request: AIRequest, model: String, effort: String?, toolServers: AIToolServerSession?,
+        continuation: AIProviderStream.Continuation, token: TurnToken
     ) async {
-        guard
-            let promptIndex = request.messages.lastIndex(where: {
-                $0.role == .user
-                    && (!$0.images.isEmpty
-                        || !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            })
-        else {
+        guard let promptIndex = request.messages.lastIndex(where: { $0.role == .user && $0.hasPrompt }) else {
             continuation.finish(throwing: AIProviderError.unavailable("There is no user message to send."))
             return
         }
@@ -319,18 +306,9 @@ final class CodexTurnRunner {
     }
 
     private func developerInstructions(for request: AIRequest, hasTools: Bool) -> String {
-        let requestInstructions =
-            ([request.instructions]
-            + request.messages.compactMap {
-                $0.role == .system ? $0.text : nil
-            }).compactMap { value -> String? in
-                guard let value else { return nil }
-                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-                return trimmed.isEmpty ? nil : trimmed
-            }
         let safety = hasTools ? Self.toolSafetyInstructions : Self.safetyInstructions
         let search = request.webSearch ? Self.webSearchInstructions : Self.noWebSearchInstructions
-        return ([safety, search] + requestInstructions).joined(separator: "\n\n")
+        return ([safety, search] + request.systemParts).joined(separator: "\n\n")
     }
 
     private func turnInput(for message: AIMessage) -> [[String: Any]] {
@@ -342,10 +320,7 @@ final class CodexTurnRunner {
 
     private func historyItems(from messages: ArraySlice<AIMessage>) -> [[String: Any]] {
         messages.compactMap { message in
-            guard message.role != .system,
-                !message.images.isEmpty
-                    || !message.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            else { return nil }
+            guard message.role != .system, message.hasPrompt else { return nil }
             let role = message.role == .user ? "user" : "assistant"
             let contentType = message.role == .user ? "input_text" : "output_text"
             var content: [[String: Any]] = []
@@ -382,8 +357,8 @@ final class CodexTurnRunner {
     /// Finishing ends a stream the server abandoned; the last turn ending re-arms idle shutdown.
     private func clear(_ key: ObjectIdentifier) {
         guard let turn = turns.removeValue(forKey: key) else { return }
-        turn.continuation.finish(
-            throwing: AIProviderError.responseFailed("The Codex connection was interrupted."))
+        let message = "The Codex connection was interrupted."
+        turn.continuation.finish(throwing: AIProviderError.responseFailed(message))
         if let threadID = turn.threadID { client.cancelElicitations(threadID: threadID) }
         if turns.isEmpty { onTurnEnded?() }
     }
