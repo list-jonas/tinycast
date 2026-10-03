@@ -7,7 +7,7 @@
 
 import Reconciler from "react-reconciler";
 import { DefaultEventPriority } from "react-reconciler/constants";
-import { reportUncaught } from "./polyfills.js";
+import { reportUncaught } from "./host.js";
 
 export const SLOT_TYPE = "__slot";
 

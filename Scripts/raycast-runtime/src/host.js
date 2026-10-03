@@ -79,3 +79,17 @@ export function describeError(error) {
   if (!stack) return headline;
   return stack.startsWith(headline) ? stack : `${headline}\n${stack}`;
 }
+
+let uncaughtSink = (error) => log("error", ["Uncaught:", error]);
+
+export function setUncaughtHandler(handler) {
+  uncaughtSink = handler;
+}
+
+export function reportUncaught(error) {
+  try {
+    uncaughtSink(error);
+  } catch {
+    log("error", ["Uncaught (and the handler threw):", error]);
+  }
+}

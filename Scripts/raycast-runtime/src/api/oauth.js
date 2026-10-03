@@ -2,44 +2,30 @@ import { base64ToBytes, bytesToBase64, utf8Encode } from "../bytes.js";
 import { hostCall, hostCallSync } from "../host.js";
 import { nestedEnums } from "./enums.generated.js";
 
-function generateRandomBytes(length) {
-  const base64 = hostCallSync("crypto", "random", [length]);
-  return base64ToBytes(base64);
-}
-
-function base64UrlEncode(bytes) {
-  return bytesToBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-function generateCodeVerifier() {
-  const bytes = generateRandomBytes(32);
-  return base64UrlEncode(bytes);
-}
+const base64UrlEncode = (bytes) => bytes.toBase64({ alphabet: "base64url", omitPadding: true });
+const randomString = (length) => base64UrlEncode(base64ToBytes(hostCallSync("crypto", "random", [length])));
 
 function computeCodeChallenge(verifier) {
-  const verifierBytes = utf8Encode(verifier);
-  const hashBase64 = hostCallSync("crypto", "hash", ["sha256", bytesToBase64(verifierBytes), null]);
-  const hashBytes = base64ToBytes(hashBase64);
-  return base64UrlEncode(hashBytes);
+  const hash = hostCallSync("crypto", "hash", ["sha256", bytesToBase64(utf8Encode(verifier)), null]);
+  return base64UrlEncode(base64ToBytes(hash));
 }
 
-function generateRandomString(length = 16) {
-  const bytes = generateRandomBytes(length);
-  return base64UrlEncode(bytes);
+function redirectURIFor(method) {
+  const { App, AppURI } = nestedEnums.OAuth.RedirectMethod;
+  if (method === App) return "raycast://oauth?package_name=Extension";
+  if (method === AppURI) return "com.raycast:/oauth?package_name=Extension";
+  return "https://raycast.com/redirect?packageName=Extension";
 }
 
+// raycast.com/redirect sends the browser back to tinycast://oauth only when the state names the scheme.
 function generateState(client) {
-  // raycast.com/redirect expects state to be a JSON object (base64url-encoded)
-  // containing providerName and scheme ("tinycast") so it redirects to tinycast://oauth
   const payload = {
-    token: generateRandomString(16),
+    token: randomString(16),
     providerName: client?.providerName || "",
     providerId: client?.providerId || "",
     scheme: "tinycast",
   };
-  const json = JSON.stringify(payload);
-  const bytes = utf8Encode(json);
-  return base64UrlEncode(bytes);
+  return base64UrlEncode(utf8Encode(JSON.stringify(payload)));
 }
 
 export class TokenSet {
@@ -74,40 +60,24 @@ export class PKCEClient {
       throw new Error("authorizationRequest requires endpoint and clientId");
     }
 
-    const codeVerifier = generateCodeVerifier();
+    const codeVerifier = randomString(32);
     const codeChallenge = computeCodeChallenge(codeVerifier);
     const codeChallengeMethod = "S256";
     const state = options.state || generateState(this);
 
-    let redirectURI = options.extraParameters?.redirect_uri;
-    if (!redirectURI) {
-      if (this.redirectMethod === nestedEnums.OAuth.RedirectMethod.App) {
-        redirectURI = "raycast://oauth?package_name=Extension";
-      } else if (this.redirectMethod === nestedEnums.OAuth.RedirectMethod.AppURI) {
-        redirectURI = "com.raycast:/oauth?package_name=Extension";
-      } else {
-        redirectURI = "https://raycast.com/redirect?packageName=Extension";
-      }
-    }
-
+    const redirectURI = options.extraParameters?.redirect_uri || redirectURIFor(this.redirectMethod);
     const url = new URL(options.endpoint);
-    url.searchParams.set("response_type", "code");
-    url.searchParams.set("client_id", options.clientId);
-    if (options.scope) {
-      url.searchParams.set("scope", options.scope);
-    }
-    url.searchParams.set("redirect_uri", redirectURI);
-    url.searchParams.set("code_challenge", codeChallenge);
-    url.searchParams.set("code_challenge_method", codeChallengeMethod);
-    url.searchParams.set("state", state);
-
-    if (options.extraParameters) {
-      for (const [key, value] of Object.entries(options.extraParameters)) {
-        if (value !== undefined && value !== null) {
-          url.searchParams.set(key, String(value));
-        }
-      }
-    }
+    const query = [
+      ["response_type", "code"],
+      ["client_id", options.clientId],
+      ...(options.scope ? [["scope", options.scope]] : []),
+      ["redirect_uri", redirectURI],
+      ["code_challenge", codeChallenge],
+      ["code_challenge_method", codeChallengeMethod],
+      ["state", state],
+      ...Object.entries(options.extraParameters || {}),
+    ];
+    for (const [key, value] of query) if (value !== undefined && value !== null) url.searchParams.set(key, String(value));
 
     return {
       endpoint: options.endpoint,

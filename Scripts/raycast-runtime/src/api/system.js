@@ -52,9 +52,6 @@ export const LocalStorage = {
 // Raycast's Cache is synchronous. Swift hands the whole namespace over at construction and every
 // mutation is fire-and-forget write-behind, so reads stay synchronous as the API promises.
 
-const cacheSubscribers = new Map();
-let nextCacheSubscription = 1;
-
 export class Cache {
   constructor(options = {}) {
     this.namespace = options.namespace ?? "default";
@@ -102,13 +99,8 @@ export class Cache {
   }
 
   subscribe(subscriber) {
-    const id = nextCacheSubscription++;
     this._subscribers.add(subscriber);
-    cacheSubscribers.set(id, { namespace: this.namespace, subscriber });
-    return () => {
-      this._subscribers.delete(subscriber);
-      cacheSubscribers.delete(id);
-    };
+    return () => void this._subscribers.delete(subscriber);
   }
 
   _persist(key, value) {
@@ -151,27 +143,14 @@ export const environment = new Proxy(
   },
 );
 
-export function openExtensionPreferences() {
-  return hostCall("window", "openPreferences", ["extension"]);
-}
-
-export function openCommandPreferences() {
-  return hostCall("window", "openPreferences", ["command"]);
-}
+export const openExtensionPreferences = () => hostCall("window", "openPreferences", ["extension"]);
+export const openCommandPreferences = () => hostCall("window", "openPreferences", ["command"]);
 
 // ─── Window / navigation control ────────────────────────────────────
 
-export function closeMainWindow(options = {}) {
-  return hostCall("window", "close", [options]);
-}
-
-export function popToRoot(options = {}) {
-  return hostCall("window", "popToRoot", [options]);
-}
-
-export function clearSearchBar(options = {}) {
-  return hostCall("window", "clearSearchBar", [options]);
-}
+export const closeMainWindow = (options = {}) => hostCall("window", "close", [options]);
+export const popToRoot = (options = {}) => hostCall("window", "popToRoot", [options]);
+export const clearSearchBar = (options = {}) => hostCall("window", "clearSearchBar", [options]);
 
 // ─── Applications & files ───────────────────────────────────────────
 
@@ -181,52 +160,20 @@ export function open(target, application) {
 }
 
 /// Raycast shows an app picker for Action.OpenWith; Swift resolves the candidates and presents them.
-export function openWith(path) {
-  return hostCall("system", "openWith", [String(path)]);
-}
-
-export function trash(paths) {
-  return hostCall("system", "trash", [(Array.isArray(paths) ? paths : [paths]).map(String)]);
-}
-
-export function showInFinder(path) {
-  return hostCall("system", "showInFinder", [String(path)]);
-}
-
-export function getApplications(path) {
-  return hostCall("system", "applications", [path ? String(path) : null]);
-}
-
-export function getDefaultApplication(path) {
-  return hostCall("system", "defaultApplication", [String(path)]);
-}
-
-export function getFrontmostApplication() {
-  return hostCall("system", "frontmostApplication", []);
-}
-
-export function getSelectedText() {
-  return hostCall("system", "selectedText", []);
-}
-
-export function getSelectedFinderItems() {
-  return hostCall("system", "selectedFinderItems", []);
-}
+export const openWith = (path) => hostCall("system", "openWith", [String(path)]);
+export const trash = (paths) => hostCall("system", "trash", [(Array.isArray(paths) ? paths : [paths]).map(String)]);
+export const showInFinder = (path) => hostCall("system", "showInFinder", [String(path)]);
+export const getApplications = (path) => hostCall("system", "applications", [path ? String(path) : null]);
+export const getDefaultApplication = (path) => hostCall("system", "defaultApplication", [String(path)]);
+export const getFrontmostApplication = () => hostCall("system", "frontmostApplication", []);
+export const getSelectedText = () => hostCall("system", "selectedText", []);
+export const getSelectedFinderItems = () => hostCall("system", "selectedFinderItems", []);
+export const launchCommand = (options) => hostCall("system", "launchCommand", [options]);
+export const updateCommandMetadata = (metadata) => hostCall("system", "updateCommandMetadata", [metadata]);
+export const getFrontmostBrowserTab = () => unsupported("getFrontmostBrowserTab");
 
 export function captureException(error) {
   console.error(error instanceof Error ? error.stack || error.message : String(error));
-}
-
-export function launchCommand(options) {
-  return hostCall("system", "launchCommand", [options]);
-}
-
-export function updateCommandMetadata(metadata) {
-  return hostCall("system", "updateCommandMetadata", [metadata]);
-}
-
-export function getFrontmostBrowserTab() {
-  return unsupported("getFrontmostBrowserTab");
 }
 
 // ─── Feedback ───────────────────────────────────────────────────────
@@ -241,42 +188,6 @@ export class Toast {
       primaryAction: options.primaryAction,
       secondaryAction: options.secondaryAction,
     };
-  }
-
-  get style() {
-    return this._options.style;
-  }
-  set style(value) {
-    this._options.style = value;
-    this._sync();
-  }
-  get title() {
-    return this._options.title;
-  }
-  set title(value) {
-    this._options.title = value;
-    this._sync();
-  }
-  get message() {
-    return this._options.message;
-  }
-  set message(value) {
-    this._options.message = value;
-    this._sync();
-  }
-  get primaryAction() {
-    return this._options.primaryAction;
-  }
-  set primaryAction(value) {
-    this._options.primaryAction = value;
-    this._sync();
-  }
-  get secondaryAction() {
-    return this._options.secondaryAction;
-  }
-  set secondaryAction(value) {
-    this._options.secondaryAction = value;
-    this._sync();
   }
 
   async show() {
@@ -319,6 +230,20 @@ export class Toast {
   }
 }
 
+// Every option is live: assigning one on a shown toast updates it in place.
+for (const name of ["style", "title", "message", "primaryAction", "secondaryAction"]) {
+  Object.defineProperty(Toast.prototype, name, {
+    get() {
+      return this._options[name];
+    },
+    set(value) {
+      this._options[name] = value;
+      this._sync();
+    },
+    configurable: true,
+  });
+}
+
 Toast.Style = ToastStyle;
 
 let nextToastToken = 1;
@@ -341,9 +266,7 @@ export async function showToast(optionsOrStyle, title, message) {
   return toast;
 }
 
-export function showHUD(title, options = {}) {
-  return hostCall("feedback", "showHUD", [String(title), options]);
-}
+export const showHUD = (title, options = {}) => hostCall("feedback", "showHUD", [String(title), options]);
 
 export function confirmAlert(options = {}) {
   return hostCall("feedback", "confirmAlert", [

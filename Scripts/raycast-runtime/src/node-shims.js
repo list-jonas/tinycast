@@ -3,7 +3,7 @@
 
 import { Buffer, bufferModule } from "./buffer.js";
 import { EventEmitter } from "./events.js";
-import { reportUncaught } from "./polyfills.js";
+import { reportUncaught } from "./host.js";
 import { Duplex, PassThrough, Readable, Stream, Transform, Writable, finished, finishedPromise, pipeline, pipelinePromise } from "./streams.js";
 import { ReadableStream, TransformStream, WritableStream } from "./web-streams.js";
 import { punycode } from "./punycode.js";

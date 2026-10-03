@@ -1,7 +1,7 @@
 // `path`, `process` and `os`: the shims that read the boot environment Swift hands over.
 
 import { hostCallSync } from "../host.js";
-import { reportUncaught } from "../polyfills.js";
+import { reportUncaught } from "../host.js";
 import { codedError, notSupported } from "./common.js";
 
 function normalizeSegments(parts, allowAboveRoot) {
