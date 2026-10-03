@@ -74,9 +74,7 @@ extension ExtensionToast {
     }
 
     private static func action(from value: RenderValue?) -> Action? {
-        guard let fields = value?.objectValue, let token = fields["token"]?.stringValue else {
-            return nil
-        }
+        guard let fields = value?.objectValue, let token = fields["token"]?.stringValue else { return nil }
         return Action(title: fields["title"]?.stringValue ?? "", token: token)
     }
 }
@@ -189,9 +187,7 @@ final class ExtensionHostBridge: ExtensionHostAPI {
                 }
                 return nil
             }
-            guard let text = content["text"]?.stringValue ?? content["html"]?.stringValue else {
-                return nil
-            }
+            guard let text = content["text"]?.stringValue ?? content["html"]?.stringValue else { return nil }
             if method == "copy" {
                 // History records unmarked copies; ConcealedType is how secrets stay out.
                 if concealed {

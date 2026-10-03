@@ -92,9 +92,7 @@ final class ExtensionNodeShims: @unchecked Sendable {
             }
             return Double(statistics.free_count) * Double(getpagesize())
         }
-        guard method == "cpus" else {
-            throw ShimError.failed("os.\(method) is not supported.", "ENOSYS")
-        }
+        guard method == "cpus" else { throw ShimError.failed("os.\(method) is not supported.", "ENOSYS") }
 
         var processorCount: natural_t = 0
         var processorInfo: processor_info_array_t?
@@ -246,9 +244,7 @@ final class ExtensionNodeShims: @unchecked Sendable {
 
         case "realpath":
             let target = try path(0)
-            guard fileManager.fileExists(atPath: target) else {
-                throw ShimError.noEntry(target, "realpath")
-            }
+            guard fileManager.fileExists(atPath: target) else { throw ShimError.noEntry(target, "realpath") }
             return URL(fileURLWithPath: target).resolvingSymlinksInPath().path
 
         case "chmod":
@@ -256,9 +252,7 @@ final class ExtensionNodeShims: @unchecked Sendable {
             guard let mode = arguments[safe: 1] as? NSNumber else {
                 throw ShimError.failed("fs.chmod needs a mode.", "EINVAL")
             }
-            guard fileManager.fileExists(atPath: target) else {
-                throw ShimError.noEntry(target, "chmod")
-            }
+            guard fileManager.fileExists(atPath: target) else { throw ShimError.noEntry(target, "chmod") }
             try fileManager.setAttributes([.posixPermissions: mode], ofItemAtPath: target)
             return nil
 

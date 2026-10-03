@@ -130,13 +130,7 @@ struct ExtensionCommandScreen: PaletteScreen {
                 extensions.dispatch(handler: handler)
             },
             clipPath: { bounds, metrics, _ in
-                UnevenRoundedRectangle(
-                    topLeadingRadius: metrics.radius.menuPanel,
-                    bottomLeadingRadius: metrics.radius.menuPanel,
-                    bottomTrailingRadius: metrics.size.menuButton / 2,
-                    topTrailingRadius: metrics.radius.menuPanel,
-                    style: .continuous
-                ).path(in: bounds).cgPath
+                ExtensionActionsPanel.shape(metrics).path(in: bounds).cgPath
             },
             motion: ExtensionMenuMotion.panel)
     }

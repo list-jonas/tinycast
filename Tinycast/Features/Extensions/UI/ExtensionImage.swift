@@ -36,9 +36,7 @@ enum ExtensionImage {
         guard let value else { return nil }
         switch value {
         case .string(let text):
-            guard let source = source(from: text, assetsPath: assetsPath, isDark: isDark) else {
-                return nil
-            }
+            guard let source = source(from: text, assetsPath: assetsPath, isDark: isDark) else { return nil }
             return Resolved(source: source)
         case .object(let fields):
             // Raycast's icon-with-tooltip form; unwrap only when it looks like one.

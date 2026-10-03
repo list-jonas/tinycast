@@ -59,9 +59,7 @@ final class ExtensionOAuthSession {
             host == "oauth" || host == "redirect"
                 || path == "/oauth" || path == "/redirect"
                 || path.hasPrefix("/oauth/") || path.hasPrefix("/redirect/")
-        else {
-            return .ignored
-        }
+        else { return .ignored }
 
         // The browser can come back after the session is gone: quit, timed out, or torn down.
         guard let active = activeSession else { return .expired }
@@ -147,9 +145,7 @@ final class ExtensionOAuthSession {
     // MARK: - URL Parsing
 
     static func parseCallback(url: URL) -> [String: String] {
-        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            return [:]
-        }
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return [:] }
         var result: [String: String] = [:]
         if let queryItems = components.queryItems {
             for item in queryItems {

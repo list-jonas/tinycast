@@ -231,9 +231,7 @@ struct ExtensionManifest: Sendable, Hashable {
 
     static func load(directory: URL) throws -> ExtensionManifest {
         let manifestURL = directory.appendingPathComponent("package.json")
-        guard let data = try? Data(contentsOf: manifestURL) else {
-            throw ParseError.unreadable(manifestURL)
-        }
+        guard let data = try? Data(contentsOf: manifestURL) else { throw ParseError.unreadable(manifestURL) }
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
             let manifest = ExtensionManifest(json: json)
         else { throw ParseError.notAnExtension(directory) }

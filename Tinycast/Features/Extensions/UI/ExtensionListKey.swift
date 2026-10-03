@@ -43,9 +43,7 @@ enum ExtensionListKey: Equatable {
             return listOpen ? .deleteBackward : .ignored
         }
 
-        guard listOpen, !characters.isEmpty, characters.allSatisfy(isTypable) else {
-            return .ignored
-        }
+        guard listOpen, !characters.isEmpty, characters.allSatisfy(isTypable) else { return .ignored }
         return .append(characters)
     }
 

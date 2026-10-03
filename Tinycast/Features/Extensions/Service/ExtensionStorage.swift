@@ -10,10 +10,6 @@ final class ExtensionStorage {
         /// A search-bar dropdown's `storeValue` pick — host UI state, so not `LocalStorage`.
         var accessoryValues: [String: String] = [:]
 
-        enum CodingKeys: String, CodingKey {
-            case localStorage, caches, preferences, accessoryValues
-        }
-
         init() {}
 
         /// Per section: one absent key must not reset the whole file, API keys included.

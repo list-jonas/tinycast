@@ -102,9 +102,7 @@ struct ExtensionImportPanel: View {
     private var allChosen: Bool { chosen.count == candidates.count }
 
     private var subtitle: String {
-        guard !candidates.isEmpty else {
-            return "No built extensions found in ~/.config/raycast/extensions."
-        }
+        guard !candidates.isEmpty else { return "No built extensions found in ~/.config/raycast/extensions." }
         guard !fresh.isEmpty else {
             return "Everything Raycast has built is already here. Import one again to update it."
         }

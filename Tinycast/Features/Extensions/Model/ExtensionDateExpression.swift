@@ -112,9 +112,7 @@ enum ExtensionDateExpression {
     /// Always forward: a weekday names the coming one, never the one just gone.
     private static func nextDate(weekday: Int, after today: Date, calendar: Calendar) -> Date? {
         for offset in 1...7 {
-            guard let candidate = calendar.date(byAdding: .day, value: offset, to: today) else {
-                continue
-            }
+            guard let candidate = calendar.date(byAdding: .day, value: offset, to: today) else { continue }
             if calendar.component(.weekday, from: candidate) == weekday { return candidate }
         }
         return nil

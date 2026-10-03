@@ -30,9 +30,7 @@ final class ExtensionFetcher: Sendable {
     func request(_ spec: RenderValue?) async throws -> [String: Any] {
         let fields = spec?.objectValue ?? [:]
         let urlString = fields["url"]?.stringValue ?? ""
-        guard let url = URL(string: urlString), url.scheme != nil else {
-            throw FetchError.badURL(urlString)
-        }
+        guard let url = URL(string: urlString), url.scheme != nil else { throw FetchError.badURL(urlString) }
 
         var request = URLRequest(url: url)
         request.httpMethod = fields["method"]?.stringValue ?? "GET"

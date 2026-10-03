@@ -15,9 +15,7 @@ struct ExtensionSearchAccessory: Equatable {
     let tooltip: String?
 
     init?(node: RenderNode?) {
-        guard let node, node.type == "List.Dropdown" || node.type == "Grid.Dropdown" else {
-            return nil
-        }
+        guard let node, node.type == "List.Dropdown" || node.type == "Grid.Dropdown" else { return nil }
         nodeID = node.id
         items = ExtensionPickerItem.items(in: node)
         onChange = node.handler("onChange")

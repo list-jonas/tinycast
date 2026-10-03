@@ -88,9 +88,7 @@ struct ExtensionInstaller: Sendable {
         let result = try await run(
             URL(fileURLWithPath: "/usr/bin/ditto"),
             arguments: ["-x", "-k", archive.path, expanded.path], in: workspace)
-        guard result.status == 0 else {
-            throw ExtensionStoreError.downloadFailed(result.trimmedOutput)
-        }
+        guard result.status == 0 else { throw ExtensionStoreError.downloadFailed(result.trimmedOutput) }
         return try locateManifestRoot(in: expanded)
     }
 
@@ -121,16 +119,12 @@ struct ExtensionInstaller: Sendable {
             throw ExtensionStoreError.noPackageManager
         }
         guard let node = ExtensionPackageManager.nodeURL(additionalSearchPaths: additionalSearchPaths)
-        else {
-            throw ExtensionStoreError.noNode
-        }
+        else { throw ExtensionStoreError.noNode }
 
         onProgress(.installingDependencies(manager: resolved.manager.title))
         let install = try await run(
             resolved.url, arguments: resolved.manager.installArguments, in: source, node: node)
-        guard install.status == 0 else {
-            throw ExtensionStoreError.buildFailed(install.trimmedOutput)
-        }
+        guard install.status == 0 else { throw ExtensionStoreError.buildFailed(install.trimmedOutput) }
 
         onProgress(.building)
         let ray = source.appendingPathComponent("node_modules/.bin/ray")
@@ -138,9 +132,7 @@ struct ExtensionInstaller: Sendable {
             // Not a Raycast build: its own script is the only contract, and it emits in place.
             let build = try await run(
                 resolved.url, arguments: resolved.manager.buildArguments, in: source, node: node)
-            guard build.status == 0 else {
-                throw ExtensionStoreError.buildFailed(build.trimmedOutput)
-            }
+            guard build.status == 0 else { throw ExtensionStoreError.buildFailed(build.trimmedOutput) }
             return try validated(source)
         }
 
@@ -149,9 +141,7 @@ struct ExtensionInstaller: Sendable {
             ray,
             arguments: ["build", "-e", environment(for: source), "-o", output.path, "--non-interactive"],
             in: source, node: node)
-        guard build.status == 0 else {
-            throw ExtensionStoreError.buildFailed(build.trimmedOutput)
-        }
+        guard build.status == 0 else { throw ExtensionStoreError.buildFailed(build.trimmedOutput) }
         return try validated(output)
     }
 

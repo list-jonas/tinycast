@@ -70,9 +70,7 @@ struct ExtensionStoreClient: Sendable {
     private func treeSHA(of source: ExtensionGitHubSource) async throws -> String {
         var sha = source.ref
         for segment in source.path.split(separator: "/").map(String.init) {
-            guard let url = source.treeURL(sha: sha) else {
-                throw ExtensionStoreError.malformedResponse
-            }
+            guard let url = source.treeURL(sha: sha) else { throw ExtensionStoreError.malformedResponse }
             guard
                 let next = try ExtensionGitHubSource.parseTree(try await get(url))
                     .directorySHA(named: segment)

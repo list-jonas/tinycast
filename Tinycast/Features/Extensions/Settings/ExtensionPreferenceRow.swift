@@ -86,12 +86,18 @@ struct ExtensionPreferenceRow: View {
             }
             .labelsHidden()
             .onChange(of: text) { _, value in save(value) }
-        case .password:
-            SecureField("", text: $text, prompt: schema.placeholder.map(Text.init))
-                .textFieldStyle(.roundedBorder)
-                .labelsHidden()
-                .pointerStyle(.horizontalText)
-                .onChange(of: text) { _, value in save(value) }
+        case .password, .textfield:
+            Group {
+                if schema.kind == .password {
+                    SecureField("", text: $text, prompt: schema.placeholder.map(Text.init))
+                } else {
+                    TextField("", text: $text, prompt: schema.placeholder.map(Text.init))
+                }
+            }
+            .textFieldStyle(.roundedBorder)
+            .labelsHidden()
+            .pointerStyle(.horizontalText)
+            .onChange(of: text) { _, value in save(value) }
         case .file, .directory, .appPicker:
             HStack(spacing: Theme.Spacing.sm) {
                 Text(text.isEmpty ? "Not set" : (text as NSString).lastPathComponent)
@@ -100,12 +106,6 @@ struct ExtensionPreferenceRow: View {
                     .truncationMode(.middle)
                 Button("Choose…", action: choosePath)
             }
-        case .textfield:
-            TextField("", text: $text, prompt: schema.placeholder.map(Text.init))
-                .textFieldStyle(.roundedBorder)
-                .labelsHidden()
-                .pointerStyle(.horizontalText)
-                .onChange(of: text) { _, value in save(value) }
         }
     }
 

@@ -142,8 +142,8 @@ private struct ExtensionCommandRows: View {
                 Toggle(
                     "Show in menu bar",
                     isOn: Binding(
-                        get: { core.extensionCoordinator.menuBarIsEnabled(reference) },
-                        set: { core.extensionCoordinator.setMenuBarEnabled($0, reference: reference) })
+                        get: { core.extensions.menuBarIsEnabled(reference) },
+                        set: { core.extensions.setMenuBarEnabled($0, reference: reference) })
                 )
                 .labelsHidden()
             }
@@ -176,7 +176,7 @@ private struct ExtensionRefreshRow: View {
     }()
 
     var body: some View {
-        let info = core.extensions.backgroundInfo(extension: extensionName, command: command.name)
+        let info = core.extensions.commandMetadata.metadata(extension: extensionName, command: command.name)
         ExtensionSettingsCardRow(
             title: "Background refresh", detail: detail(for: info), indent: Theme.Spacing.lg
         ) {

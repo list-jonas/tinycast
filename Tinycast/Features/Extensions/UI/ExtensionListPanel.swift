@@ -39,7 +39,9 @@ final class ExtensionListPanelController {
     private var hosting: NSHostingView<AnyView>?
 
     func present(_ content: AnyView, frame: NSRect, parent: NSWindow, palette: PaletteState) {
-        let panel = ensurePanel(state: palette)
+        let panel = self.panel ?? ExtensionListPanel()
+        panel.paletteState = palette
+        self.panel = panel
         if let hosting {
             hosting.rootView = content
         } else {
@@ -64,17 +66,6 @@ final class ExtensionListPanelController {
         panel.contentView = nil
         hosting = nil
         self.panel = nil
-    }
-
-    private func ensurePanel(state: PaletteState) -> ExtensionListPanel {
-        if let panel {
-            panel.paletteState = state
-            return panel
-        }
-        let panel = ExtensionListPanel()
-        panel.paletteState = state
-        self.panel = panel
-        return panel
     }
 }
 

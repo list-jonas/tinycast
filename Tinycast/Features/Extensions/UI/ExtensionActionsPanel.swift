@@ -62,14 +62,16 @@ struct ExtensionActionsPanel: View {
     /// One device pixel: a point-wide rule reads heavy against the glass.
     private var hairline: CGFloat { 1 / displayScale }
 
-    var body: some View {
-        let shape = UnevenRoundedRectangle(
-            topLeadingRadius: metrics.radius.menuPanel,
-            bottomLeadingRadius: metrics.radius.menuPanel,
-            bottomTrailingRadius: metrics.size.menuButton / 2,
-            topTrailingRadius: metrics.radius.menuPanel,
+    /// Its bottom-trailing corner follows the ⌘K pill; the menu window clips to the same shape.
+    static func shape(_ metrics: InterfaceMetrics) -> UnevenRoundedRectangle {
+        UnevenRoundedRectangle(
+            topLeadingRadius: metrics.radius.menuPanel, bottomLeadingRadius: metrics.radius.menuPanel,
+            bottomTrailingRadius: metrics.size.menuButton / 2, topTrailingRadius: metrics.radius.menuPanel,
             style: .continuous)
-        return VStack(spacing: 0) {
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
             listContent
             Rectangle()
                 .fill(Theme.Colors.separator)
@@ -80,7 +82,7 @@ struct ExtensionActionsPanel: View {
                 verticalOffset: -metrics.spacing.xxs / 2)
         }
         .frame(width: panel.width)
-        .glassEffect(.regular, in: shape)
+        .glassEffect(.regular, in: Self.shape(metrics))
     }
 
     @ViewBuilder

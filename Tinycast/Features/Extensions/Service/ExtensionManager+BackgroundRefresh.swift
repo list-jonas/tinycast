@@ -2,10 +2,6 @@ import Foundation
 
 /// Background refresh: headless `no-view` runs on the manifest's `interval`, sharing the one runtime.
 extension ExtensionManager {
-    func backgroundInfo(extension name: String, command: String) -> ExtensionCommandMetadata {
-        commandMetadata.metadata(extension: name, command: command)
-    }
-
     func setBackgroundEnabled(_ enabled: Bool, extension name: String, command: String) {
         commandMetadata.setBackgroundEnabled(enabled, extension: name, command: command)
         if !enabled { commandMetadata.clearBackgroundError(extension: name, command: command) }
