@@ -35,7 +35,8 @@ final class ParakeetRecognizer {
         blank = configuration.blankToken
     }
 
-    func transcribe(_ samples: [Float]) throws -> String {
+    /// Parakeet takes no language hint; the parameter only satisfies `DictationRecognizer`.
+    func transcribe(_ samples: [Float], language _: String?) throws -> String {
         guard !samples.isEmpty, samples.count <= DictationWire.maximumSamples else {
             throw DictationInferenceError.invalidAudio
         }

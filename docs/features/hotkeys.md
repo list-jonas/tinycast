@@ -10,6 +10,7 @@
 - `DoubleTapModifier` / `DoubleTapDetector` — the double-tap recognizer.
 - `ModifierKey` / `ModifierKeyDetector` — physical sides, lone presses, taps and holds.
 - `ModifierTapMonitor` — the shared modifier-only tap, including Dictation's hold/release callbacks.
+- `EventTap` — the main-run-loop `CGEventTap` lifecycle and session observers both taps share.
 
 `HotKeyManager` owns them all: persistence, conflict lookup, and dispatch. Every action reads and
 writes one `HotKeyBinding`, so all cases share persistence, conflict detection, the recorder and
