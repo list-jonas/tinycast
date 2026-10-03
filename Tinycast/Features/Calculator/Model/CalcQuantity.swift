@@ -33,20 +33,15 @@ enum CalcQuantity {
             let text = value.amount == 0 ? "false" : "true"
             return CalcResult(
                 expression: expressionText(split.expressionTokens), sourceBadge: "Expression",
-                targetBadge: "Boolean", payload: .value(display: text, copyText: text))
+                targetBadge: "Boolean", payload: .text(text))
         }
 
         if parser.usedCurrency && !parser.usedCurrencyRate {
             guard let rates else {
-                return CalcResult(
-                    expression: query,
-                    payload: .error(
-                        message: "Exchange rates unavailable — check your connection."))
+                return CalcResult(expression: query, payload: .error(message: CalcCurrency.unavailable))
             }
             if let code = parser.currencyCodes.first(where: { rates.rate(for: $0) == nil }) {
-                return CalcResult(
-                    expression: query,
-                    payload: .error(message: "No exchange rate for \(code)."))
+                return CalcResult(expression: query, payload: .error(message: "No exchange rate for \(code)."))
             }
         }
 
@@ -59,7 +54,7 @@ enum CalcQuantity {
                 return CalcResult(
                     expression: expressionText(split.expressionTokens),
                     sourceBadge: parser.operationCount == 0 ? unit.name : "Expression",
-                    targetBadge: "Timespan", payload: .value(display: text, copyText: text))
+                    targetBadge: "Timespan", payload: .text(text))
             }
             guard let output = parser.converted(value, to: targetName) else {
                 guard let message = parser.issue else { return nil }
@@ -114,9 +109,7 @@ enum CalcQuantity {
         return CalcCurrency.byName[from.code == "USD" ? "eur" : "usd"]
     }
 
-    private static func convertedResult(
-        _ value: CalcValue, expression: String
-    ) -> CalcResult? {
+    private static func convertedResult(_ value: CalcValue, expression: String) -> CalcResult? {
         switch value.kind {
         case .scalar:
             return nil
@@ -127,26 +120,18 @@ enum CalcQuantity {
         }
     }
 
-    private static func measurementResult(
-        _ amount: Double, unit: UnitDef, expression: String
-    ) -> CalcResult {
+    private static func measurementResult(_ amount: Double, unit: UnitDef, expression: String) -> CalcResult {
         CalcResult(
-            expression: expression,
-            sourceBadge: "Expression", targetBadge: unit.name,
+            expression: expression, sourceBadge: "Expression", targetBadge: unit.name,
             payload: .measurement(amount, unit: unit))
     }
 
     private static func currencyResult(
-        _ amount: Double, definition: CurrencyDef, expression: String,
-        sourceBadge: String = "Expression"
+        _ amount: Double, definition: CurrencyDef, expression: String, sourceBadge: String = "Expression"
     ) -> CalcResult {
-        let formatted = CalcFormatter.currency(amount)
-        return CalcResult(
-            expression: expression,
-            sourceBadge: sourceBadge, targetBadge: definition.name,
-            payload: .value(
-                display: "\(CalcFormatter.grouped(formatted)) \(definition.code)",
-                copyText: "\(formatted) \(definition.code)"))
+        CalcResult(
+            expression: expression, sourceBadge: sourceBadge, targetBadge: definition.name,
+            payload: .currency(amount, code: definition.code))
     }
 
     static func convertUnit(_ amount: Double, from: UnitDef, to: UnitDef) -> Double {
@@ -191,13 +176,8 @@ enum CalcQuantity {
         case 1:
             if case .ident = tokens[0] { return true }
         case 2:
-            switch (tokens[0], tokens[1]) {
-            case (.number, .ident), (.compactNumber, .ident),
-                (.ident, .number), (.ident, .compactNumber):
-                return true
-            default:
-                break
-            }
+            if case .ident = tokens[0], numberValue(tokens[1]) != nil { return true }
+            if numberValue(tokens[0]) != nil, case .ident = tokens[1] { return true }
         default:
             break
         }
@@ -285,10 +265,8 @@ enum CalcQuantity {
 
     static func numberValue(_ token: CalcToken) -> Double? {
         switch token {
-        case .number(let value), .compactNumber(let value):
-            return value
-        default:
-            return nil
+        case .number(let value), .compactNumber(let value): return value
+        default: return nil
         }
     }
 }

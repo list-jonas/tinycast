@@ -8,6 +8,8 @@ struct CalcResult: Equatable, Sendable {
         /// A friendly error, only for a clear conversion attempt — never a half-typed expression.
         case error(message: String)
 
+        static func text(_ text: String) -> Self { .value(display: text, copyText: text) }
+
         static func number(_ value: Double, suffix: String = "") -> Self {
             let text = CalcFormatter.copyText(value)
             return .value(display: CalcFormatter.grouped(text) + suffix, copyText: text + suffix)
@@ -21,21 +23,19 @@ struct CalcResult: Equatable, Sendable {
                 display: "\(CalcFormatter.grouped(text)) \(unit.symbol)",
                 copyText: text + copySeparator + unit.symbol)
         }
+
+        static func currency(_ value: Double, code: String) -> Self {
+            let text = CalcFormatter.currency(value)
+            return .value(display: "\(CalcFormatter.grouped(text)) \(code)", copyText: "\(text) \(code)")
+        }
     }
 
     /// Normalized echo of what was evaluated, shown on the card's left side ("3×3", "10 km").
-    let expression: String
+    var expression: String
     /// Optional word-name pills beneath each side; nil for plain arithmetic.
-    let sourceBadge: String?
-    let targetBadge: String?
+    var sourceBadge: String? = nil
+    var targetBadge: String? = nil
     let payload: Payload
-
-    init(expression: String, sourceBadge: String? = nil, targetBadge: String? = nil, payload: Payload) {
-        self.expression = expression
-        self.sourceBadge = sourceBadge
-        self.targetBadge = targetBadge
-        self.payload = payload
-    }
 
     /// True only for a copyable value; an error card has no primary action and no actions menu.
     var isActionable: Bool {
@@ -103,16 +103,10 @@ enum CalcEngine {
             case .value(let input, let from, let to, let output):
                 return CalcResult(
                     expression: "\(CalcFormatter.display(input)) \(from.symbol)",
-                    sourceBadge: from.name,
-                    targetBadge: to.name,
-                    payload: .measurement(output, unit: to))
+                    sourceBadge: from.name, targetBadge: to.name, payload: .measurement(output, unit: to))
             case .mismatch(let from, let to):
-                return CalcResult(
-                    expression: query,
-                    payload: .error(
-                        message:
-                            "Cannot convert \(from.category.displayName) to \(to.category.displayName)."
-                    ))
+                let message = "Cannot convert \(from.category.displayName) to \(to.category.displayName)."
+                return CalcResult(expression: query, payload: .error(message: message))
             }
         }
 
@@ -120,43 +114,26 @@ enum CalcEngine {
         if let conversion = CalcCurrency.parseConversion(tokens, rates: rates) {
             switch conversion {
             case .value(let input, let from, let to, let output):
-                let amount = CalcFormatter.currency(output)
                 return CalcResult(
                     expression: "\(CalcFormatter.display(input)) \(from.code)",
-                    sourceBadge: from.name,
-                    targetBadge: to.name,
-                    payload: .value(
-                        display: "\(CalcFormatter.grouped(amount)) \(to.code)",
-                        copyText: "\(amount) \(to.code)"))
+                    sourceBadge: from.name, targetBadge: to.name, payload: .currency(output, code: to.code))
             case .mismatch(let from, let to):
-                return CalcResult(
-                    expression: query,
-                    payload: .error(message: "Cannot convert \(from) to \(to)."))
+                return CalcResult(expression: query, payload: .error(message: "Cannot convert \(from) to \(to)."))
             case .noRate(let code):
-                return CalcResult(
-                    expression: query,
-                    payload: .error(message: "No exchange rate for \(code)."))
+                return CalcResult(expression: query, payload: .error(message: "No exchange rate for \(code)."))
             case .unavailable:
-                return CalcResult(
-                    expression: query,
-                    payload: .error(message: "Exchange rates unavailable — check your connection."))
+                return CalcResult(expression: query, payload: .error(message: CalcCurrency.unavailable))
             }
         }
 
         // Keyword-less conversion: `1m` → feet+inches, `1hr` → 60 min.
         if let bare = CalcUnits.parseBareConversion(tokens) {
-            let payload: CalcResult.Payload
-            if bare.compound {
-                let text = CalcFormatter.compoundFeetInches(bare.output)
-                payload = .value(display: text, copyText: text)
-            } else {
-                payload = .measurement(bare.output, unit: bare.to)
-            }
             return CalcResult(
                 expression: "\(CalcFormatter.display(bare.input)) \(bare.from.symbol)",
-                sourceBadge: bare.from.name,
-                targetBadge: bare.to.name,
-                payload: payload)
+                sourceBadge: bare.from.name, targetBadge: bare.to.name,
+                payload: bare.compound
+                    ? .text(CalcFormatter.compoundFeetInches(bare.output))
+                    : .measurement(bare.output, unit: bare.to))
         }
 
         // Natural-language percent: `20% off 500`, `50 as % of 200`.
@@ -177,7 +154,7 @@ enum CalcEngine {
         }
         let prefixTokens = Array(tokens.dropLast())
         guard !prefixTokens.isEmpty else { return nil }
-        if prefixTokens.count == 1, let value = decimalLiteral(prefixTokens[0]) {
+        if prefixTokens.count == 1, let value = CalcQuantity.numberValue(prefixTokens[0]) {
             return CalcResult(
                 expression: CalcFormatter.expression(query),
                 sourceBadge: "Expression", targetBadge: "Result", payload: .number(value))
@@ -187,15 +164,17 @@ enum CalcEngine {
             prefixTokens, query: tokenQuery(prefixTokens), rates: rates, region: region,
             preserveStandaloneUnit: true)
         {
-            return replacingExpression(
-                quantity, with: "\(quantity.expression) \(operatorText)")
+            var partial = quantity
+            partial.expression += " \(operatorText)"
+            return partial
         }
 
         // A conversion's echo drops its target, so echo the typed text; the badges name both.
-        if let complete = evaluate(
+        if var complete = evaluate(
             tokenQuery(prefixTokens), now: now, calendar: calendar, rates: rates, region: region)
         {
-            return replacingExpression(complete, with: CalcFormatter.expression(query))
+            complete.expression = CalcFormatter.expression(query)
+            return complete
         }
 
         guard let value = CalcExpressionParser.scalar(prefixTokens) else { return nil }
@@ -237,14 +216,6 @@ enum CalcEngine {
         }.joined(separator: " ")
     }
 
-    private static func replacingExpression(_ result: CalcResult, with expression: String) -> CalcResult {
-        CalcResult(
-            expression: expression,
-            sourceBadge: result.sourceBadge,
-            targetBadge: result.targetBadge,
-            payload: result.payload)
-    }
-
     // MARK: - Number bases
 
     /// `255 to hex`, `2*128 to hex`: an expression on the left, like `CalcUnits.parseConversion`.
@@ -262,7 +233,7 @@ enum CalcEngine {
             source = value
             sourceBadge = base.name
             sourceText = literalText
-        } else if valueTokens.count == 1, let value = decimalLiteral(valueTokens[0]),
+        } else if valueTokens.count == 1, let value = CalcQuantity.numberValue(valueTokens[0]),
             value >= 0, value.rounded() == value, value <= 9_007_199_254_740_992
         {
             source = UInt64(value)
@@ -283,19 +254,7 @@ enum CalcEngine {
             ? CalcFormatter.grouped(String(source))
             : target.prefix + String(source, radix: target.rawValue, uppercase: true)
         return CalcResult(
-            expression: sourceText,
-            sourceBadge: sourceBadge,
-            targetBadge: target.name,
-            payload: .value(
-                display: output, copyText: output.replacingOccurrences(of: ",", with: "")))
+            expression: sourceText, sourceBadge: sourceBadge, targetBadge: target.name,
+            payload: .value(display: output, copyText: output.replacingOccurrences(of: ",", with: "")))
     }
-
-    // Both spellings of a plain decimal literal — "255" and the compact "10k" — echo verbatim.
-    private static func decimalLiteral(_ token: CalcToken) -> Double? {
-        switch token {
-        case .number(let value), .compactNumber(let value): return value
-        default: return nil
-        }
-    }
-
 }

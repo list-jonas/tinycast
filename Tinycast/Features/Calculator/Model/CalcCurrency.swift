@@ -39,6 +39,7 @@ enum CalcCurrency {
 
     /// The category label used in the mismatch message, mirroring `UnitCategory.displayName`.
     static let categoryName = "Currency"
+    static let unavailable = "Exchange rates unavailable — check your connection."
 
     /// `expr currency (to|in|->) currency`, shaped like `CalcUnits.parseConversion`, run after it.
     static func parseConversion(_ tokens: [CalcToken], rates: CurrencyRates?) -> ConversionParse? {
@@ -60,15 +61,8 @@ enum CalcCurrency {
             return .mismatch(from: from.category.displayName, to: categoryName)
         case (let from?, let to?):
             let valueTokens = Array(tokens[0..<(tokens.count - 3)])
-            let input: Double
-            if valueTokens.isEmpty {
-                input = 1
-            } else if let value = CalcExpressionParser.scalar(valueTokens) {
-                input = value
-            } else {
-                return nil
-            }
-
+            guard let input = valueTokens.isEmpty ? 1 : CalcExpressionParser.scalar(valueTokens)
+            else { return nil }
             guard let rates else { return .unavailable }
             guard rates.rate(for: from.code) != nil else { return .noRate(code: from.code) }
             guard rates.rate(for: to.code) != nil else { return .noRate(code: to.code) }
@@ -82,20 +76,11 @@ enum CalcCurrency {
     /// Money is written sign-first (`€20`), so swap it back into the `amount currency` order.
     private static func amountFirst(_ tokens: [CalcToken]) -> [CalcToken] {
         guard tokens.count >= 2, case .ident(let name) = tokens[0], byName[name] != nil,
-            numberToken(tokens[1])
+            CalcQuantity.numberValue(tokens[1]) != nil
         else { return tokens }
         var reordered = tokens
         reordered.swapAt(0, 1)
         return reordered
-    }
-
-    private static func numberToken(_ token: CalcToken) -> Bool {
-        switch token {
-        case .number, .compactNumber:
-            return true
-        default:
-            return false
-        }
     }
 
     /// Hand-written because CLDR won't assign a shared noun. docs/features/calculator.md
@@ -172,15 +157,7 @@ enum CalcCurrency {
             table[entry.code.lowercased()] = def
             for word in entry.aliases { table[word] = def }
         }
-        for (code, words) in contested {
-            guard let def = defs[code] else { continue }
-            for word in words { table[word] = def }
-        }
-        for (code, words) in isoNames {
-            guard let def = defs[code] else { continue }
-            for word in words { table[word] = def }
-        }
-        for (code, words) in signCodes {
+        for (code, words) in [contested, isoNames, signCodes].joined() {
             guard let def = defs[code] else { continue }
             for word in words { table[word] = def }
         }
