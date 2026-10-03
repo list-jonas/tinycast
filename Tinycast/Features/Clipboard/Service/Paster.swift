@@ -18,10 +18,7 @@ enum Paster {
     ) -> Bool {
         guard write(item, store: store) else { return false }
         store.promote(item)
-        previousApp?.activate()
-        DispatchQueue.main.asyncAfter(deadline: .now() + activationDelay) {
-            postCommandV()
-        }
+        pasteAfterActivating(previousApp)
         return true
     }
 
@@ -57,20 +54,14 @@ enum Paster {
     @MainActor
     static func pasteString(_ text: String, previousApp: NSRunningApplication?) {
         writeString(text)
-        previousApp?.activate()
-        DispatchQueue.main.asyncAfter(deadline: .now() + activationDelay) {
-            postCommandV()
-        }
+        pasteAfterActivating(previousApp)
     }
 
     /// A file, pasted into `previousApp`; the receiver takes the file or its path, as it reads.
     @MainActor
     static func pasteFile(_ url: URL, previousApp: NSRunningApplication?) {
         PasteboardFiles.write(url, to: .general)
-        previousApp?.activate()
-        DispatchQueue.main.asyncAfter(deadline: .now() + activationDelay) {
-            postCommandV()
-        }
+        pasteAfterActivating(previousApp)
     }
 
     /// String counterpart of `copy(_:store:)`.
@@ -83,10 +74,19 @@ enum Paster {
     @MainActor
     static func pasteStringInPlace(_ text: String, into app: NSRunningApplication?) {
         writeString(text)
+        pasteDirectly(into: app)
+    }
+
+    @MainActor
+    private static func pasteAfterActivating(_ app: NSRunningApplication?) {
+        app?.activate()
+        DispatchQueue.main.asyncAfter(deadline: .now() + activationDelay) { postCommandV() }
+    }
+
+    @MainActor
+    private static func pasteDirectly(into app: NSRunningApplication?) {
         guard let pid = app?.processIdentifier else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + directPostDelay) {
-            postCommandV(toPid: pid)
-        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + directPostDelay) { postCommandV(toPid: pid) }
     }
 
     @MainActor
@@ -104,11 +104,7 @@ enum Paster {
         _ item: ClipboardItem, store: ClipboardStore, into app: NSRunningApplication?
     ) -> Bool {
         guard write(item, store: store) else { return false }
-        if let pid = app?.processIdentifier {
-            DispatchQueue.main.asyncAfter(deadline: .now() + directPostDelay) {
-                postCommandV(toPid: pid)
-            }
-        }
+        pasteDirectly(into: app)
         return true
     }
 
