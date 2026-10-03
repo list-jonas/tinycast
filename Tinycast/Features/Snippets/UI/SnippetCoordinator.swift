@@ -220,7 +220,8 @@ final class SnippetCoordinator {
             listener.isPromptingForArguments = false
             guard let arguments else { return cancel() }
             deliver(
-                SnippetTemplateEngine.expand(record, snippets: records, context: context, userArguments: arguments))
+                SnippetTemplateEngine.expand(
+                    record, snippets: records, context: context, userArguments: arguments))
         }
     }
 }

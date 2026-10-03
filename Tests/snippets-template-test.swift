@@ -25,7 +25,7 @@ struct SnippetTemplateTests {
             from: DateComponents(
                 year: 2026, month: 7, day: 24, hour: 13, minute: 5))!
         let context = SnippetTemplateEngine.ExpansionContext(
-            clipboard: "{date} 📋",
+            clipboardHistory: ["{date} 📋"],
             selection: "{cursor} selected",
             now: now,
             calendar: calendar,

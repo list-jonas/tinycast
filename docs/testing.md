@@ -119,8 +119,11 @@ If a change touches anything in the right column, the harness on the left is man
 | `uninstall-test` | all five pure files in `Uninstall/Model/` |
 | `quicklink-test` | all of `Quicklinks/Model/` |
 | `apple-shortcut-test` | all of `AppleShortcuts/Model/` — the `shortcuts list` parser and entry ids |
-| `snippets-test` | all of `Snippets/Model/` and `Snippets/Service/`, plus `Platform/HealthTicker.swift` |
-| `notes-test` | all of `Notes/Model/` and `Notes/Service/`, including the Markdown parser, edit plans and reveal policy, plus the real fuzzy matcher and signposts |
+| `snippets-test` | all of `Snippets/Model/` and `Snippets/Service/`, plus `Platform/HealthTicker.swift` — identity, codec, repository and the store watcher |
+| `snippets-delivery-test` | the same sources plus `TextInjection/Service/` — delivery queue, pasteboard lease, both delivery tiers' policies and the keyword listener |
+| `snippets-template-test` | all of `Snippets/Model/` — every template token, modifier and reference rule |
+| `notes-test` | all of `Notes/Model/` and `Notes/Service/` — repository, titles, search, switcher and the store, plus the real fuzzy matcher and signposts |
+| `notes-markdown-test` | all of `Notes/Model/` — the Markdown parser, edit plans, formatting reports and reveal policy |
 | `notes-editor-test` | the Notes editor, rendered and literal, with real TextKit 2 and AppKit editing objects: styling, reveal, layout fragments, keys, chords, checkboxes and links |
 | `raycast-test` | `Backup/Service/RaycastDecoder.swift`, `Scrypt.swift`, `Platform/Compression/Zlib.swift`, `Clipboard/Model/RaycastClipboardImport.swift` and import-time clipboard retention |
 | `symbols-test` | `Extensions/Service/SymbolCatalog.swift`, against this machine's CoreGlyphs |

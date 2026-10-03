@@ -110,7 +110,8 @@ struct SnippetRepository: Sendable {
         mutationHooks: MutationHooks = MutationHooks()
     ) {
         self.bundleIdentifier = bundleIdentifier
-        let channelDirectory = applicationSupportRoot.appendingPathComponent(bundleIdentifier, isDirectory: true)
+        let channelDirectory = applicationSupportRoot.appendingPathComponent(
+            bundleIdentifier, isDirectory: true)
         self.channelDirectory = channelDirectory
         let snippetsDirectory =
             snippetsDirectory ?? channelDirectory.appendingPathComponent("Snippets", isDirectory: true)
@@ -209,9 +210,11 @@ struct SnippetRepository: Sendable {
         guard FileManager.default.fileExists(atPath: mutationURL.path) else {
             throw RepositoryError.fileNotFound(mutationURL)
         }
-        let actualRevision = SnippetSourceRevision(content: try String(contentsOf: mutationURL, encoding: .utf8))
+        let content = try String(contentsOf: mutationURL, encoding: .utf8)
+        let actualRevision = SnippetSourceRevision(content: content)
         guard actualRevision == expectedRevision else {
-            throw RepositoryError.conflict(fileURL: fileURL, expected: expectedRevision, actual: actualRevision)
+            throw RepositoryError.conflict(
+                fileURL: fileURL, expected: expectedRevision, actual: actualRevision)
         }
         return mutationURL
     }
@@ -284,7 +287,9 @@ struct SnippetRepository: Sendable {
         let fileCoordinator = NSFileCoordinator(filePresenter: nil)
         var coordinationError: NSError?
         var result: Result<Value, Error>?
-        fileCoordinator.coordinate(writingItemAt: fileURL, options: options, error: &coordinationError) { url in
+        fileCoordinator.coordinate(
+            writingItemAt: fileURL, options: options, error: &coordinationError
+        ) { url in
             result = Result { try mutation(url) }
         }
         if let result { return try result.get() }

@@ -106,7 +106,9 @@ final class SnippetsStore {
         guard let record = record(id: id) else {
             throw SnippetRepository.RepositoryError.fileNotFound(URL(fileURLWithPath: id))
         }
-        try await performMutation { try $0.delete(fileURL: record.fileURL, expectedRevision: record.sourceRevision) }
+        try await performMutation {
+            try $0.delete(fileURL: record.fileURL, expectedRevision: record.sourceRevision)
+        }
         guard isStarted else { return }
         publishLocal(records: snippets.filter { $0.id != id })
         scheduleReload(after: .zero)
@@ -143,7 +145,8 @@ final class SnippetsStore {
             } catch let error as SnippetRepository.RepositoryError {
                 return .failure(error)
             } catch {
-                return .failure(.io(fileURL: repository.snippetsDirectory, message: error.localizedDescription))
+                return .failure(
+                    .io(fileURL: repository.snippetsDirectory, message: error.localizedDescription))
             }
         }.value
     }
@@ -172,7 +175,8 @@ final class SnippetsStore {
     }
 
     private func publishLocal(records: [StoredSnippet]) {
-        apply(SnippetRepository.Snapshot(records: records.sorted(by: StoredSnippet.libraryOrder), issues: issues))
+        let sorted = records.sorted(by: StoredSnippet.libraryOrder)
+        apply(SnippetRepository.Snapshot(records: sorted, issues: issues))
     }
 
     private func apply(_ snapshot: SnippetRepository.Snapshot) {
@@ -289,7 +293,8 @@ final class SnippetsStore {
     private func scheduleWatcherRetry() {
         guard isStarted, watcherRetryTask == nil else { return }
         watcherRetryTask = Task { [weak self] in
-            guard (try? await Task.sleep(for: .seconds(1))) != nil, let self, self.isStarted, !Task.isCancelled
+            guard (try? await Task.sleep(for: .seconds(1))) != nil, let self, self.isStarted,
+                !Task.isCancelled
             else { return }
             self.watcherRetryTask = nil
             await self.reload(showLoadingState: false)

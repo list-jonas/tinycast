@@ -13,7 +13,7 @@ another app.
   `snippetsEnabled` is excluded from settings backups, and Accessibility — the only permission it needs,
   since the listen-only tap needs nothing more — may be requested **only** from that explicit Settings
   gesture, never from startup, callbacks, watchers or health checks.
-- **All of `Model/` and `Service/` compiles into `snippets-test`** (it globs both), so the model, Markdown
+- **All of `Model/` and `Service/` compiles into `snippets-test`** and `snippets-delivery-test` (both glob both), so the model, Markdown
   serializer, template engine, repository and keyword policies stay Foundation-only, and the AppKit files
   there keep their dependencies to what the harness can stub.
 - **Expansion goes where the caret is, which is not the frontmost application.** Our panels are
@@ -301,7 +301,7 @@ where every clause is a rule in it.
 selection as opaque text markers, and their `AXValue` either trails the editor by a few milliseconds
 or — in VSCodium — stays empty and caret-zero indefinitely while the real editor holds the text. A
 marker range is the reliable tell, so those targets never take the Accessibility write at all.
-`accessibilityTextState` skips them for the same reason: a value that never moves cannot confirm a
+`AccessibilityTextField.focused` skips them for the same reason: a value that never moves cannot confirm a
 paste either.
 
 **Rule 2: too little text is not the same as the wrong text.** `TextReplacementPolicy`
@@ -393,6 +393,8 @@ main-actor watcher against temporary roots:
 
 ```sh
 ./Scripts/run-tests.sh snippets-test
+./Scripts/run-tests.sh snippets-delivery-test
+./Scripts/run-tests.sh snippets-template-test
 ```
 
 The delivery contract's two judgements — `keywordState` and `confirmsReplacement` — are pure, so the

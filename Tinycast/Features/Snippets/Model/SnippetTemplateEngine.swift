@@ -40,26 +40,6 @@ enum SnippetTemplateEngine {
             self.timeZone = timeZone
             self.makeUUID = makeUUID
         }
-
-        /// Convenience for a caller that only knows the current clipboard.
-        init(
-            clipboard: String,
-            selection: String,
-            now: Date,
-            calendar: Calendar,
-            locale: Locale,
-            timeZone: TimeZone,
-            makeUUID: @escaping @Sendable () -> String = { UUID().uuidString }
-        ) {
-            self.init(
-                clipboardHistory: [clipboard],
-                selection: selection,
-                now: now,
-                calendar: calendar,
-                locale: locale,
-                timeZone: timeZone,
-                makeUUID: makeUUID)
-        }
     }
 
     /// An `{argument}` still needing a value, with any `options=` the prompt should offer.
@@ -91,14 +71,8 @@ enum SnippetTemplateEngine {
     ) -> ExpansionResult {
         result(
             of: expandText(
-                record.snippet.text,
-                snippets: snippets.sorted { $0.id < $1.id },
-                context: context,
-                userArguments: userArguments,
-                encoding: .none,
-                depth: 0,
-                visitedIDs: [record.id]
-            ))
+                record.snippet.text, snippets: snippets.sorted { $0.id < $1.id }, context: context,
+                userArguments: userArguments, encoding: .none, depth: 0, visitedIDs: [record.id]))
     }
 
     /// Expands a non-snippet template; `{snippet:…}` has nothing to resolve and stays as text.
@@ -110,14 +84,8 @@ enum SnippetTemplateEngine {
     ) -> ExpansionResult {
         result(
             of: expandText(
-                text,
-                snippets: [],
-                context: context,
-                userArguments: userArguments,
-                encoding: encoding,
-                depth: 0,
-                visitedIDs: []
-            ))
+                text, snippets: [], context: context, userArguments: userArguments, encoding: encoding,
+                depth: 0, visitedIDs: []))
     }
 
     /// The `{argument}`s a template declares, in written order — what a form has to ask for.
@@ -284,14 +252,8 @@ enum SnippetTemplateEngine {
                 nestedVisited.insert(target.id)
                 result.append(
                     expandText(
-                        target.snippet.text,
-                        snippets: snippets,
-                        context: context,
-                        userArguments: userArguments,
-                        encoding: encoding,
-                        depth: depth + 1,
-                        visitedIDs: nestedVisited
-                    ))
+                        target.snippet.text, snippets: snippets, context: context, userArguments: userArguments,
+                        encoding: encoding, depth: depth + 1, visitedIDs: nestedVisited))
             }
         }
         return result
@@ -319,10 +281,11 @@ enum SnippetTemplateEngine {
 
     /// Percent-encodes outside RFC 3986's unreserved set, so it is safe in any URL component.
     private static func percentEncoded(_ value: String) -> String {
-        let unreserved = CharacterSet(
-            charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
-        return value.addingPercentEncoding(withAllowedCharacters: unreserved) ?? value
+        value.addingPercentEncoding(withAllowedCharacters: unreserved) ?? value
     }
+
+    private static let unreserved = CharacterSet(
+        charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
 
     /// Escapes for use inside a JSON string; the surrounding quotes stay the template's job.
     private static func jsonEscaped(_ value: String) -> String {

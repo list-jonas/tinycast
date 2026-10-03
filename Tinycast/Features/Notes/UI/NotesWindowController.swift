@@ -97,7 +97,9 @@ final class NotesWindowController: NSObject, NSWindowDelegate {
     }
 
     private static func clamped(_ size: NSSize) -> NSSize {
-        NSSize(width: max(size.width, Theme.Size.noteWindow.width), height: max(size.height, Theme.Size.noteWindow.height))
+        NSSize(
+            width: max(size.width, Theme.Size.noteWindow.width),
+            height: max(size.height, Theme.Size.noteWindow.height))
     }
 
     func windowDidResize(_ notification: Notification) {

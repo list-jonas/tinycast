@@ -122,7 +122,8 @@ struct SnippetKeywordPolicy: Sendable {
             return nil
         }
         reset()
-        return Match(snippetID: keyword.snippetID, keyword: keyword.value, deletionCount: keyword.deletionCount)
+        return Match(
+            snippetID: keyword.snippetID, keyword: keyword.value, deletionCount: keyword.deletionCount)
     }
 
     mutating func reset() {
