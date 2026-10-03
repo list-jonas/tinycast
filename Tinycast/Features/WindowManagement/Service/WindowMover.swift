@@ -122,7 +122,7 @@ final class WindowMover {
             guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
             else { return }
             let pid = app.processIdentifier
-            Task { @MainActor [weak self] in
+            MainActor.assumeIsolated {
                 self?.memory.forget { key in
                     guard case .external(let external) = key else { return false }
                     return external.pid == pid

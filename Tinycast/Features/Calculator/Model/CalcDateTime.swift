@@ -711,7 +711,7 @@ private struct DateResolver {
         return (hour, 0)
     }
 
-    func makeDate(_ year: Int, _ month: Int, _ day: Int) -> Date? {
+    @inline(never) func makeDate(_ year: Int, _ month: Int, _ day: Int) -> Date? {
         guard (1...12).contains(month), (1...31).contains(day) else { return nil }
         var components = DateComponents()
         components.year = year
