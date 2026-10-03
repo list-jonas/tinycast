@@ -599,6 +599,8 @@ run support-test           Tinycast/Features/Support/Model/*.swift
 run ai-provider-test       Tinycast/Features/Settings/AppSettingsKey.swift \
                            Tinycast/Features/AI/Model/*.swift \
                            Tinycast/Features/AI/Settings/AISettingsStore.swift
+run ai-stream-test         Tinycast/Features/AI/Model/*.swift
+run ai-cli-mcp-test        Tinycast/Features/AI/Model/*.swift
 run ai-chat-test           Tinycast/Features/AI/Model/AIRequest.swift \
                            Tinycast/Features/AI/Model/AIConnection.swift \
                            Tinycast/Features/AI/Model/AppleIntelligence.swift \
@@ -624,6 +626,10 @@ run ai-chat-test           Tinycast/Features/AI/Model/AIRequest.swift \
                            Tinycast/Features/AI/Service/AIToolLoopProvider.swift \
                            Tinycast/Features/AI/UI/AIChatState.swift \
                            Tinycast/Features/AI/UI/AIChatSurfacesState.swift \
+                           Tinycast/Features/AI/UI/ChatFindState.swift
+run chat-history-test      Tinycast/Features/AI/Model/*.swift \
+                           Tinycast/Features/AI/Service/ChatHistoryStore.swift
+run chat-model-test        Tinycast/Features/AI/Model/*.swift \
                            Tinycast/Features/AI/UI/ChatFindState.swift
 run chat-markdown-test     Tinycast/Platform/Appearance.swift \
                            Tinycast/DesignSystem/Theme.swift \
