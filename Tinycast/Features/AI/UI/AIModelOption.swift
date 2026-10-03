@@ -99,7 +99,7 @@ struct AIModelOption: Identifiable {
         }
     }
 
-    /// The model list only names a route; the effort it comes with is the one that route defaults to.
+    /// The model list only names a route; the effort it comes with is that route's default.
     @MainActor
     static func withDefaultEffort(
         _ selection: AIModelSelection, settings: AISettingsStore,

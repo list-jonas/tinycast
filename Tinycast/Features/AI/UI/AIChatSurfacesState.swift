@@ -76,7 +76,7 @@ final class AIChatSurfacesState {
     @discardableResult
     func continueQuickAIInWindow(draft: String = "") -> Bool {
         guard !quickAI.session.messages.isEmpty || !quickAI.pendingAttachments.isEmpty else {
-            // Nothing moves, so the line joins the window chat's own unsent text rather than replace it.
+            // Nothing moves, so the line joins the window chat's unsent text, never replacing it.
             if !draft.isEmpty {
                 window.draft = window.draft.isEmpty ? draft : window.draft + "\n" + draft
             }

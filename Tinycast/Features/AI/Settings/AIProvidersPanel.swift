@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// One entry of the Providers list: the on-device model, an installed command, or an API connection.
+/// A Providers list entry: the on-device model, an installed command, or an API connection.
 enum AIProviderRoute: Hashable {
     case appleIntelligence
     case installed(InstalledAIKind)
@@ -701,7 +701,7 @@ struct AIProvidersPanel: View {
         case .installed(let kind): return AIModelOption.icon(for: kind)
         case .api(let id):
             guard let connection = settings.connection(id: id) else { return .symbol("sparkles") }
-            // OpenRouter is its own brand; resolving by model would show whichever vendor came first.
+            // OpenRouter is its own brand; resolving by model shows whichever vendor came first.
             if connection.provider == .openRouter { return AIModelOption.icon(.openRouter) }
             return AIModelOption.icon(
                 AIBrand.resolve(provider: connection.provider, model: connection.models.first ?? ""))

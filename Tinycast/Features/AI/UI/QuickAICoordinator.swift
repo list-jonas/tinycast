@@ -114,7 +114,7 @@ final class QuickAICoordinator {
         palette.replace(mode: .ai)
     }
 
-    /// Chat History's ⌘J: a saved chat opens in the window, taken over from Quick AI if it is there.
+    /// Chat History's ⌘J: a saved chat opens in the window, taken from Quick AI if it is there.
     func continueInChat(id: UUID) {
         paletteCoordinator.hidePalette(restoreFocus: false)
         chatCoordinator.openChat(id: id)

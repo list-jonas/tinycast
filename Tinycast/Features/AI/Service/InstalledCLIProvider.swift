@@ -308,7 +308,7 @@ private final class InstalledCLITurnRunner {
                 "--no-session-persistence",
                 "--disable-slash-commands",
                 "--tools", "",
-                // `--bare` is not among these: it refuses the OAuth sign-in this whole route reuses.
+                // `--bare` is not among these: it refuses the OAuth sign-in this route reuses.
                 "--no-chrome",
                 "--system-prompt",
                 mcpConfig == nil ? Self.safetyInstructions : Self.toolSafetyInstructions
@@ -405,6 +405,7 @@ private final class InstalledCLITurnRunner {
         while let newline = outputBuffer[start...].firstIndex(of: 0x0A) {
             let line = outputBuffer[start..<newline]
             if line.count > maximumPartialLineBytes {
+                outputBuffer.removeSubrange(..<start)
                 fail(kind.title + " returned an oversized response.")
                 return
             }

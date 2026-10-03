@@ -77,7 +77,7 @@ struct AIConnection: Codable, Equatable, Identifiable, Sendable {
         self.reasoningOptions = reasoningOptions
     }
 
-    /// A preset pointed away from its own API is a gateway, and only a gateway takes a thinking field.
+    /// A preset pointed away from its own API is a gateway, the only kind taking a thinking field.
     var takesThinkingField: Bool {
         provider.apiShape == .openAICompatible
             && baseURL.trimmingCharacters(in: .whitespacesAndNewlines) != provider.defaultBaseURL
@@ -225,17 +225,8 @@ enum AIModelSelection: Codable, Equatable, Hashable, Sendable {
         case model, effort, connection
     }
 
-    private var key: CodingKeys {
-        switch self {
-        case .appleIntelligence: return .appleIntelligence
-        case .codex: return .codex
-        case .claude: return .claude
-        case .grok: return .grok
-        case .openCode: return .openCode
-        case .cursor: return .cursor
-        case .api: return .api
-        }
-    }
+    /// A route's storage key is its coding key, but for a connection's, which carries its ID.
+    private var key: CodingKeys { CodingKeys(rawValue: source.storageKey) ?? .api }
 
     private static func make(_ key: CodingKeys, model: String, effort: String?) -> AIModelSelection {
         switch key {

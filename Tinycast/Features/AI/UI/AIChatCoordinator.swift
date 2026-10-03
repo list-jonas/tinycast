@@ -414,7 +414,7 @@ final class AIChatCoordinator {
     /// ⌘V stages a file, read off-main; false hands the chord back to the field editor.
     func attachPastedFile(files: [URL], to chat: AIChatState) -> Bool {
         let pasteboard = NSPasteboard.general
-        // A copied text selection often carries a TIFF too; only a board with no string is a picture.
+        // A copied selection often carries a TIFF too; only a board with no string is a picture.
         let pasted =
             files.isEmpty && pasteboard.string(forType: .string) == nil
             ? pasteboard.availableType(from: [.png, .tiff]).flatMap { pasteboard.data(forType: $0) }

@@ -269,7 +269,7 @@ final class CodexTurnRunner {
                     "approvalPolicy": servers.isEmpty ? "never" : "untrusted",
                     "sandbox": "read-only",
                     "ephemeral": true,
-                    // Thread-scoped so this request never writes the user's saved web-search choice.
+                    // Thread-scoped, so this never writes the user's saved web-search choice.
                     "config": ["web_search": request.webSearch ? "live" : "disabled"],
                     "developerInstructions": developerInstructions(
                         for: request, hasTools: !servers.isEmpty)
@@ -388,7 +388,7 @@ final class CodexTurnRunner {
         }
     }
 
-    /// Finishing ends a stream the server abandoned; the last live turn ending re-arms idle shutdown.
+    /// Finishing ends a stream the server abandoned; the last turn ending re-arms idle shutdown.
     private func clear(_ key: ObjectIdentifier) {
         guard let turn = turns.removeValue(forKey: key) else { return }
         turn.continuation.finish(

@@ -33,8 +33,7 @@ enum AIAttachmentBudget {
         return images.count + documents.count < maxCount && used + bytes <= maxBytes
     }
 
-    /// The longest leading run that fits, for a turn assembled by any route but the composer.
-    /// Images fill first, so a picture is never dropped in favour of a document behind it.
+    /// The longest leading run that fits; images first, never dropped for a document behind them.
     static func bounded(
         _ images: [AIImage], _ documents: [AIDocument]
     )
@@ -120,7 +119,7 @@ struct AIRequest: Equatable, Sendable {
 struct AIUsage: Equatable, Sendable {
     var inputTokens: Int?
     var outputTokens: Int?
-    /// Prompt tokens served from or written to a cache; Anthropic counts them outside `inputTokens`.
+    /// Prompt tokens read from or written to a cache; Anthropic counts them outside `inputTokens`.
     var cachedInputTokens: Int?
     /// The part of `outputTokens` the model spent thinking.
     var reasoningTokens: Int?

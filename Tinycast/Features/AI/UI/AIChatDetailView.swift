@@ -505,7 +505,7 @@ private struct ContextCard: View {
         .padding(Theme.Spacing.xl)
         .frame(width: Theme.Size.chatContextCard, alignment: .leading)
         .glassEffect(.regular, in: shape)
-        // Solid under the glass: the card rises over the transcript, whose text must not show through.
+        // Solid under the glass: the card rises over the transcript, whose text must not show.
         .background { shape.fill(Theme.Colors.windowSurface) }
         .shadow(color: Theme.Colors.tooltipShadow, radius: Theme.Spacing.xl, y: Theme.Spacing.xs)
     }

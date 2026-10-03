@@ -43,28 +43,14 @@ enum InstalledAIProbe {
             operation: {
                 // Detached because the read loop and the exit wait block: never a pool thread.
                 await Task.detached {
-                    try? FileManager.default.createDirectory(
-                        at: workspace, withIntermediateDirectories: true)
-                    let process = Process()
-                    let output = Pipe()
-                    process.executableURL = executable
-                    process.arguments = arguments
-                    process.currentDirectoryURL = workspace
-                    process.environment =
-                        environment ?? ExecutableLocator.environment(running: executable)
                     let stdin = input.map { _ in Pipe() }
-                    process.standardInput = stdin ?? FileHandle.nullDevice
-                    process.standardOutput = output
-                    process.standardError = FileHandle.nullDevice
-                    guard let exit = try? process.runObservingExit() else {
-                        return Result(status: -1, output: "")
-                    }
+                    guard
+                        let (process, output, exit, watchdog) = Self.launch(
+                            executable, arguments, workspace: workspace, environment: environment,
+                            stdin: stdin, timeout: timeout)
+                    else { return Result(status: -1, output: "") }
                     handle.set(process)
                     if let stdin, let input { Self.write(input, to: stdin, closing: true) }
-                    let watchdog = Task {
-                        try? await Task.sleep(for: timeout)
-                        if process.isRunning { process.terminate() }
-                    }
                     var data = Data()
                     while data.count < Self.maximumOutputBytes {
                         let count = min(Self.readChunkBytes, Self.maximumOutputBytes - data.count)
@@ -95,25 +81,13 @@ enum InstalledAIProbe {
         until answered: @escaping @Sendable (String) -> Bool, timeout: Duration = .seconds(30)
     ) async -> String {
         await Task.detached {
-            try? FileManager.default.createDirectory(
-                at: workspace, withIntermediateDirectories: true)
-            let process = Process()
             let stdin = Pipe()
-            let output = Pipe()
-            process.executableURL = executable
-            process.arguments = arguments
-            process.currentDirectoryURL = workspace
-            process.environment =
-                environment ?? ExecutableLocator.environment(running: executable)
-            process.standardInput = stdin
-            process.standardOutput = output
-            process.standardError = FileHandle.nullDevice
-            guard let exit = try? process.runObservingExit() else { return "" }
+            guard
+                let (process, output, exit, watchdog) = Self.launch(
+                    executable, arguments, workspace: workspace, environment: environment,
+                    stdin: stdin, timeout: timeout)
+            else { return "" }
             Self.write(input, to: stdin, closing: false)
-            let watchdog = Task {
-                try? await Task.sleep(for: timeout)
-                if process.isRunning { process.terminate() }
-            }
             var data = Data()
             // Not `read(upToCount:)`, which waits for a full chunk or EOF and so for the watchdog.
             while data.count < Self.maximumOutputBytes {
@@ -128,6 +102,29 @@ enum InstalledAIProbe {
             watchdog.cancel()
             return String(bytes: data, encoding: .utf8) ?? ""
         }.value
+    }
+
+    /// Started with stdout piped and a watchdog that terminates it once the timeout passes.
+    nonisolated private static func launch(
+        _ executable: URL, _ arguments: [String], workspace: URL,
+        environment: [String: String]?, stdin: Pipe?, timeout: Duration
+    ) -> (Process, Pipe, ProcessExit, Task<Void, Never>)? {
+        try? FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
+        let process = Process()
+        let output = Pipe()
+        process.executableURL = executable
+        process.arguments = arguments
+        process.currentDirectoryURL = workspace
+        process.environment = environment ?? ExecutableLocator.environment(running: executable)
+        process.standardInput = stdin ?? FileHandle.nullDevice
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        guard let exit = try? process.runObservingExit() else { return nil }
+        let watchdog = Task {
+            try? await Task.sleep(for: timeout)
+            if process.isRunning { process.terminate() }
+        }
+        return (process, output, exit, watchdog)
     }
 
     /// A child that exits before reading must fail the write, not SIGPIPE Tinycast.
@@ -151,5 +148,4 @@ enum InstalledAIProbe {
             || object["authenticated"] as? Bool == true
             || object["isAuthenticated"] as? Bool == true
     }
-
 }
