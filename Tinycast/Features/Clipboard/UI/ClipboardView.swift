@@ -37,8 +37,12 @@ struct ClipboardList: View {
         var rows: [Row] = []
         var currentTitle: String?
         var pinnedSlot = 0
+        // Resolved once rather than per row: the window can hold a thousand entries.
+        let now = Date()
+        let calendar = Calendar.current
         for item in results {
-            let title = item.isPinned ? "Pinned" : DateBucket(for: item.createdAt).title
+            let title =
+                item.isPinned ? "Pinned" : DateBucket(for: item.createdAt, now: now, calendar: calendar).title
             if title != currentTitle {
                 rows.append(.header(title))
                 currentTitle = title
@@ -194,28 +198,22 @@ private struct ClipboardRow: View {
                 Image(nsImage: IconCache.symbolIcon(named: "doc.text")).resizable()
             }
         case .image:
-            AsyncThumbnail(url: imageURL, maxPixel: 64) { image in
-                image
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: artworkSize, height: artworkSize)
-                    .clipShape(
-                        RoundedRectangle(cornerRadius: metrics.radius.thumbnail, style: .continuous))
-            } placeholder: {
+            AsyncThumbnail(url: imageURL, maxPixel: 64, content: tile) {
                 Image(nsImage: IconCache.symbolIcon(named: "photo")).resizable()
             }
         case .file:
-            AsyncThumbnail(url: fileURL, maxPixel: 64, source: .file) { image in
-                image
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: artworkSize, height: artworkSize)
-                    .clipShape(
-                        RoundedRectangle(cornerRadius: metrics.radius.thumbnail, style: .continuous))
-            } placeholder: {
+            AsyncThumbnail(url: fileURL, maxPixel: 64, source: .file, content: tile) {
                 Image(nsImage: IconCache.symbolIcon(named: fileKind.systemImage)).resizable()
             }
         }
+    }
+
+    private func tile(_ image: Image) -> some View {
+        image
+            .resizable()
+            .scaledToFill()
+            .frame(width: artworkSize, height: artworkSize)
+            .clipShape(RoundedRectangle(cornerRadius: metrics.radius.thumbnail, style: .continuous))
     }
 
     // Not `fileURLWithPath:`, which stats the path: on a network mount that stalls the render.
