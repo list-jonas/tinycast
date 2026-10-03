@@ -23,7 +23,6 @@ extension View {
             Color.clear.frame(height: 0).id(ScrollOrigin.id)
         }
     }
-
 }
 
 private enum ScrollOrigin {

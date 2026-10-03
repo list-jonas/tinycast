@@ -117,8 +117,7 @@ final class AppCore {
         windowController: windowController)
     /// Its own window and lifecycle: neither coordinator shows or closes the other's surface.
     @ObservationIgnored private(set) lazy var settingsCoordinator = SettingsCoordinator(core: self)
-    @ObservationIgnored private(set) lazy var onboardingCoordinator = OnboardingCoordinator(
-        core: self)
+    @ObservationIgnored private(set) lazy var onboardingCoordinator = OnboardingCoordinator(core: self)
     @ObservationIgnored private(set) lazy var systemActionCoordinator = SystemActionCoordinator(
         paletteCoordinator: paletteCoordinator, core: self)
     @ObservationIgnored private(set) lazy var uninstallCoordinator = UninstallCoordinator(
@@ -160,30 +159,22 @@ final class AppCore {
     /// Window state, not a preference: it rides `UserDefaults` like the active note's filename.
     private nonisolated static let noteFormattingBarKey = "notesFormattingBarExpanded"
     @ObservationIgnored private(set) lazy var notesCoordinator = NotesCoordinator(
-        store: notesStore,
-        settings: settings,
-        appIndex: appIndex,
-        core: self,
+        store: notesStore, settings: settings, appIndex: appIndex, core: self,
         isFormattingBarExpanded: UserDefaults.standard.bool(forKey: Self.noteFormattingBarKey),
-        saveFormattingBarExpanded: {
-            UserDefaults.standard.set($0, forKey: Self.noteFormattingBarKey)
-        })
+        saveFormattingBarExpanded: { UserDefaults.standard.set($0, forKey: Self.noteFormattingBarKey) })
 
     @ObservationIgnored private(set) lazy var launcherCoordinator = LauncherCoordinator(
         ranking: launcherRanking, windowController: windowController,
-        paletteCoordinator: paletteCoordinator,
-        settingsCoordinator: settingsCoordinator,
+        paletteCoordinator: paletteCoordinator, settingsCoordinator: settingsCoordinator,
         customCommandCoordinator: customCommandCoordinator,
-        systemActionCoordinator: systemActionCoordinator,
-        quicklinkCoordinator: quicklinkCoordinator,
+        systemActionCoordinator: systemActionCoordinator, quicklinkCoordinator: quicklinkCoordinator,
         windowCommandCoordinator: windowCommandCoordinator,
         windowLayoutCoordinator: windowLayoutCoordinator,
         snippetCoordinator: snippetCoordinator, fileSearchCoordinator: fileSearchCoordinator,
         menuSearchCoordinator: menuSearchCoordinator,
         windowSwitchCoordinator: windowSwitchCoordinator,
         notesCoordinator: notesCoordinator, extensionCoordinator: extensionCoordinator,
-        calendarCoordinator: calendarCoordinator,
-        core: self)
+        calendarCoordinator: calendarCoordinator, core: self)
     @ObservationIgnored private(set) lazy var fallbackCoordinator = FallbackCoordinator(
         store: fallbacks, quicklinks: quicklinks, settings: settings, visibility: visibility,
         core: self)
@@ -237,11 +228,7 @@ final class AppCore {
     var isDimmingPaletteForDialog: Bool { isShowingDialog && windowController.isVisible }
     /// Every confirmation, report and prompt; it also stops a held hotkey stacking them.
     @ObservationIgnored private lazy var dialogs = DialogController(
-        settings: settings,
-        onPresentationChanged: { [weak self] isPresenting in
-            guard let self else { return }
-            isShowingDialog = isPresenting
-        })
+        settings: settings, onPresentationChanged: { [weak self] in self?.isShowingDialog = $0 })
     private let healthTicker = HealthTicker()
 
     private init() {
@@ -258,9 +245,7 @@ final class AppCore {
         self.clipboardManager = clipboardManager
         extensions = ExtensionManager(clipboardStore: clipboardStore)
         snippetsStore = SnippetsStore(repository: Self.snippetsRepository(for: settings))
-        textInjector = TextInjector(
-            clipboardManager: clipboardManager,
-            settings: settings)
+        textInjector = TextInjector(clipboardManager: clipboardManager, settings: settings)
         let noteSelectionKey = "notesActiveFileName"
         notesStore = NotesStore(
             repository: Self.notesRepository(for: settings),
@@ -562,9 +547,7 @@ final class AppCore {
     /// Only the tool whose own path or variables changed is checked again; the rest keep running.
     private func applyInstalledLaunches() {
         let revisions = aiSettings.launchRevisions
-        let enabled =
-            settings.aiEnabled || settings.quickActionsEnabled
-            ? aiSettings.enabledInstalledProviders : []
+        let enabled = enabledInstalledKinds
         for kind in InstalledAIKind.allCases where appliedLaunchRevisions[kind] != revisions[kind] {
             guard enabled.contains(kind) else { continue }
             if kind == .codex {
@@ -579,9 +562,7 @@ final class AppCore {
 
     @discardableResult
     func applyInstalledAILifecycle() -> Task<Void, Never> {
-        let enabledKinds =
-            settings.aiEnabled || settings.quickActionsEnabled
-            ? aiSettings.enabledInstalledProviders : []
+        let enabledKinds = enabledInstalledKinds
         var tasks: [Task<Void, Never>] = []
         if enabledKinds.contains(.codex) {
             tasks.append(
@@ -593,6 +574,10 @@ final class AppCore {
         }
         tasks.append(installedAI.ensure(enabledKinds: enabledKinds))
         return Task { for task in tasks { await task.value } }
+    }
+
+    private var enabledInstalledKinds: Set<InstalledAIKind> {
+        settings.aiEnabled || settings.quickActionsEnabled ? aiSettings.enabledInstalledProviders : []
     }
 
     /// Permissive guardrails: the text transformed is the reader's own, which `.default` refuses.
@@ -833,13 +818,8 @@ final class AppCore {
     }
 
     /// A failure with one usable second option; `true` when the user takes it.
-    func reportFailure(
-        title: String, message: String, symbol: String, recovery: String?
-    ) async
-        -> Bool
-    {
-        await dialogs.reportFailure(
-            title: title, message: message, symbol: symbol, recovery: recovery)
+    func reportFailure(title: String, message: String, symbol: String, recovery: String?) async -> Bool {
+        await dialogs.reportFailure(title: title, message: message, symbol: symbol, recovery: recovery)
     }
 
     /// The transient success/info pill, so `messageHUD` stays single-owned alongside `dialogs`.

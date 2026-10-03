@@ -14,122 +14,44 @@ struct InterfaceMetrics: Equatable, Sendable {
     /// For a tuned length a surface owns itself, where `Theme` states no token for it.
     func scaled(_ value: CGFloat) -> CGFloat { scaledPoints(value, scale) }
 
+    /// Every `Theme.Spacing` token, scaled; a key path, so no token can be mirrored wrong.
+    @dynamicMemberLookup
     struct Spacing: Equatable, Sendable {
         let scale: CGFloat
 
-        var xxs: CGFloat { scaledPoints(Theme.Spacing.xxs, scale) }
-        var xs: CGFloat { scaledPoints(Theme.Spacing.xs, scale) }
-        var sm: CGFloat { scaledPoints(Theme.Spacing.sm, scale) }
-        var md: CGFloat { scaledPoints(Theme.Spacing.md, scale) }
-        var lg: CGFloat { scaledPoints(Theme.Spacing.lg, scale) }
-        var xl: CGFloat { scaledPoints(Theme.Spacing.xl, scale) }
-        var dialogInset: CGFloat { scaledPoints(Theme.Spacing.dialogInset, scale) }
-        var xxl: CGFloat { scaledPoints(Theme.Spacing.xxl, scale) }
-        var xxxl: CGFloat { scaledPoints(Theme.Spacing.xxxl, scale) }
-        var sectionHeaderBottom: CGFloat { scaledPoints(Theme.Spacing.sectionHeaderBottom, scale) }
-        var sectionSpacing: CGFloat { scaledPoints(Theme.Spacing.sectionSpacing, scale) }
-        var emojiSectionSpacing: CGFloat { scaledPoints(Theme.Spacing.emojiSectionSpacing, scale) }
-        var chatTranscriptBottom: CGFloat { scaledPoints(Theme.Spacing.chatTranscriptBottom, scale) }
-        var chatFollowTailSlack: CGFloat { scaledPoints(Theme.Spacing.chatFollowTailSlack, scale) }
-        var chatLine: CGFloat { scaledPoints(Theme.Spacing.chatLine, scale) }
+        subscript(dynamicMember token: KeyPath<Theme.Spacing.Type, CGFloat>) -> CGFloat {
+            scaledPoints(Theme.Spacing.self[keyPath: token], scale)
+        }
     }
 
+    @dynamicMemberLookup
     struct Radius: Equatable, Sendable {
         let scale: CGFloat
 
-        var panel: CGFloat { scaledPoints(Theme.Radius.panel, scale) }
-        var row: CGFloat { scaledPoints(Theme.Radius.row, scale) }
-        var emojiCell: CGFloat { scaledPoints(Theme.Radius.emojiCell, scale) }
-        var menu: CGFloat { scaledPoints(Theme.Radius.menu, scale) }
-        var menuRow: CGFloat { scaledPoints(Theme.Radius.menuRow, scale) }
-        var barControl: CGFloat { scaledPoints(Theme.Radius.barControl, scale) }
-        var menuPanel: CGFloat { scaledPoints(Theme.Radius.menuPanel, scale) }
-        var dialogSymbol: CGFloat { scaledPoints(Theme.Radius.dialogSymbol, scale) }
-        var dialog: CGFloat { scaledPoints(Theme.Radius.dialog, scale) }
-        var thumbnail: CGFloat { scaledPoints(Theme.Radius.thumbnail, scale) }
-        var glyph: CGFloat { scaledPoints(Theme.Radius.glyph, scale) }
-        var attachmentChip: CGFloat { scaledPoints(Theme.Radius.attachmentChip, scale) }
-        var card: CGFloat { scaledPoints(Theme.Radius.card, scale) }
-        var keyCap: CGFloat { scaledPoints(Theme.Radius.keyCap, scale) }
-        var tooltip: CGFloat { scaledPoints(Theme.Radius.tooltip, scale) }
+        subscript(dynamicMember token: KeyPath<Theme.Radius.Type, CGFloat>) -> CGFloat {
+            scaledPoints(Theme.Radius.self[keyPath: token], scale)
+        }
     }
 
+    /// Derived sizes are stated, since a sum of scaled parts rounds unlike a scaled sum.
+    @dynamicMemberLookup
     struct Size: Equatable, Sendable {
         let scale: CGFloat
 
-        var panelWidth: CGFloat { scaledPoints(Theme.Size.panelWidth, scale) }
-        var panelHeight: CGFloat { scaledPoints(Theme.Size.panelHeight, scale) }
-        var headerHeight: CGFloat { scaledPoints(Theme.Size.headerHeight, scale) }
-        var headerIconSlot: CGFloat { scaledPoints(Theme.Size.headerIconSlot, scale) }
-        var searchFieldMinWidth: CGFloat { scaledPoints(Theme.Size.searchFieldMinWidth, scale) }
-        var headerPadding: CGFloat { scaledPoints(Theme.Size.headerPadding, scale) }
-        /// Derived, not scaled: the compact bar must stay exactly the header in symmetric slack.
-        var compactHeight: CGFloat { headerHeight + headerPadding * 2 }
-        var bottomBarHeight: CGFloat { scaledPoints(Theme.Size.bottomBarHeight, scale) }
-        var barButtonHeight: CGFloat { scaledPoints(Theme.Size.barButtonHeight, scale) }
-        var rowIcon: CGFloat { scaledPoints(Theme.Size.rowIcon, scale) }
-        var resultRowIcon: CGFloat { scaledPoints(Theme.Size.resultRowIcon, scale) }
-        var colorDot: CGFloat { scaledPoints(Theme.Size.colorDot, scale) }
-        var calendarBarWidth: CGFloat { scaledPoints(Theme.Size.calendarBarWidth, scale) }
-        var calendarBarHeight: CGFloat { scaledPoints(Theme.Size.calendarBarHeight, scale) }
-        var keyCap: CGFloat { scaledPoints(Theme.Size.keyCap, scale) }
-        var compactKeyCap: CGFloat { scaledPoints(Theme.Size.compactKeyCap, scale) }
-        var heroKeyCap: CGFloat { scaledPoints(Theme.Size.heroKeyCap, scale) }
-        var menuButton: CGFloat { scaledPoints(Theme.Size.menuButton, scale) }
-        var checkbox: CGFloat { scaledPoints(Theme.Size.checkbox, scale) }
+        subscript(dynamicMember token: KeyPath<Theme.Size.Type, CGFloat>) -> CGFloat {
+            scaledPoints(Theme.Size.self[keyPath: token], scale)
+        }
 
-        var menuWidth: CGFloat { scaledPoints(Theme.Size.menuWidth, scale) }
-        var actionMenuWidth: CGFloat { scaledPoints(Theme.Size.actionMenuWidth, scale) }
-        var clipboardFilterMenuWidth: CGFloat { scaledPoints(Theme.Size.clipboardFilterMenuWidth, scale) }
-        var fileSearchFilterMenuWidth: CGFloat { scaledPoints(Theme.Size.fileSearchFilterMenuWidth, scale) }
-        var emojiCategoryMenuWidth: CGFloat { scaledPoints(Theme.Size.emojiCategoryMenuWidth, scale) }
-        var menuIcon: CGFloat { scaledPoints(Theme.Size.menuIcon, scale) }
-        var menuBrandIcon: CGFloat { scaledPoints(Theme.Size.menuBrandIcon, scale) }
-        var barBrandIcon: CGFloat { scaledPoints(Theme.Size.barBrandIcon, scale) }
-        var menuRowSpacing: CGFloat { scaledPoints(Theme.Size.menuRowSpacing, scale) }
-        var menuSectionHeader: CGFloat { scaledPoints(Theme.Size.menuSectionHeader, scale) }
-        /// Derived like `Theme`'s, so the row cap still counts whole rows at every size.
-        var menuRowHeight: CGFloat { menuIcon + Spacing(scale: scale).md * 2 }
+        /// The compact bar must stay exactly the header in symmetric slack.
+        var compactHeight: CGFloat { self.headerHeight + self.headerPadding * 2 }
+        /// The row cap still counts whole rows at every size.
+        var menuRowHeight: CGFloat { self.menuIcon + Spacing(scale: scale).md * 2 }
         var menuRowsMaxHeight: CGFloat {
-            (Theme.Size.menuVisibleRows * (menuRowHeight + menuRowSpacing)).rounded()
+            (Theme.Size.menuVisibleRows * (menuRowHeight + self.menuRowSpacing)).rounded()
         }
-        var clipboardListWidth: CGFloat { scaledPoints(Theme.Size.clipboardListWidth, scale) }
-        var clipboardMediaHeight: CGFloat { scaledPoints(Theme.Size.clipboardMediaHeight, scale) }
-        var clipboardPreviewPixel: CGFloat { scaledPoints(Theme.Size.clipboardPreviewPixel, scale) }
-        var emojiGridInset: CGFloat { scaledPoints(Theme.Size.emojiGridInset, scale) }
-        var emojiCell: CGFloat { scaledPoints(Theme.Size.emojiCell, scale) }
-
-        var markdownListMarker: CGFloat { scaledPoints(Theme.Size.markdownListMarker, scale) }
-        var markdownQuoteBar: CGFloat { scaledPoints(Theme.Size.markdownQuoteBar, scale) }
-        var chatMessageAction: CGFloat { scaledPoints(Theme.Size.chatMessageAction, scale) }
-        var chatImageThumb: CGFloat { scaledPoints(Theme.Size.chatImageThumb, scale) }
-        var chatAttachmentGlyph: CGFloat { scaledPoints(Theme.Size.chatAttachmentGlyph, scale) }
-        var chatAttachmentThumb: CGFloat { scaledPoints(Theme.Size.chatAttachmentThumb, scale) }
-        var chatAttachmentRemove: CGFloat { scaledPoints(Theme.Size.chatAttachmentRemove, scale) }
-        var chatAttachmentInset: CGFloat { scaledPoints(Theme.Size.chatAttachmentInset, scale) }
-
-        var quickActionPanel: CGFloat { scaledPoints(Theme.Size.quickActionPanel, scale) }
-        var quickActionHeaderIcon: CGFloat { scaledPoints(Theme.Size.quickActionHeaderIcon, scale) }
-        var quickActionScrollFade: CGFloat { scaledPoints(Theme.Size.quickActionScrollFade, scale) }
-        var quickActionPanelBody: CGFloat { scaledPoints(Theme.Size.quickActionPanelBody, scale) }
-        var quickActionPanelMinBody: CGFloat { scaledPoints(Theme.Size.quickActionPanelMinBody, scale) }
-
-        var dialogCompactWidth: CGFloat { scaledPoints(Theme.Size.dialogCompactWidth, scale) }
-        var dialogWidth: CGFloat { scaledPoints(Theme.Size.dialogWidth, scale) }
         var dialogButtonHeight: CGFloat {
-            menuButton
-                - scaledPoints(Theme.Size.menuButton - Theme.Size.dialogButtonHeight, scale)
+            self.menuButton - scaledPoints(Theme.Size.menuButton - Theme.Size.dialogButtonHeight, scale)
         }
-        var dialogSymbol: CGFloat { scaledPoints(Theme.Size.dialogSymbol, scale) }
-        var dialogSymbolContainer: CGFloat {
-            scaledPoints(Theme.Size.dialogSymbolContainer, scale)
-        }
-        var dialogIcon: CGFloat { scaledPoints(Theme.Size.dialogIcon, scale) }
-        var hudMaxWidth: CGFloat { scaledPoints(Theme.Size.hudMaxWidth, scale) }
-        var hudWidth: CGFloat { scaledPoints(Theme.Size.hudWidth, scale) }
-        var hudHeight: CGFloat { scaledPoints(Theme.Size.hudHeight, scale) }
-        var volumeTrackHeight: CGFloat { scaledPoints(Theme.Size.volumeTrackHeight, scale) }
-        var volumeReadout: CGFloat { scaledPoints(Theme.Size.volumeReadout, scale) }
     }
 
     /// `NSFont` is the only public source of a text style's size and face.
