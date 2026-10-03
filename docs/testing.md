@@ -327,7 +327,7 @@ Measured at the end of the 2026 refactor, on `main`. Useful as orders of magnitu
 | Release binary | 3,655,736 B (from 3,471,592 B at the start of the refactor) |
 | Resident memory | 40–80 MB in normal use; the hard ceiling is 100 MB |
 | `SettingsPaneScanner` warm scan | 0.014 ms (16.5 ms cold), 52 panes |
-| Largest view / owner | `RootPaletteView` 662 lines, `AppCore` 284 lines |
+| Largest file | 1,000-line cap on every source file and harness, enforced by SwiftLint `file_length` |
 | Comment density | 1,653 of 27,289 source lines (6.1%) |
 | The harness suite | ~15 s wall clock, 11-way parallel (~98 s serial, ~140 s before either) |
 | `palette-selection-test` | 111,684 assertions — a tripwire: a change in this count means the row-order model moved |

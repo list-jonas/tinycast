@@ -19,7 +19,6 @@ disabled_rules:
   - identifier_name                           # rejects `id`, `dx`, `x` — all correct here
   - type_body_length                          # a SwiftUI view is legitimately long
   - function_body_length
-  - file_length                               # RootPaletteView is 662 lines by design
   - cyclomatic_complexity                     # a switch over AppEntry.Kind is not complex
   - nesting                                   # namespace enums are the house style
   - large_tuple
@@ -58,3 +57,8 @@ line_length:
   warning: 130
   ignores_urls: true
   ignores_comments: false
+
+# A hard cap: split a file before it reaches this, never raise it.
+file_length:
+  warning: 1000
+  error: 1000
