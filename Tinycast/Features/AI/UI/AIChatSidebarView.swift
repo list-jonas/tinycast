@@ -94,9 +94,8 @@ struct AIChatSidebarView: View {
         }
     }
 
-    @ViewBuilder private func row(
-        _ conversation: ChatConversation, isAnswering: Bool, isSelected: Bool
-    ) -> some View {
+    @ViewBuilder
+    private func row(_ conversation: ChatConversation, isAnswering: Bool, isSelected: Bool) -> some View {
         if renaming == conversation.id {
             TextField("Chat name", text: $renameText, prompt: Text(conversation.title))
                 .textFieldStyle(.plain)
@@ -112,10 +111,8 @@ struct AIChatSidebarView: View {
     }
 
     @ViewBuilder private func menu(for conversation: ChatConversation) -> some View {
-        Button(
-            conversation.isPinned ? "Unpin Chat" : "Pin Chat",
-            systemImage: conversation.isPinned ? "pin.slash" : "pin"
-        ) {
+        let pinned = conversation.isPinned
+        Button(pinned ? "Unpin Chat" : "Pin Chat", systemImage: pinned ? "pin.slash" : "pin") {
             coordinator.togglePin(id: conversation.id)
         }
         Button("Rename…", systemImage: "pencil") { beginRename(conversation) }
@@ -152,10 +149,8 @@ struct AIChatSidebarView: View {
             set: { id in
                 guard let id, id != chats.window.session.id else { return }
                 coordinator.openChat(id: id)
-            }
-        )
+            })
     }
-
 }
 
 /// A chat's title, then a spinner while it answers or a pin; hover is a fainter selection.
@@ -172,9 +167,7 @@ private struct ChatSidebarRow: View {
                 .truncationMode(.tail)
             Spacer(minLength: 0)
             if isAnswering {
-                ProgressView()
-                    .controlSize(.mini)
-                    .accessibilityLabel("Answering")
+                ProgressView().controlSize(.mini).accessibilityLabel("Answering")
             } else if conversation.isPinned {
                 Image(systemName: "pin.fill")
                     .font(.caption)
@@ -216,11 +209,8 @@ private struct ChatSearchField: View {
                 .focused($focused)
                 .pointerStyle(.horizontalText)
             if !query.isEmpty {
-                Button {
-                    query = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.tertiary)
+                Button(action: { query = "" }) {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Clear search")
