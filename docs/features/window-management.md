@@ -57,7 +57,7 @@ applied in one pass — and **[Rooms](window-rooms.md)**, named sets of windows 
 display you are on while everything else steps back. Both share this feature's switch, its
 Accessibility grant and its gap setting.
 
-The first four compile into `Tests/window-command-test.swift` and `SpaceGesture.swift` compiles into
+The first four compile into `Tests/window-command-test.swift` and `Tests/window-display-test.swift`, and `SpaceGesture.swift` compiles into
 `Tests/space-gesture-test.swift`, so none of them may gain an AppKit, SwiftUI or `NSScreen`
 dependency, and all must stay pure — `WindowActionMemory` takes `now` as a parameter rather than
 reading a clock. CoreGraphics is needed only because `CGRect`'s `Equatable` conformance lives in that
@@ -380,10 +380,11 @@ and every shortcut stays editable afterwards.
 
 ## Testing
 
-`Tests/window-command-test.swift` (500 assertions) covers the catalog, the AX-space convention lock,
+`Tests/window-command-test.swift` (298 assertions) covers the catalog, the AX-space convention lock,
 tiling on divisible and non-divisible screens, off-origin and negative-coordinate displays, gap
-arithmetic including degenerate values, sizing, the Make Larger/Smaller round trip, nudges, display
-moves and wrapping, both cycling modes including the strip walk, its wrap and a run of real presses
+arithmetic including degenerate values, sizing, the Make Larger/Smaller round trip and nudges.
+`Tests/window-display-test.swift` (202 assertions, sharing `window-command-support.swift`) covers
+display moves and wrapping, both cycling modes including the strip walk, its wrap and a run of real presses
 across displays, restore recovery, every `WindowActionMemory` rule, and a fuzz sweep over every
 command × gap × screen × cycle × step × degenerate window frame checking for non-finite output,
 negative dimensions, off-screen results, non-determinism and, at step 0, drift on repeat.

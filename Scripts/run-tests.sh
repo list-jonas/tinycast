@@ -351,7 +351,13 @@ run volume-test            Tinycast/Features/SystemActions/Model/VolumeLevel.swi
 run window-command-test    Tinycast/Features/WindowManagement/Model/WindowCommand.swift \
                            Tinycast/Features/WindowManagement/Model/WindowCycle.swift \
                            Tinycast/Features/WindowManagement/Model/WindowPlacementEngine.swift \
-                           Tinycast/Features/WindowManagement/Model/WindowActionMemory.swift
+                           Tinycast/Features/WindowManagement/Model/WindowActionMemory.swift \
+                           Tests/window-command-support.swift
+run window-display-test    Tinycast/Features/WindowManagement/Model/WindowCommand.swift \
+                           Tinycast/Features/WindowManagement/Model/WindowCycle.swift \
+                           Tinycast/Features/WindowManagement/Model/WindowPlacementEngine.swift \
+                           Tinycast/Features/WindowManagement/Model/WindowActionMemory.swift \
+                           Tests/window-command-support.swift
 run window-preset-test     Tinycast/Features/WindowManagement/Model/WindowCommand.swift \
                            Tinycast/Features/WindowManagement/Model/WindowShortcutPreset.swift \
                            Tinycast/Features/HotKeys/Model/DoubleTapModifier.swift \
