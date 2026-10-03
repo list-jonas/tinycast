@@ -410,14 +410,13 @@ final class PaletteWindowController: NSObject, NSWindowDelegate {
                 self.core.palette.noteEmojiGridZoom(zoom)
                 return true
             }
-            guard Self.commandCharacter(from: event) != nil else { return false }
+            guard let character = Self.commandCharacter(from: event) else { return false }
             if self.core.palette.mode == .launcher || self.core.palette.mode == .clipboard,
                 let index = FavoriteSlots.index(forKeyCode: event.keyCode)
             {
                 self.core.palette.noteFavoriteSlot(index)
                 return true
             }
-            guard let character = Self.commandCharacter(from: event) else { return false }
             switch character {
             case ",":
                 self.core.settingsCoordinator.showSettings()
