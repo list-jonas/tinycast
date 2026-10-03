@@ -12,77 +12,45 @@ protocol ExtensionOAuthTokenStore: Sendable {
 struct KeychainOAuthTokenStore: ExtensionOAuthTokenStore {
     private let serviceName = "com.tinycast.extensions.oauth"
 
-    func get(account: String) -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
+    private func query(account: String? = nil, _ extra: [CFString: Any] = [:]) -> CFDictionary {
+        var query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: serviceName]
+        if let account { query[kSecAttrAccount] = account }
+        return query.merging(extra) { $1 } as CFDictionary
+    }
 
+    func get(account: String) -> String? {
         var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        let status = SecItemCopyMatching(
+            query(account: account, [kSecReturnData: true, kSecMatchLimit: kSecMatchLimitOne]), &item)
         guard status == errSecSuccess, let data = item as? Data else { return nil }
         return String(data: data, encoding: .utf8)
     }
 
     func set(_ value: String, account: String) -> Bool {
         guard let data = value.data(using: .utf8) else { return false }
-
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: account
+        let attributes: [CFString: Any] = [
+            kSecValueData: data, kSecAttrAccessible: kSecAttrAccessibleWhenUnlocked
         ]
-
-        let attributes: [String: Any] = [
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
-        ]
-
-        let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
-        if status == errSecItemNotFound {
-            var newQuery = query
-            newQuery[kSecValueData as String] = data
-            newQuery[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
-            return SecItemAdd(newQuery as CFDictionary, nil) == errSecSuccess
-        }
-        return status == errSecSuccess
+        let status = SecItemUpdate(query(account: account), attributes as CFDictionary)
+        guard status == errSecItemNotFound else { return status == errSecSuccess }
+        return SecItemAdd(query(account: account, attributes), nil) == errSecSuccess
     }
 
     func remove(account: String) -> Bool {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecAttrAccount as String: account
-        ]
-        let status = SecItemDelete(query as CFDictionary)
+        let status = SecItemDelete(query(account: account))
         return status == errSecSuccess || status == errSecItemNotFound
     }
 
     func removeAll(prefix: String, exactMatch: String) {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName,
-            kSecReturnAttributes as String: true,
-            kSecMatchLimit as String: kSecMatchLimitAll
-        ]
-
         var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        let status = SecItemCopyMatching(
+            query([kSecReturnAttributes: true, kSecMatchLimit: kSecMatchLimitAll]), &item)
         guard status == errSecSuccess, let items = item as? [[String: Any]] else { return }
-
         for attributes in items {
-            guard let account = attributes[kSecAttrAccount as String] as? String else { continue }
-            if account == exactMatch || account.hasPrefix(prefix) {
-                let deleteQuery: [String: Any] = [
-                    kSecClass as String: kSecClassGenericPassword,
-                    kSecAttrService as String: serviceName,
-                    kSecAttrAccount as String: account
-                ]
-                SecItemDelete(deleteQuery as CFDictionary)
-            }
+            guard let account = attributes[kSecAttrAccount as String] as? String,
+                account == exactMatch || account.hasPrefix(prefix)
+            else { continue }
+            SecItemDelete(query(account: account))
         }
     }
 }
@@ -92,27 +60,22 @@ enum ExtensionOAuthKeychain {
     nonisolated(unsafe) static var store: ExtensionOAuthTokenStore = KeychainOAuthTokenStore()
 
     static func accountKey(extensionName: String, providerId: String?) -> String {
-        if let providerId, !providerId.isEmpty {
-            return "\(extensionName):\(providerId)"
-        }
-        return extensionName
+        guard let providerId, !providerId.isEmpty else { return extensionName }
+        return "\(extensionName):\(providerId)"
     }
 
     static func getTokens(extensionName: String, providerId: String?) -> String? {
-        let account = accountKey(extensionName: extensionName, providerId: providerId)
-        return store.get(account: account)
+        store.get(account: accountKey(extensionName: extensionName, providerId: providerId))
     }
 
     @discardableResult
     static func setTokens(_ jsonString: String, extensionName: String, providerId: String?) -> Bool {
-        let account = accountKey(extensionName: extensionName, providerId: providerId)
-        return store.set(jsonString, account: account)
+        store.set(jsonString, account: accountKey(extensionName: extensionName, providerId: providerId))
     }
 
     @discardableResult
     static func removeTokens(extensionName: String, providerId: String?) -> Bool {
-        let account = accountKey(extensionName: extensionName, providerId: providerId)
-        return store.remove(account: account)
+        store.remove(account: accountKey(extensionName: extensionName, providerId: providerId))
     }
 
     static func removeAllTokens(extensionName: String) {

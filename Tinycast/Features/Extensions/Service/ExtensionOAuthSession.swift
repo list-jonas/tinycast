@@ -17,14 +17,12 @@ struct ExtensionOAuthAuthorizeResult: Sendable {
 final class ExtensionOAuthSession {
     private var continuation: CheckedContinuation<[String: String], Error>?
     private var expectedState: String?
-    private var timeoutTimer: Timer?
+    private var timeout: Task<Void, Never>?
 
     private static weak var activeSession: ExtensionOAuthSession?
 
     /// True while this session is waiting for the browser to come back.
-    var isAuthorizing: Bool {
-        continuation != nil
-    }
+    var isAuthorizing: Bool { continuation != nil }
 
     enum OAuthError: LocalizedError {
         case canceled
@@ -68,73 +66,48 @@ final class ExtensionOAuthSession {
     }
 
     func authorize(options: ExtensionOAuthAuthorizeOptions) async throws -> ExtensionOAuthAuthorizeResult {
-        let params = try await authorize(url: options.url, expectedState: options.state)
-        let code = params["code"] ?? ""
-        let token = params["access_token"]
-        let state = params["state"]
-        return ExtensionOAuthAuthorizeResult(authorizationCode: code, accessToken: token, state: state)
-    }
-
-    func authorize(url: URL, expectedState: String? = nil) async throws -> [String: String] {
-        if continuation != nil {
-            cancel()
-        }
-
-        self.expectedState = expectedState
+        if continuation != nil { cancel() }
+        expectedState = options.state
         Self.activeSession = self
-
-        return try await withCheckedThrowingContinuation { continuation in
+        let params = try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
-
-            self.timeoutTimer?.invalidate()
-            self.timeoutTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: false) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.finish(error: OAuthError.failed("Authentication timed out."))
-                }
+            timeout?.cancel()
+            timeout = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(300))
+                guard !Task.isCancelled else { return }
+                self?.finish(error: OAuthError.failed("Authentication timed out."))
             }
-
-            let opened = NSWorkspace.shared.open(url)
-            if !opened {
-                self.finish(error: OAuthError.failed("Failed to open authorization URL in default browser."))
+            if !NSWorkspace.shared.open(options.url) {
+                finish(error: OAuthError.failed("Failed to open authorization URL in default browser."))
             }
         }
+        return ExtensionOAuthAuthorizeResult(
+            authorizationCode: params["code"] ?? "", accessToken: params["access_token"], state: params["state"])
     }
 
     private func receiveCallback(url: URL) {
         let params = Self.parseCallback(url: url)
         if let error = params["error"] {
-            let desc = params["error_description"] ?? error
-            finish(error: OAuthError.failed(desc))
-            return
+            finish(error: OAuthError.failed(params["error_description"] ?? error))
+        } else if let expected = expectedState, !expected.isEmpty, params["state"] != expected {
+            finish(error: OAuthError.stateMismatch)
+        } else {
+            finish(result: params)
         }
-
-        if let expected = expectedState, !expected.isEmpty {
-            guard let received = params["state"], !received.isEmpty, received == expected else {
-                finish(error: OAuthError.stateMismatch)
-                return
-            }
-        }
-
-        finish(result: params)
     }
 
     private func finish(result: [String: String]? = nil, error: Error? = nil) {
-        timeoutTimer?.invalidate()
-        timeoutTimer = nil
-
-        if Self.activeSession === self {
-            Self.activeSession = nil
-        }
-
-        if let continuation = self.continuation {
-            self.continuation = nil
-            if let error {
-                continuation.resume(throwing: error)
-            } else if let result {
-                continuation.resume(returning: result)
-            } else {
-                continuation.resume(throwing: OAuthError.canceled)
-            }
+        timeout?.cancel()
+        timeout = nil
+        if Self.activeSession === self { Self.activeSession = nil }
+        guard let continuation else { return }
+        self.continuation = nil
+        if let error {
+            continuation.resume(throwing: error)
+        } else if let result {
+            continuation.resume(returning: result)
+        } else {
+            continuation.resume(throwing: OAuthError.canceled)
         }
     }
 
@@ -142,27 +115,15 @@ final class ExtensionOAuthSession {
         finish(error: OAuthError.canceled)
     }
 
-    // MARK: - URL Parsing
-
     static func parseCallback(url: URL) -> [String: String] {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return [:] }
         var result: [String: String] = [:]
-        if let queryItems = components.queryItems {
-            for item in queryItems {
-                result[item.name] = item.value ?? ""
-            }
-        }
+        for item in components.queryItems ?? [] { result[item.name] = item.value ?? "" }
         // Implicit and hash callbacks arrive as `raycast://oauth#code=…`.
-        if let fragment = components.fragment, !fragment.isEmpty {
-            let pairs = fragment.split(separator: "&")
-            for pair in pairs {
-                let parts = pair.split(separator: "=", maxSplits: 1)
-                if parts.count == 2 {
-                    let key = String(parts[0])
-                    let val = String(parts[1]).removingPercentEncoding ?? String(parts[1])
-                    result[key] = val
-                }
-            }
+        for pair in (components.fragment ?? "").split(separator: "&") {
+            let parts = pair.split(separator: "=", maxSplits: 1)
+            guard parts.count == 2 else { continue }
+            result[String(parts[0])] = String(parts[1]).removingPercentEncoding ?? String(parts[1])
         }
         return result
     }
