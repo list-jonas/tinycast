@@ -7,9 +7,7 @@ struct CameraView: View {
     var body: some View {
         VStack(spacing: 0) {
             CameraStage(feed: coordinator.feed, mirrored: coordinator.mirrored)
-                .frame(
-                    width: Theme.Size.cameraStage.width,
-                    height: Theme.Size.cameraStage.height)
+                .frame(width: Theme.Size.cameraStage.width, height: Theme.Size.cameraStage.height)
             footer
         }
         .frame(width: Theme.Size.cameraStage.width)

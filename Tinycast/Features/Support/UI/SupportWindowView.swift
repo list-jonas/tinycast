@@ -41,8 +41,6 @@ struct SupportWindowView: View {
         )
     }
 
-    // MARK: - Hero
-
     private var hero: some View {
         VStack(spacing: Theme.Spacing.xl) {
             Image(nsImage: NSApp.applicationIconImage)
@@ -61,8 +59,6 @@ struct SupportWindowView: View {
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Action
-
     private var action: some View {
         VStack(spacing: Theme.Spacing.lg) {
             SupportActionButton(title: "Support \(Bundle.main.appDisplayName)", icon: "heart") {
@@ -73,8 +69,6 @@ struct SupportWindowView: View {
                 .foregroundStyle(.tertiary)
         }
     }
-
-    // MARK: - Reminder
 
     private func reminder(isOn: Binding<Bool>) -> some View {
         Toggle("Remind me occasionally", isOn: isOn)

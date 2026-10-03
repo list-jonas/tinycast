@@ -76,6 +76,8 @@ being forked. An AppKit site reads `settings.interfaceSize.metrics` where it com
 A length measured against the **screen** does not scale; a length measured against **our own content**
 does. So `hairline`, `paletteTopMarginFraction`, `paletteSnapDistance`, `paletteMinimumVisible`, the
 drop-guide dashes, `hudEdgeOffset` and every row *count* stay on `Theme`, as does every chrome token.
+`Spacing`, `Radius` and `Size` reach `Theme` through a dynamic-member key path, so any `CGFloat` token *can* be
+read scaled — choosing the unscaled one is the caller's job.
 
 Scaling rounds to whole points, once, at the leaf accessor. A **derived** token composes already
 scaled parts (`compactHeight`, `menuRowHeight`) rather than scaling the derived result, so an AppKit

@@ -135,8 +135,6 @@ private final class RowPressView: NSView, NSDraggingSource {
         session.animatesToStartingPositionsOnCancelOrFail = true
     }
 
-    // MARK: - NSDraggingSource
-
     func draggingSession(
         _ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext
     ) -> NSDragOperation {

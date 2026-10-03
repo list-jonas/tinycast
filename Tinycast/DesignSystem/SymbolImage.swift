@@ -8,18 +8,11 @@ struct SymbolImage: View {
 
     var body: some View {
         if NSImage(systemSymbolName: name, accessibilityDescription: nil) == nil {
-            if monochrome {
-                Image(name)
-                    .renderingMode(.template)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: size, height: size)
-            } else {
-                Image(name)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: size, height: size)
-            }
+            Image(name)
+                .renderingMode(monochrome ? .template : nil)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
         } else {
             Image(systemName: name)
                 .font(.system(size: size, weight: .regular))

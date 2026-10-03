@@ -44,17 +44,9 @@ enum ASCIIKeyboardLayout {
         var characters = [UniChar](repeating: 0, count: 4)
 
         let error = UCKeyTranslate(
-            keyLayout,
-            UInt16(keyCode),
-            UInt16(kUCKeyActionDisplay),
-            modifiers,
-            UInt32(LMGetKbdType()),
-            OptionBits(kUCKeyTranslateNoDeadKeysBit),
-            &deadKeyState,
-            characters.count,
-            &length,
-            &characters
-        )
+            keyLayout, UInt16(keyCode), UInt16(kUCKeyActionDisplay), modifiers, UInt32(LMGetKbdType()),
+            OptionBits(kUCKeyTranslateNoDeadKeysBit), &deadKeyState, characters.count, &length,
+            &characters)
         guard error == noErr, length > 0 else { return nil }
         return String(utf16CodeUnits: characters, count: length)
     }

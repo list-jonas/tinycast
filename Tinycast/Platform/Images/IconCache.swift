@@ -73,7 +73,12 @@ struct IconSize: Hashable, Sendable {
 /// App icons by path, downsampled and byte-bounded, so rows don't re-hit `NSWorkspace`.
 enum IconCache {
     /// `NSCache` is thread-safe but not `Sendable`, so assert the guarantee once here.
-    private final class Cache: NSCache<NSString, NSImage>, @unchecked Sendable {}
+    private final class Cache: NSCache<NSString, NSImage>, @unchecked Sendable {
+        convenience init(costLimit: Int) {
+            self.init()
+            totalCostLimit = costLimit
+        }
+    }
 
     /// Carries the size so a lookup can reject a bitmap the interface has since resized past.
     private final class RowImage {
@@ -86,29 +91,22 @@ enum IconCache {
         }
     }
 
-    private final class RowCache: NSCache<NSString, RowImage>, @unchecked Sendable {}
+    private final class RowCache: NSCache<NSString, RowImage>, @unchecked Sendable {
+        convenience init(costLimit: Int) {
+            self.init()
+            totalCostLimit = costLimit
+        }
+    }
 
     // One entry per file, not per file and size: resizing must replace rows, never accumulate them.
-    private static let rowCache: RowCache = {
-        let cache = RowCache()
-        cache.totalCostLimit = 8 * 1024 * 1024
-        return cache
-    }()
+    private static let rowCache = RowCache(costLimit: 8 * 1024 * 1024)
 
     private static let displayPixel: CGFloat = 48
 
-    private static let cache: Cache = {
-        let cache = Cache()
-        cache.totalCostLimit = 32 * 1024 * 1024
-        return cache
-    }()
+    private static let cache = Cache(costLimit: 32 * 1024 * 1024)
 
     // One 200-row result set fits; unlike launcher icons, these are discarded with the list.
-    private static let fittedCache: Cache = {
-        let cache = Cache()
-        cache.totalCostLimit = 8 * 1024 * 1024
-        return cache
-    }()
+    private static let fittedCache = Cache(costLimit: 8 * 1024 * 1024)
     private static let fittedGeneration = Mutex(IconCacheGeneration())
 
     /// Cache-only lookups (never decode) so a row can paint an already-warm icon on the same frame.
@@ -156,18 +154,12 @@ enum IconCache {
     static func styleFingerprint() -> Data? {
         let side = 32
         guard
-            let rep = NSBitmapImageRep(
-                bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side, bitsPerSample: 8,
-                samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
-                bytesPerRow: 0, bitsPerPixel: 0),
-            let ctx = NSGraphicsContext(bitmapImageRep: rep)
+            let rep = canvas(pixels: side, draw: {
+                NSWorkspace.shared.icon(forFile: styleProbePath)
+                    .draw(in: NSRect(x: 0, y: 0, width: side, height: side))
+            }),
+            let bytes = rep.bitmapData
         else { return nil }
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = ctx
-        NSWorkspace.shared.icon(forFile: styleProbePath)
-            .draw(in: NSRect(x: 0, y: 0, width: side, height: side))
-        NSGraphicsContext.restoreGraphicsState()
-        guard let bytes = rep.bitmapData else { return nil }
         return Data(bytes: bytes, count: rep.bytesPerRow * rep.pixelsHigh)
     }
 
@@ -231,22 +223,10 @@ enum IconCache {
     /// Redraws the 96px result rather than the file's icon: AppKit picks its rep and shadow there.
     private static func resized(_ source: NSImage, to size: IconSize) -> (NSImage, Int)? {
         guard size.pixels < Int(displayPixel * 2) else { return nil }
-        guard
-            let rep = NSBitmapImageRep(
-                bitmapDataPlanes: nil, pixelsWide: size.pixels, pixelsHigh: size.pixels,
-                bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-                colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)
-        else { return nil }
-        rep.size = NSSize(width: size.points, height: size.points)
-        guard let context = NSGraphicsContext(bitmapImageRep: rep) else { return nil }
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = context
-        context.imageInterpolation = .high
-        source.draw(in: NSRect(origin: .zero, size: rep.size))
-        NSGraphicsContext.restoreGraphicsState()
-        let image = NSImage(size: rep.size)
-        image.addRepresentation(rep)
-        return (image, rep.bytesPerRow * rep.pixelsHigh)
+        let points = NSSize(width: size.points, height: size.points)
+        return canvas(pixels: size.pixels, size: points, interpolation: .high) {
+            source.draw(in: NSRect(origin: .zero, size: points))
+        }.map(costedImage)
     }
 
     /// A symbol on an app-icon-shaped tile; a tint fills it and brightens the glyph to white.
@@ -403,15 +383,11 @@ enum IconCache {
     static func loadFittedAsync(forFile path: String) async -> NSImage? {
         if let cached = cachedFitted(forFile: path) { return cached }
         let generation = fittedGeneration.withLock { $0.value }
-        let decoded = await Task.detached(
-            priority: .userInitiated,
-            operation: { () -> Decoded in
-                guard FileManager.default.fileExists(atPath: path) else {
-                    return Decoded(image: nil)
-                }
-                return fittedIcon(forFile: path)
-            }
-        ).value
+        let decoded = await Task.detached(priority: .userInitiated) { () -> Decoded in
+            guard FileManager.default.fileExists(atPath: path) else { return Decoded(image: nil) }
+            let (icon, cost) = fitted(NSWorkspace.shared.icon(forFile: path), to: appIconExtent)
+            return Decoded(image: icon, cost: cost)
+        }.value
         guard let image = decoded.image, !Task.isCancelled else { return nil }
         return fittedGeneration.withLock { current in
             current.publish(image, capturedAt: generation) { image in
@@ -432,41 +408,21 @@ enum IconCache {
     }
     private static func fittedKey(_ path: String) -> NSString { key("fit:" + path) }
 
-    private static func fittedIcon(forFile path: String) -> Decoded {
-        let (icon, cost) = fittedToArtwork(NSWorkspace.shared.icon(forFile: path))
-        return Decoded(image: icon, cost: cost)
-    }
-
-    /// Paints the share an app icon does, leaving a real app icon untouched.
-    private static func fittedToArtwork(_ source: NSImage) -> (NSImage, Int) {
-        fitted(source, to: appIconExtent)
-    }
-
     /// The artwork's larger dimension, measured at 2×: a 1× grid over-reads the extent.
     private static func paintedExtent(_ source: NSImage) -> CGFloat? {
         let pixels = Int(displayPixel * 2)
         guard
-            let rep = NSBitmapImageRep(
-                bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels, bitsPerSample: 8,
-                samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
-                bitmapFormat: [], bytesPerRow: 0, bitsPerPixel: 32),
-            let data = rep.bitmapData,
-            let ctx = NSGraphicsContext(bitmapImageRep: rep)
+            let rep = canvas(pixels: pixels, draw: {
+                source.draw(in: NSRect(x: 0, y: 0, width: pixels, height: pixels))
+            }),
+            let data = rep.bitmapData
         else { return nil }
-        rep.size = NSSize(width: pixels, height: pixels)
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = ctx
-        source.draw(in: NSRect(x: 0, y: 0, width: pixels, height: pixels))
-        NSGraphicsContext.restoreGraphicsState()
-
         var minX = pixels, maxX = -1, minY = pixels, maxY = -1
         for y in 0..<pixels {
             let row = data.advanced(by: y * rep.bytesPerRow)
             for x in 0..<pixels {
                 // Alpha above 0.06 starts at byte 16; fainter shadows do not count as artwork.
-                guard row[x * 4 + 3] >= 16 else {
-                    continue
-                }
+                guard row[x * 4 + 3] >= 16 else { continue }
                 minX = min(minX, x)
                 maxX = max(maxX, x)
                 minY = min(minY, y)
@@ -487,27 +443,39 @@ enum IconCache {
     /// Draws `source` into `frame` on a `displayPixel`-square canvas.
     private static func rasterized(_ source: NSImage, into frame: NSRect) -> (NSImage, Int) {
         // Fixed 2×, `NSScreen.main` being main-thread-only, so a detached decode works.
-        let pixels = Int(displayPixel * 2)
-        let fallbackCost = Int(displayPixel * displayPixel * 4)
+        let size = NSSize(width: displayPixel, height: displayPixel)
+        guard
+            let rep = canvas(pixels: Int(displayPixel * 2), size: size, interpolation: .high, draw: {
+                source.draw(in: frame)
+            })
+        else { return (source, Int(displayPixel * displayPixel * 4)) }
+        return costedImage(rep)
+    }
+
+    private static func costedImage(_ rep: NSBitmapImageRep) -> (NSImage, Int) {
+        let image = NSImage(size: rep.size)
+        image.addRepresentation(rep)
+        return (image, rep.bytesPerRow * rep.pixelsHigh)
+    }
+
+    /// A square RGBA bitmap `pixels` wide, laid out at `size` points, holding what `draw` paints.
+    private static func canvas(
+        pixels: Int, size: NSSize? = nil, interpolation: NSImageInterpolation? = nil,
+        draw: () -> Void
+    ) -> NSBitmapImageRep? {
         guard
             let rep = NSBitmapImageRep(
                 bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels, bitsPerSample: 8,
                 samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
                 bytesPerRow: 0, bitsPerPixel: 0)
-        else { return (source, fallbackCost) }
-        rep.size = NSSize(width: displayPixel, height: displayPixel)
-        guard let ctx = NSGraphicsContext(bitmapImageRep: rep) else {
-            return (source, fallbackCost)
-        }
-
+        else { return nil }
+        if let size { rep.size = size }
+        guard let context = NSGraphicsContext(bitmapImageRep: rep) else { return nil }
         NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = ctx
-        ctx.imageInterpolation = .high
-        source.draw(in: frame)
+        NSGraphicsContext.current = context
+        if let interpolation { context.imageInterpolation = interpolation }
+        draw()
         NSGraphicsContext.restoreGraphicsState()
-
-        let image = NSImage(size: rep.size)
-        image.addRepresentation(rep)
-        return (image, rep.bytesPerRow * rep.pixelsHigh)
+        return rep
     }
 }

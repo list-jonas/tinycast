@@ -12,11 +12,7 @@ enum Signposts {
         return try work()
     }
 
-    static func interval<T>(
-        _ name: StaticString, around work: () async throws -> T
-    ) async rethrows
-        -> T
-    {
+    static func interval<T>(_ name: StaticString, around work: () async throws -> T) async rethrows -> T {
         let state = signposter.beginInterval(name)
         defer { signposter.endInterval(name, state) }
         return try await work()

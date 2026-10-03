@@ -24,7 +24,8 @@ final class HUDPresenter {
 
     /// A nil `size` lets SwiftUI measure; progress has no dwell, so it waits to be replaced.
     func show(_ view: some View, size: CGSize? = nil, dwells: Bool = true, interactive: Bool = false) {
-        let panel = panel ?? make(acceptsMouseEvents: interactive)
+        let panel = panel ?? HUDPanel(acceptsMouseEvents: interactive)
+        self.panel = panel
         panel.ignoresMouseEvents = !interactive
         let host = NSHostingView(rootView: view)
         // Never size from `host.frame` after attaching: AppKit resets it to the content rect.
@@ -66,21 +67,13 @@ final class HUDPresenter {
         }
     }
 
-    private func make(acceptsMouseEvents: Bool) -> HUDPanel {
-        let panel = HUDPanel(acceptsMouseEvents: acceptsMouseEvents)
-        self.panel = panel
-        return panel
-    }
-
     private func place(_ panel: NSPanel) {
         guard let visible = screen()?.visibleFrame else { return }
-        let y: CGFloat
-        switch anchor {
-        case .edgeInset(let inset):
-            y = visible.minY + inset
-        case .heightFraction(let fraction):
-            y = visible.minY + visible.height * fraction
-        }
-        panel.setFrameOrigin(NSPoint(x: visible.midX - panel.frame.width / 2, y: y))
+        let lift =
+            switch anchor {
+            case .edgeInset(let inset): inset
+            case .heightFraction(let fraction): visible.height * fraction
+            }
+        panel.setFrameOrigin(NSPoint(x: visible.midX - panel.frame.width / 2, y: visible.minY + lift))
     }
 }

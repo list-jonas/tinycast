@@ -98,7 +98,9 @@ app: the stores (`AppIndex`, `ClipboardStore`, `SnippetsStore`, `QuicklinkStore`
 window controllers.
 
 `AppDelegate.applicationDidFinishLaunching` calls `AppCore.shared.start()` and nothing else. That is the
-one wiring point, and `start()` reads as the app's whole boot sequence in one screen.
+one wiring point, and `start()` reads as the app's whole boot sequence in one screen: it runs
+`startFeatures`, `startBackgroundServices`, `startHotKeys`, `startSnippets` and `observeFeatureSwitches` in
+that order, and the order inside each is load-bearing.
 
 **Feature actions live on that feature's coordinator, and a view must never reach past a coordinator
 into a store to mutate it.** That is the rule; `AppCore` holds only the closure wiring that connects a
