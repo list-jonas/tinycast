@@ -70,14 +70,10 @@ struct DialogView: View {
                 VStack(spacing: metrics.spacing.md) { actionButtons(singleLine: false) }
             }
         } else if request.actions.count > 2 {
-            VStack(spacing: metrics.spacing.md) { actionButtons }
+            VStack(spacing: metrics.spacing.md) { actionButtons(singleLine: false) }
         } else {
-            HStack(spacing: metrics.spacing.md) { actionButtons }
+            HStack(spacing: metrics.spacing.md) { actionButtons(singleLine: false) }
         }
-    }
-
-    private var actionButtons: some View {
-        actionButtons(singleLine: false)
     }
 
     private func actionButtons(singleLine: Bool) -> some View {

@@ -64,29 +64,22 @@ final class DialogController: NSObject, NSWindowDelegate {
 
     func pickVolume(current: Float32) async -> Float32? {
         let volume = VolumeState(level: Double(current))
-        let request = DialogRequest(
-            title: "Set Volume", message: "Choose the output volume.", symbol: "speaker.wave.2",
-            tone: .neutral,
-            actions: [
-                DialogAction(title: "Set Volume"),
-                DialogAction(title: "Cancel", role: .cancel)
-            ],
-            defaultIndex: 0, cancelIndex: 1, accessory: .volume(volume))
-        guard await present(request) == 0 else { return nil }
+        guard
+            await ask(
+                "Set Volume", message: "Choose the output volume.", symbol: "speaker.wave.2",
+                primary: "Set Volume", accessory: .volume(volume))
+        else { return nil }
         return Float32(volume.level)
     }
 
     func createEvent() async -> EventDraft? {
         let state = EventDraftState()
-        let request = DialogRequest(
-            title: "New Event", message: "It goes on the calendar new events go to.",
-            symbol: "calendar.badge.plus", tone: .neutral,
-            actions: [
-                DialogAction(title: "Create"),
-                DialogAction(title: "Cancel", role: .cancel)
-            ],
-            defaultIndex: 0, cancelIndex: 1, accessory: .eventDraft(state))
-        guard await present(request) == 0, state.draft.isValid else { return nil }
+        guard
+            await ask(
+                "New Event", message: "It goes on the calendar new events go to.",
+                symbol: "calendar.badge.plus", primary: "Create", accessory: .eventDraft(state)),
+            state.draft.isValid
+        else { return nil }
         return state.draft
     }
 
@@ -94,16 +87,24 @@ final class DialogController: NSObject, NSWindowDelegate {
         snippetName: String, arguments: [SnippetTemplateEngine.MissingArgument]
     ) async -> [String: String]? {
         let state = SnippetArgumentsState(arguments: arguments)
-        let request = DialogRequest(
-            title: snippetName, message: "Fill in the template fields.", symbol: "curlybraces",
-            tone: .neutral,
-            actions: [
-                DialogAction(title: "Expand"),
-                DialogAction(title: "Cancel", role: .cancel)
-            ],
-            defaultIndex: 0, cancelIndex: 1, accessory: .snippetArguments(state))
-        guard await present(request) == 0 else { return nil }
+        guard
+            await ask(
+                snippetName, message: "Fill in the template fields.", symbol: "curlybraces",
+                primary: "Expand", accessory: .snippetArguments(state))
+        else { return nil }
         return state.values
+    }
+
+    /// A control dialog: the caller reads its answer back out of the accessory's state.
+    private func ask(
+        _ title: String, message: String, symbol: String, primary: String,
+        accessory: DialogAccessory
+    ) async -> Bool {
+        let request = DialogRequest(
+            title: title, message: message, symbol: symbol, tone: .neutral,
+            actions: [DialogAction(title: primary), DialogAction(title: "Cancel", role: .cancel)],
+            defaultIndex: 0, cancelIndex: 1, accessory: accessory)
+        return await present(request) == 0
     }
 
     private func present(_ request: DialogRequest) async -> Int {
@@ -118,13 +119,11 @@ final class DialogController: NSObject, NSWindowDelegate {
                 case .eventDraft, .snippetArguments: metrics.size.dialogWidth
                 }
             let content = hostingView(
-                DialogView(
-                    request: request, width: width,
-                    onChoose: { [weak self] index in
-                        guard Self.accepts(index, for: request) else { return }
-                        self?.finish(index)
-                    }),
-                width: width, minHeight: 0)
+                DialogView(request: request, width: width) { [weak self] index in
+                    guard Self.accepts(index, for: request) else { return }
+                    self?.finish(index)
+                },
+                width: width)
             let panel = DialogPanel(content: content, cornerRadius: metrics.radius.panel)
             panel.handlesArrowKeys = request.accessory?.claimsArrowKeys ?? false
             panel.delegate = self
@@ -143,7 +142,7 @@ final class DialogController: NSObject, NSWindowDelegate {
                 }
             }
             self.panel = panel
-            place(panel)
+            panel.centerOnCursorScreen()
             show(panel)
         }
     }
@@ -190,27 +189,13 @@ final class DialogController: NSObject, NSWindowDelegate {
 
     private var metrics: InterfaceMetrics { settings.interfaceSize.metrics }
 
-    private func hostingView(_ view: some View, width: CGFloat, minHeight: CGFloat) -> NSView {
+    private func hostingView(_ view: some View, width: CGFloat) -> NSView {
         let hosting = NSHostingView(rootView: AnyView(view.environment(\.metrics, metrics)))
         // Measure at the fixed width first: the message wraps, so height follows width.
-        hosting.setFrameSize(NSSize(width: width, height: minHeight))
-        let fitted = hosting.fittingSize
-        hosting.setFrameSize(NSSize(width: width, height: max(fitted.height, minHeight)))
+        hosting.setFrameSize(NSSize(width: width, height: 0))
+        hosting.setFrameSize(NSSize(width: width, height: hosting.fittingSize.height))
         return hosting
     }
-
-    private func place(_ panel: NSPanel) {
-        guard let visible = NSScreen.underCursor?.visibleFrame else { return }
-        let size = panel.frame.size
-        panel.setFrameOrigin(
-            NSPoint(
-                x: visible.midX - size.width / 2,
-                y: visible.midY - size.height / 2 + visible.height * Self.centerLift))
-    }
-
-    /// Optical centering: an exactly centred dialog reads low, as the palette would.
-    private static let centerLift: CGFloat = 0.08
-    // MARK: - NSWindowDelegate
 
     /// Click-away resolves as a dismissal rather than leaving an orphaned dialog behind.
     func windowDidResignKey(_ notification: Notification) {

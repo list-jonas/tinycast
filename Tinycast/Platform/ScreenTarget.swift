@@ -13,3 +13,14 @@ extension NSScreen {
         screens.first { $0.frame.origin == .zero } ?? screens.first
     }
 }
+
+extension NSWindow {
+    /// Lifted off true centre on the cursor's display: an exactly centred panel reads low.
+    func centerOnCursorScreen() {
+        guard let visible = NSScreen.underCursor?.visibleFrame else { return }
+        setFrameOrigin(
+            NSPoint(
+                x: visible.midX - frame.width / 2,
+                y: visible.midY - frame.height / 2 + visible.height * 0.08))
+    }
+}

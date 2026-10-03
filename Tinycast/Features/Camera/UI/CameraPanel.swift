@@ -49,18 +49,6 @@ final class CameraPanel: NSPanel {
         }
     }
 
-    /// Optically centred on the screen under the cursor, the same lift a dialog takes.
-    func centerOnCursorScreen() {
-        guard let visible = NSScreen.underCursor?.visibleFrame else { return }
-        let size = frame.size
-        setFrameOrigin(
-            NSPoint(
-                x: visible.midX - size.width / 2,
-                y: visible.midY - size.height / 2 + visible.height * Self.centerLift))
-    }
-
-    private static let centerLift: CGFloat = 0.08
-
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 }
