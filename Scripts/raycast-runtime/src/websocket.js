@@ -255,7 +255,7 @@ class WebSocketSocket extends Duplex {
     if (buffer.length < offset + length) return false;
     const payload = Buffer.from(buffer.subarray(offset, offset + length));
     if (mask) for (let i = 0; i < payload.length; i++) payload[i] ^= mask[i % 4];
-    this.pending = Buffer.from(buffer.subarray(offset + length));
+    this.pending = buffer.subarray(offset + length);
     this.handleFrame((buffer[0] & 0x80) !== 0, buffer[0] & 0x0f, payload);
     return true;
   }
