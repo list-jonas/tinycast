@@ -14,7 +14,7 @@ enum ExtensionDateExpression {
     }
 
     /// What the picker opens with, before anything is typed.
-    static func presets(now: Date, calendar: Calendar, includesTime: Bool) -> [Suggestion] {
+    static func presets(now: Date, calendar: Calendar) -> [Suggestion] {
         var rows: [Suggestion] = [Suggestion(title: "No Date", date: nil, detail: nil)]
         let today = calendar.startOfDay(for: now)
         let offsets: [(String, Int)] = [("Today", 0), ("Tomorrow", 1), ("Yesterday", -1)]
@@ -28,7 +28,6 @@ enum ExtensionDateExpression {
             let name = weekdayName(date, calendar: calendar)
             rows.append(Suggestion(title: name, date: date, detail: detail(for: date, calendar: calendar)))
         }
-        _ = includesTime
         return rows
     }
 
@@ -37,7 +36,7 @@ enum ExtensionDateExpression {
         query: String, now: Date, calendar: Calendar, includesTime: Bool
     ) -> [Suggestion] {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
-        let presets = presets(now: now, calendar: calendar, includesTime: includesTime)
+        let presets = presets(now: now, calendar: calendar)
         guard !trimmed.isEmpty else { return presets }
 
         var rows: [Suggestion] = []

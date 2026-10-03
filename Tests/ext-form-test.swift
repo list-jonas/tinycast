@@ -180,8 +180,7 @@ struct ExtensionFormTests {
     static func datePresets() {
         print("\n# date presets")
 
-        let rows = ExtensionDateExpression.presets(
-            now: now, calendar: calendar, includesTime: false)
+        let rows = ExtensionDateExpression.presets(now: now, calendar: calendar)
         check("the first row clears the field", rows.first?.title == "No Date")
         check("and carries no date to clear it with", rows.first?.date == nil)
         check("today, tomorrow and yesterday follow", rows[1].title == "Today")
