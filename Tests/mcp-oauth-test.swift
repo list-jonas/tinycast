@@ -500,8 +500,7 @@ struct MCPOAuthTests {
             connection.status.isReady && connection.tools.count == 1, "signed-in connection discovers tools")
         connection.stop()
         var sends = 0
-        let transport = try MCPHTTPTransport(url: base + "/mcp", headerName: "", headerValue: "") {
-            rejected in
+        let transport = try MCPHTTPTransport(url: base + "/mcp", headerName: "", headerValue: "") { rejected in
             sends += 1
             return rejected == nil ? "expired" : "fixture-access"
         }
