@@ -68,20 +68,17 @@ struct MCPServerEditor: View {
         _environmentText = State(
             initialValue: secrets.environment.sorted { $0.key < $1.key }
                 .map { "\($0.key)=\($0.value)" }.joined(separator: "\n"))
+        var kind = Kind.http, url = "", headerName = MCPTransportKind.defaultHeaderName
+        var command = "", arguments = ""
         switch server.transport {
-        case .http(let url, let headerName):
-            _kind = State(initialValue: .http)
-            _url = State(initialValue: url)
-            _headerName = State(initialValue: headerName)
-            _command = State(initialValue: "")
-            _argumentText = State(initialValue: "")
-        case .stdio(let command, let arguments, _):
-            _kind = State(initialValue: .stdio)
-            _url = State(initialValue: "")
-            _headerName = State(initialValue: MCPTransportKind.defaultHeaderName)
-            _command = State(initialValue: command)
-            _argumentText = State(initialValue: arguments.joined(separator: " "))
+        case .http(let value, let header): (url, headerName) = (value, header)
+        case .stdio(let value, let list, _): (kind, command, arguments) = (.stdio, value, list.joined(separator: " "))
         }
+        _kind = State(initialValue: kind)
+        _url = State(initialValue: url)
+        _headerName = State(initialValue: headerName)
+        _command = State(initialValue: command)
+        _argumentText = State(initialValue: arguments)
     }
 
     var body: some View {

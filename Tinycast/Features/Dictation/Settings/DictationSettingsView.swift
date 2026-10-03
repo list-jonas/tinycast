@@ -222,9 +222,7 @@ struct DictationSettingsView: View {
     }
 
     private var enabledBinding: Binding<Bool> {
-        Binding(
-            get: { settings.dictationEnabled },
-            set: { coordinator.setEnabled($0) })
+        Binding(get: { settings.dictationEnabled }, set: { coordinator.setEnabled($0) })
     }
 
     private var microphoneBinding: Binding<String> {
@@ -236,17 +234,13 @@ struct DictationSettingsView: View {
     private var familyBinding: Binding<DictationModel.Family> {
         Binding(
             get: { settings.dictationModel.family },
-            set: {
-                settings.dictationModel = $0 == .parakeet ? .redux : .qwenSmall
-            })
+            set: { settings.dictationModel = $0 == .parakeet ? .redux : .qwenSmall })
     }
 
     private var languageBinding: Binding<String> {
         Binding(
             get: { settings.dictationLanguage ?? "" },
-            set: {
-                settings.dictationLanguage = $0.isEmpty ? nil : $0
-            })
+            set: { settings.dictationLanguage = $0.isEmpty ? nil : $0 })
     }
 
     private var modelDescription: String {
@@ -260,16 +254,10 @@ struct DictationSettingsView: View {
     }
 
     private func downloadModel(_ model: DictationModel) {
-        Task {
-            await coordinator.downloadModel(model)
-            await refreshModelSize(model)
-        }
+        Task { await coordinator.downloadModel(model); await refreshModelSize(model) }
     }
 
     private func removeModel(_ model: DictationModel) {
-        Task {
-            await coordinator.removeModel(model)
-            await refreshModelSize(model)
-        }
+        Task { await coordinator.removeModel(model); await refreshModelSize(model) }
     }
 }

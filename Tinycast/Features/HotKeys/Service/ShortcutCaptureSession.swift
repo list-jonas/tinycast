@@ -36,7 +36,7 @@ final class ShortcutCaptureSession {
         detector.cancel()
 
         // Main-thread handlers that predate actor annotations; only Sendable pieces cross in.
-        if let monitor = NSEvent.addLocalMonitorForEvents(
+        let keyDown = NSEvent.addLocalMonitorForEvents(
             matching: .keyDown,
             handler: { [weak self, weak hotKeys] event in
                 let keyCode = Int(event.keyCode)
@@ -49,11 +49,7 @@ final class ShortcutCaptureSession {
                 }
                 return nil  // always consume: no beeps, no leaking keys to the window
             })
-        {
-            monitors.append(monitor)
-        }
-
-        if let monitor = NSEvent.addLocalMonitorForEvents(
+        let flagsChanged = NSEvent.addLocalMonitorForEvents(
             matching: .flagsChanged,
             handler: { [weak self, weak hotKeys] event in
                 let all = event.modifierFlags
@@ -72,21 +68,15 @@ final class ShortcutCaptureSession {
                 }
                 return event
             })
-        {
-            monitors.append(monitor)
-        }
-
         // A click ends the recording then travels on, so one click can move to another row.
-        if let monitor = NSEvent.addLocalMonitorForEvents(
+        let click = NSEvent.addLocalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown],
             handler: { @MainActor [weak self, weak hotKeys] event in
                 guard self?.activeRecorderContains(event) != true else { return event }
                 hotKeys?.recordingAction = nil
                 return event
             })
-        {
-            monitors.append(monitor)
-        }
+        monitors = [keyDown, flagsChanged, click].compactMap { $0 }
 
         // Local monitors go quiet on resign key, so treat it as a cancel and unpause.
         resignObserver = NotificationCenter.default.addObserver(
