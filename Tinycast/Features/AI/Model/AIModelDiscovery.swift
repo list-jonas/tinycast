@@ -5,18 +5,8 @@ enum AIModelDiscovery {
         let id: String
         let name: String
         /// `nil` when the catalog doesn't say; OpenRouter lists `text`, `image`, `file`, `audio`.
-        var inputModalities: [String]? = nil
+        var inputModalities: [String]?
         var reasoningOptions: AIConnection.ReasoningOptions?
-
-        init(
-            id: String, name: String, inputModalities: [String]? = nil,
-            reasoningOptions: AIConnection.ReasoningOptions? = nil
-        ) {
-            self.id = id
-            self.name = name
-            self.inputModalities = inputModalities
-            self.reasoningOptions = reasoningOptions
-        }
 
         var acceptsImages: Bool? { inputModalities?.contains("image") }
     }
@@ -82,7 +72,9 @@ enum AIModelDiscovery {
     static func decode(_ data: Data, shape: Query.ResponseShape) throws -> [Model] {
         switch shape {
         case .openAI:
-            let response = try JSONDecoder().decode(OpenAIResponse.self, from: data)
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let response = try decoder.decode(OpenAIResponse.self, from: data)
             return normalized(
                 response.data.map {
                     Model(
@@ -129,9 +121,7 @@ enum AIModelDiscovery {
             .map(\.element)
     }
 
-    private static func catalogURL(
-        provider: AIProviderKind, baseURL: URL, usesNativeGemini: Bool
-    ) -> URL? {
+    private static func catalogURL(provider: AIProviderKind, baseURL: URL, usesNativeGemini: Bool) -> URL? {
         guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
             return nil
         }
@@ -192,20 +182,11 @@ enum AIModelDiscovery {
     private struct OpenAIResponse: Decodable {
         struct Architecture: Decodable {
             let inputModalities: [String]?
-
-            enum CodingKeys: String, CodingKey {
-                case inputModalities = "input_modalities"
-            }
         }
 
         struct Reasoning: Decodable {
             let supportedEfforts: [String]?
             let defaultEffort: String?
-
-            enum CodingKeys: String, CodingKey {
-                case supportedEfforts = "supported_efforts"
-                case defaultEffort = "default_effort"
-            }
         }
 
         struct Model: Decodable {
@@ -214,11 +195,6 @@ enum AIModelDiscovery {
             let displayName: String?
             let architecture: Architecture?
             let reasoning: Reasoning?
-
-            enum CodingKeys: String, CodingKey {
-                case id, name, architecture, reasoning
-                case displayName = "display_name"
-            }
         }
 
         let data: [Model]

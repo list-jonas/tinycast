@@ -27,8 +27,7 @@ enum JSONValue: Equatable, Sendable {
     /// Parsed from bytes, so a schema or an argument blob can be carried without being understood.
     init?(data: Data) {
         guard
-            let parsed = try? JSONSerialization.jsonObject(
-                with: data, options: [.fragmentsAllowed])
+            let parsed = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
         else { return nil }
         self.init(parsed)
     }

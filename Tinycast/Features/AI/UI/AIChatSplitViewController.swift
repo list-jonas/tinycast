@@ -8,8 +8,7 @@ final class AIChatSplitViewController: NSSplitViewController {
     init(sidebar: some View, detail: some View) {
         super.init(nibName: nil, bundle: nil)
 
-        let sidebarItem = NSSplitViewItem(
-            sidebarWithViewController: NSHostingController(rootView: sidebar))
+        let sidebarItem = NSSplitViewItem(sidebarWithViewController: NSHostingController(rootView: sidebar))
         sidebarItem.minimumThickness = Theme.Size.aiChatSidebarMinimum
         sidebarItem.maximumThickness = Theme.Size.aiChatSidebarMaximum
         sidebarItem.canCollapse = true

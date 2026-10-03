@@ -126,9 +126,7 @@ final class AIChatWindowChrome: NSObject, WindowChrome, NSToolbarDelegate, NSSea
     }
 
     /// Return walks the matches, ⇧↩ walks back, as Find does in every Mac app.
-    func control(
-        _ control: NSControl, textView: NSTextView, doCommandBy selector: Selector
-    ) -> Bool {
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
         guard selector == #selector(NSResponder.insertNewline(_:)) else { return false }
         let backwards = NSApp.currentEvent?.modifierFlags.contains(.shift) == true
         find.step(backwards ? -1 : 1, in: chat.session.messages)
@@ -191,7 +189,7 @@ final class AIChatWindowChrome: NSObject, WindowChrome, NSToolbarDelegate, NSSea
             showActions()
         case ([.command], "n"):
             coordinator.newChat()
-        case ([.command], "r") where AIChatActionsMenu.canRegenerate(chat):
+        case ([.command], "r") where chat.canRegenerate:
             coordinator.regenerate(in: chat)
         case ([.command, .shift], "c") where chat.lastAssistantText != nil:
             coordinator.copyLastResponse(in: chat)
@@ -202,8 +200,7 @@ final class AIChatWindowChrome: NSObject, WindowChrome, NSToolbarDelegate, NSSea
         case ([.command], "v"):
             // The search and rename fields take a paste as text, whatever the board holds.
             guard (window.firstResponder as? NSTextView)?.isFieldEditor != true else { return false }
-            return coordinator.attachPastedFile(
-                files: PasteboardFiles.urls(on: .general), to: chat)
+            return coordinator.attachPastedFile(files: PasteboardFiles.urls(on: .general), to: chat)
         default:
             return false
         }
@@ -214,90 +211,67 @@ final class AIChatWindowChrome: NSObject, WindowChrome, NSToolbarDelegate, NSSea
 /// The window's ⌘K menu: Quick AI's actions, plus what only a saved chat in a window can do.
 @MainActor
 enum AIChatActionsMenu {
-    static func canRegenerate(_ chat: AIChatState) -> Bool {
-        !chat.isStreaming && chat.session.messages.last?.role == .assistant
-    }
-
     static func build(
         chat: AIChatState, coordinator: AIChatCoordinator, findInChat: @escaping () -> Void
     ) -> NSMenu {
         let menu = NSMenu()
         let saved = coordinator.isSaved(chat)
+        let id = chat.session.id
         if chat.isStreaming {
-            menu.addItem(
-                ClosureMenuItem("Stop Response", symbol: "stop.fill", key: ".") {
-                    coordinator.stopResponse(in: chat)
-                })
+            menu.add("Stop Response", symbol: "stop.fill", key: ".") { coordinator.stopResponse(in: chat) }
         }
-        menu.addItem(
-            ClosureMenuItem("New Chat", symbol: "square.and.pencil", key: "n") {
-                coordinator.newChat()
-            })
-        if canRegenerate(chat) {
-            menu.addItem(
-                ClosureMenuItem("Regenerate Response", symbol: "arrow.clockwise", key: "r") {
-                    coordinator.regenerate(in: chat)
-                })
+        menu.add("New Chat", symbol: "square.and.pencil", key: "n") { coordinator.newChat() }
+        if chat.canRegenerate {
+            menu.add("Regenerate Response", symbol: "arrow.clockwise", key: "r") {
+                coordinator.regenerate(in: chat)
+            }
         }
         menu.addItem(.separator())
         if chat.lastAssistantText != nil {
-            menu.addItem(
-                ClosureMenuItem(
-                    "Copy Last Response", symbol: "doc.on.doc", key: "c", modifiers: [.command, .shift]
-                ) {
-                    coordinator.copyLastResponse(in: chat)
-                })
+            menu.add("Copy Last Response", symbol: "doc.on.doc", key: "c", modifiers: [.command, .shift]) {
+                coordinator.copyLastResponse(in: chat)
+            }
         }
-        if saved {
-            menu.addItem(
-                ClosureMenuItem("Copy Chat", symbol: "text.bubble") {
-                    coordinator.copyChat(id: chat.session.id)
-                })
-        }
+        if saved { menu.add("Copy Chat", symbol: "text.bubble") { coordinator.copyChat(id: id) } }
         if !chat.pendingAttachments.isEmpty {
-            menu.addItem(
-                ClosureMenuItem("Remove Attachments", symbol: "paperclip") {
-                    coordinator.clearAttachments(in: chat)
-                })
+            menu.add("Remove Attachments", symbol: "paperclip") { coordinator.clearAttachments(in: chat) }
         }
         if saved {
             menu.addItem(.separator())
-            let pinned = coordinator.isPinned(chat)
-            menu.addItem(
-                ClosureMenuItem(pinned ? "Unpin Chat" : "Pin Chat", symbol: "pin") {
-                    coordinator.togglePin(id: chat.session.id)
-                })
-            menu.addItem(
-                ClosureMenuItem("Delete Chat…", symbol: "trash") {
-                    Task { await coordinator.deleteChat(id: chat.session.id) }
-                })
+            menu.add(coordinator.isPinned(chat) ? "Unpin Chat" : "Pin Chat", symbol: "pin") {
+                coordinator.togglePin(id: id)
+            }
+            menu.add("Delete Chat…", symbol: "trash") { Task { await coordinator.deleteChat(id: id) } }
         }
         menu.addItem(.separator())
-        menu.addItem(
-            ClosureMenuItem("Find in Chat", symbol: "magnifyingglass", key: "f", findInChat))
-        menu.addItem(
-            ClosureMenuItem(
-                "AI Settings", symbol: "slider.horizontal.3", key: ",", modifiers: [.command, .option]
-            ) {
-                coordinator.showSettings()
-            })
+        menu.add("Find in Chat", symbol: "magnifyingglass", key: "f", findInChat)
+        menu.add("AI Settings", symbol: "slider.horizontal.3", key: ",", modifiers: [.command, .option]) {
+            coordinator.showSettings()
+        }
         return menu
     }
 }
 
-/// An `NSMenuItem` that runs a closure, so a menu built per open needs no selector per row.
+extension NSMenu {
+    /// A menu built per open runs closures, so no row needs a selector of its own.
+    fileprivate func add(
+        _ title: String, symbol: String, key: String = "", modifiers: NSEvent.ModifierFlags = .command,
+        _ run: @escaping () -> Void
+    ) {
+        let item = ClosureMenuItem(title, key: key, run)
+        item.keyEquivalentModifierMask = modifiers
+        item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        addItem(item)
+    }
+}
+
 private final class ClosureMenuItem: NSMenuItem {
     private let run: () -> Void
 
-    init(
-        _ title: String, symbol: String, key: String = "",
-        modifiers: NSEvent.ModifierFlags = .command, _ run: @escaping () -> Void
-    ) {
+    init(_ title: String, key: String, _ run: @escaping () -> Void) {
         self.run = run
         super.init(title: title, action: #selector(runAction), keyEquivalent: key)
-        keyEquivalentModifierMask = modifiers
         target = self
-        image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
     }
 
     @available(*, unavailable)

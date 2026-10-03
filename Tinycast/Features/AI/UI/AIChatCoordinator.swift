@@ -56,9 +56,7 @@ final class AIChatCoordinator {
     }
 
     func applyRetention() {
-        guard settings.aiEnabled,
-            let cutoff = core.aiSettings.retention.cutoff(from: Date())
-        else { return }
+        guard settings.aiEnabled, let cutoff = core.aiSettings.retention.cutoff(from: Date()) else { return }
         core.chatHistory.prune(before: cutoff)
     }
 
@@ -82,28 +80,19 @@ final class AIChatCoordinator {
     var history: ChatHistoryStore { core.chatHistory }
     var aiSettings: AISettingsStore { core.aiSettings }
 
-    func focusExisting() -> Bool {
-        window.focus()
-    }
+    func focusExisting() -> Bool { window.focus() }
 
     /// ⌘Q's target while the window is key; false leaves the chord to Settings.
     func closeWindowIfKey() -> Bool {
-        guard NSApp.keyWindow?.identifier == AIChatWindowChrome.windowIdentifier else {
-            return false
-        }
+        guard NSApp.keyWindow?.identifier == AIChatWindowChrome.windowIdentifier else { return false }
         window.close()
         return true
     }
 
-    func newChat() {
-        chats.newWindowChat()
-    }
+    func newChat() { chats.newWindowChat() }
 
     func openChat(id: UUID) {
-        guard chats.openInWindow(id: id) else {
-            core.showMessage("That chat could not be opened.", tone: .danger)
-            return
-        }
+        if !chats.openInWindow(id: id) { core.showMessage("That chat could not be opened.", tone: .danger) }
     }
 
     /// Quick AI's ⌘J: the conversation, its staged files and the half-typed line all move over.
@@ -126,9 +115,7 @@ final class AIChatCoordinator {
         core.chatHistory.setPinned(!conversation.isPinned, id: id)
     }
 
-    func rename(id: UUID, to title: String) {
-        core.chatHistory.rename(id: id, to: title)
-    }
+    func rename(id: UUID, to title: String) { core.chatHistory.rename(id: id, to: title) }
 
     /// The title the window and the sidebar show, a rename included.
     func title(of chat: AIChatState) -> String {
@@ -198,8 +185,7 @@ final class AIChatCoordinator {
         let selection = model(for: chat)
         let servers = titleServers(for: chat, on: selection)
         naming[session.id] = Task {
-            let title = await self.title(
-                describing: description, with: selection, servers: servers)
+            let title = await self.title(describing: description, with: selection, servers: servers)
             // Whoever cancelled already cleared the entry, which may now be a newer request's.
             guard !Task.isCancelled else { return }
             naming[session.id] = nil
@@ -340,17 +326,11 @@ final class AIChatCoordinator {
     /// The servers a chat's tools menu offers; empty when MCP is off or nothing is set up.
     var mcpServers: [MCPServer] { core.mcpCoordinator.servers }
 
-    func setToolsEnabled(_ enabled: Bool, in chat: AIChatState) {
-        chat.toolScope.isEnabled = enabled
-    }
+    func setToolsEnabled(_ enabled: Bool, in chat: AIChatState) { chat.toolScope.isEnabled = enabled }
 
-    func toggleToolServer(_ slug: String, in chat: AIChatState) {
-        chat.toolScope.toggle(slug)
-    }
+    func toggleToolServer(_ slug: String, in chat: AIChatState) { chat.toolScope.toggle(slug) }
 
-    func showMCPSettings() {
-        settingsCoordinator.showSettings(tab: .ai)
-    }
+    func showMCPSettings() { settingsCoordinator.showSettings(tab: .ai) }
 
     /// The server a draft is addressed to, so the composer can show it as a chip while typing.
     func addressedServer(in draft: String) -> MCPServer? {
@@ -358,9 +338,7 @@ final class AIChatCoordinator {
             .flatMap { core.mcpCoordinator.server(slug: $0) }
     }
 
-    func stopResponse(in chat: AIChatState) {
-        chat.cancel()
-    }
+    func stopResponse(in chat: AIChatState) { chat.cancel() }
 
     func copyLastResponse(in chat: AIChatState) {
         guard let text = chat.lastAssistantText else { return }
@@ -381,8 +359,7 @@ final class AIChatCoordinator {
 
     /// How much history the chat's route can hold; the on-device window is far smaller.
     func contextBudget(for chat: AIChatState) -> Int {
-        model(for: chat)?.isOnDevice == true
-            ? AppleIntelligence.contextBudget : ChatSession.defaultTextBudget
+        model(for: chat)?.isOnDevice == true ? AppleIntelligence.contextBudget : ChatSession.defaultTextBudget
     }
 
     /// The context card's facts; the gauge redraws per flush, so it skips the card's model title.
@@ -452,13 +429,9 @@ final class AIChatCoordinator {
         attach(files: panel.urls, to: chat)
     }
 
-    func clearAttachments(in chat: AIChatState) {
-        chat.clearAttachments()
-    }
+    func clearAttachments(in chat: AIChatState) { chat.clearAttachments() }
 
-    func removeAttachment(_ id: UUID, in chat: AIChatState) {
-        chat.removeAttachment(id)
-    }
+    func removeAttachment(_ id: UUID, in chat: AIChatState) { chat.removeAttachment(id) }
 
     /// The first refusal the current route forces, so a paste explains itself rather than dropping.
     private func unattachable(_ files: [URL], in chat: AIChatState) -> ChatAttachmentRefusal? {
@@ -487,9 +460,8 @@ final class AIChatCoordinator {
             }.value
             guard let self, let chat else { return }
             guard generation == chat.stagingGeneration else {
-                core.showMessage(
-                    "That file was still loading and did not make it into the chat.",
-                    tone: .neutral)
+                let message = "That file was still loading and did not make it into the chat."
+                core.showMessage(message, tone: .neutral)
                 return
             }
             // Stops at the first refusal so a mixed paste says which file it could not take.
@@ -512,9 +484,7 @@ final class AIChatCoordinator {
 
     // MARK: - Models
 
-    var modelOptions: [AIModelOption] {
-        modelGroups.flatMap(\.options)
-    }
+    var modelOptions: [AIModelOption] { modelGroups.flatMap(\.options) }
 
     var isModelCatalogLoading: Bool {
         core.aiSettings.enabledInstalledProviders.contains { kind in
@@ -584,9 +554,7 @@ final class AIChatCoordinator {
 
     private static let maxModelTitleLength = 26
 
-    func selectedModelIcon(for chat: AIChatState) -> PopoverMenuIcon {
-        modelIcon(of: model(for: chat))
-    }
+    func selectedModelIcon(for chat: AIChatState) -> PopoverMenuIcon { modelIcon(of: model(for: chat)) }
 
     func modelIcon(of selected: AIModelSelection?) -> PopoverMenuIcon {
         AIModelOption.icon(of: selected, settings: core.aiSettings)
@@ -611,9 +579,14 @@ final class AIChatCoordinator {
 
     /// The chat keeps the pick; the default follows it, so the next new chat starts there too.
     func selectModel(_ option: AIModelOption, in chat: AIChatState) {
-        let selection = AIModelOption.withDefaultEffort(
-            option.selection, settings: core.aiSettings,
-            subscription: core.chatGPTSubscription, installedAI: core.installedAI)
+        pick(
+            AIModelOption.withDefaultEffort(
+                option.selection, settings: core.aiSettings, subscription: core.chatGPTSubscription,
+                installedAI: core.installedAI),
+            in: chat)
+    }
+
+    private func pick(_ selection: AIModelSelection, in chat: AIChatState) {
         chat.setModel(selection)
         core.aiSettings.select(selection)
     }
@@ -632,15 +605,11 @@ final class AIChatCoordinator {
     }
 
     func selectReasoningEffort(_ effort: ChatGPTSubscription.Effort, in chat: AIChatState) {
-        guard let selection = model(for: chat)?.withEffort(effort.id) else { return }
-        chat.setModel(selection)
-        core.aiSettings.select(selection)
+        if let selection = model(for: chat)?.withEffort(effort.id) { pick(selection, in: chat) }
     }
 
     @discardableResult
-    func prepareModelSwitcher() -> Task<Void, Never> {
-        core.applyInstalledAILifecycle()
-    }
+    func prepareModelSwitcher() -> Task<Void, Never> { core.applyInstalledAILifecycle() }
 
     func showSettings() {
         if paletteCoordinator.isVisible { paletteCoordinator.hidePalette(restoreFocus: false) }

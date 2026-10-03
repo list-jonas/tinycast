@@ -9,10 +9,7 @@ struct AITool: Equatable, Sendable {
     let origin: String
     let title: String
 
-    init(
-        name: String, description: String, parameters: JSONValue, origin: String,
-        title: String? = nil
-    ) {
+    init(name: String, description: String, parameters: JSONValue, origin: String, title: String? = nil) {
         self.name = name
         self.description = description
         self.parameters = parameters

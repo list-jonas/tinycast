@@ -28,9 +28,7 @@ enum InstalledAIStreamDecoder {
         }
     }
 
-    private static func openCode(
-        _ object: [String: Any], type: String
-    ) -> InstalledAIStreamFrame {
+    private static func openCode(_ object: [String: Any], type: String) -> InstalledAIStreamFrame {
         var frame = InstalledAIStreamFrame(sessionID: object["sessionID"] as? String)
         let part = object["part"] as? [String: Any]
         switch type {
@@ -110,9 +108,7 @@ enum InstalledAIStreamDecoder {
     }
 
     /// `tool_use` and `tool_result` blocks, as the two events a transcript row is built from.
-    private static func toolEvents(
-        in object: [String: Any], servers: [AIToolServer]
-    ) -> [AIStreamEvent] {
+    private static func toolEvents(in object: [String: Any], servers: [AIToolServer]) -> [AIStreamEvent] {
         guard let message = object["message"] as? [String: Any],
             let content = message["content"] as? [[String: Any]]
         else { return [] }
@@ -159,9 +155,7 @@ enum InstalledAIStreamDecoder {
     }
 
     /// Grok's error result omits `result` and names the cause in `errors`.
-    private static func grok(
-        _ object: [String: Any], type: String
-    ) -> InstalledAIStreamFrame {
+    private static func grok(_ object: [String: Any], type: String) -> InstalledAIStreamFrame {
         // Grok shares the frame shape but never the tools: `--deny *` refuses every call.
         var frame = claude(object, type: type, servers: [])
         if let sessionID = object["session_id"] as? String, !sessionID.isEmpty {
@@ -189,9 +183,7 @@ enum InstalledAIStreamDecoder {
         return "Grok could not finish the response."
     }
 
-    private static func cursor(
-        _ object: [String: Any], type: String
-    ) -> InstalledAIStreamFrame {
+    private static func cursor(_ object: [String: Any], type: String) -> InstalledAIStreamFrame {
         var frame = InstalledAIStreamFrame()
         if let sessionID = object["session_id"] as? String, !sessionID.isEmpty {
             frame.sessionID = sessionID

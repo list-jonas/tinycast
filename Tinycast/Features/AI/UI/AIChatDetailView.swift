@@ -171,9 +171,10 @@ private struct AIChatComposer: View {
 
     private var controls: some View {
         HStack(spacing: Theme.Spacing.md) {
-            ComposerIconButton(symbol: "paperclip", help: attachHelp) {
-                coordinator.chooseFiles(for: chat)
-            }
+            Button(action: { coordinator.chooseFiles(for: chat) }) { Image(systemName: "paperclip") }
+                .buttonStyle(.borderless)
+                .help(attachHelp)
+                .accessibilityLabel(attachHelp)
             AIModelPicker(chat: chat, selected: coordinator.model(for: chat), coordinator: coordinator)
             AIReasoningPicker(chat: chat, coordinator: coordinator)
             AIToolsPicker(chat: chat, coordinator: coordinator)
@@ -221,21 +222,6 @@ private struct AIChatComposer: View {
     }
 }
 
-private struct ComposerIconButton: View {
-    let symbol: String
-    let help: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-        }
-        .buttonStyle(.borderless)
-        .help(help)
-        .accessibilityLabel(help)
-    }
-}
-
 /// Every configured model, grouped by where it runs; the pick belongs to this chat.
 private struct AIModelPicker: View {
     let chat: AIChatState
@@ -257,11 +243,7 @@ private struct AIModelPicker: View {
                                 get: { selected.map(option.matches) ?? false },
                                 set: { if $0 { coordinator.selectModel(option, in: chat) } })
                         ) {
-                            Label {
-                                Text(option.title)
-                            } icon: {
-                                MenuIconImage(icon: option.menuIcon)
-                            }
+                            Label { Text(option.title) } icon: { MenuIconImage(icon: option.menuIcon) }
                         }
                     }
                 }
@@ -270,9 +252,7 @@ private struct AIModelPicker: View {
                 Button("Configure AI…", action: coordinator.showSettings)
             }
         } label: {
-            Label {
-                Text(coordinator.modelTitle(of: selected, among: groups.flatMap(\.options)))
-            } icon: {
+            Label { Text(coordinator.modelTitle(of: selected, among: groups.flatMap(\.options))) } icon: {
                 MenuIconImage(icon: coordinator.modelIcon(of: selected))
             }
             .labelStyle(.titleAndIcon)
@@ -301,8 +281,7 @@ private struct AIReasoningPicker: View {
         } label: {
             Label(
                 efforts.isEmpty ? "Reasoning" : coordinator.selectedReasoningTitle(for: chat),
-                systemImage: "brain"
-            )
+                systemImage: "brain")
             .labelStyle(.titleAndIcon)
         }
         .composerPill()
@@ -347,16 +326,12 @@ private struct AIToolsPicker: View {
         } label: {
             Label(
                 servers.isEmpty || !scope.isEnabled ? "Tools" : "\(active) of \(servers.count)",
-                systemImage: "wrench.and.screwdriver"
-            )
+                systemImage: "wrench.and.screwdriver")
             .labelStyle(.titleAndIcon)
         }
         .composerPill()
         .disabled(!takesTools)
-        .help(
-            takesTools
-                ? "Choose the tools this chat may call"
-                : "This model can't call tools")
+        .help(takesTools ? "Choose the tools this chat may call" : "This model can't call tools")
     }
 }
 
@@ -372,20 +347,12 @@ private struct FindCounter: View {
                 .font(.callout)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
-            Button {
-                step(-1)
-            } label: {
-                Image(systemName: "chevron.up")
-            }
-            .help("Previous Match  ⇧⌘G")
-            .disabled(count == 0)
-            Button {
-                step(1)
-            } label: {
-                Image(systemName: "chevron.down")
-            }
-            .help("Next Match  ⌘G")
-            .disabled(count == 0)
+            Button(action: { step(-1) }) { Image(systemName: "chevron.up") }
+                .help("Previous Match  ⇧⌘G")
+                .disabled(count == 0)
+            Button(action: { step(1) }) { Image(systemName: "chevron.down") }
+                .help("Next Match  ⌘G")
+                .disabled(count == 0)
         }
         .buttonStyle(.borderless)
         .padding(.horizontal, Theme.Spacing.lg)
@@ -470,8 +437,7 @@ private struct ContextCard: View {
                     .foregroundStyle(Theme.Colors.destructive)
             }
             Grid(
-                alignment: .leading, horizontalSpacing: Theme.Spacing.xl,
-                verticalSpacing: Theme.Spacing.xs
+                alignment: .leading, horizontalSpacing: Theme.Spacing.xl, verticalSpacing: Theme.Spacing.xs
             ) {
                 section("Tokens")
                 if let usage = report.usage, let context = usage.contextTokens {
@@ -479,10 +445,7 @@ private struct ContextCard: View {
                     row("Input", input(usage))
                     row("Output", output(usage))
                     if let cost = usage.costUSD {
-                        row(
-                            "Cost",
-                            cost.formatted(
-                                .currency(code: "USD").precision(.significantDigits(2))))
+                        row("Cost", cost.formatted(.currency(code: "USD").precision(.significantDigits(2))))
                     }
                 } else {
                     row("Last reply", "Not reported yet")
@@ -496,9 +459,7 @@ private struct ContextCard: View {
                 }
                 row("System prompt", report.systemPrompt ? "On" : "Off")
                 row("Web search", report.webSearch ? "On" : "Off")
-                row(
-                    "MCP servers",
-                    report.toolServers == 0 ? "None" : "\(report.toolServers) in reach")
+                row("MCP servers", report.toolServers == 0 ? "None" : "\(report.toolServers) in reach")
             }
             .font(.callout)
         }

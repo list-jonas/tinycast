@@ -86,9 +86,7 @@ enum MarkdownBlock: Equatable, Sendable {
     }
 
     /// Each stand-in back as a formula's one character, or as its source when it would not typeset.
-    private static func restoring(
-        _ standIns: [Character: StandIn], in parsed: AttributedString
-    )
+    private static func restoring(_ standIns: [Character: StandIn], in parsed: AttributedString)
         -> AttributedString
     {
         var result = parsed
@@ -258,9 +256,7 @@ private struct MarkdownReader {
         return .numberedList(start: first.number, items: items)
     }
 
-    private mutating func item(
-        startingWith line: String, marker: MarkdownLine.Marker
-    )
+    private mutating func item(startingWith line: String, marker: MarkdownLine.Marker)
         -> MarkdownBlock.Item
     {
         var body = [String(line.dropFirst(min(marker.contentIndent, line.count)))]

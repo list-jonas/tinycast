@@ -84,9 +84,7 @@ enum InstalledAIKind: String, CaseIterable, Codable, Identifiable, Sendable {
 }
 
 extension AIModelSelection {
-    static func installed(
-        _ kind: InstalledAIKind, model: String, effort: String?
-    ) -> AIModelSelection {
+    static func installed(_ kind: InstalledAIKind, model: String, effort: String?) -> AIModelSelection {
         switch kind {
         case .codex: return .codex(model: model, effort: effort)
         case .claude: return .claude(model: model, effort: effort)

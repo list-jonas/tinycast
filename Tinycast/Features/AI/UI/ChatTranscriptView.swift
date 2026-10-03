@@ -178,23 +178,16 @@ private struct ChatMessageView: View, @MainActor Equatable {
 
     @State private var hovered = false
 
-    /// The fence is the choices' carrier, never prose: it is left out of the text and the copy.
-    private var parts: (text: String, choices: [String]) {
-        message.role == .assistant ? ChatChoices.split(message.text) : (message.text, [])
-    }
-
-    /// Read only once the reply is done: a link half-streamed is not a source yet.
-    private var references: [ChatReference] {
-        guard message.role == .assistant, message.state != .streaming else { return [] }
-        return ChatReferences.extract(from: parts.text)
-    }
+    private typealias Parts = (text: String, choices: [String])
 
     var body: some View {
-        HStack {
+        // The fence is the choices' carrier, never prose: it is left out of the text and the copy.
+        let parts: Parts = message.role == .assistant ? ChatChoices.split(message.text) : (message.text, [])
+        return HStack {
             if message.role == .user { Spacer(minLength: metrics.spacing.xxl) }
             VStack(alignment: message.role == .user ? .trailing : .leading, spacing: metrics.spacing.xxs) {
-                content
-                if message.state != .streaming { footer }
+                content(parts)
+                if message.state != .streaming { footer(copying: parts.text) }
             }
             .contentShape(Rectangle())
             .onHover { isHovered in
@@ -211,10 +204,10 @@ private struct ChatMessageView: View, @MainActor Equatable {
     }
 
     /// Laid out at rest and only faded in, so a hover cannot reflow the transcript
-    private var footer: some View {
+    private func footer(copying text: String) -> some View {
         HStack(spacing: metrics.spacing.sm) {
             if message.role == .user { timestamp }
-            ChatCopyButton(text: parts.text)
+            ChatCopyButton(text: text)
             if let onRegenerate { RegenerateButton(action: onRegenerate) }
             if message.role == .assistant { timestamp }
         }
@@ -229,7 +222,7 @@ private struct ChatMessageView: View, @MainActor Equatable {
             .foregroundStyle(Theme.Colors.textTertiary)
     }
 
-    @ViewBuilder private var content: some View {
+    @ViewBuilder private func content(_ parts: Parts) -> some View {
         if message.text.isEmpty, message.searches.isEmpty, message.toolUses.isEmpty,
             message.reasoning.isEmpty, message.state == .streaming
         {
@@ -239,7 +232,7 @@ private struct ChatMessageView: View, @MainActor Equatable {
             }
             .padding(metrics.spacing.md)
         } else {
-            bubbleContent
+            bubbleContent(parts)
                 .font(metrics.typography.rowTitle)
                 .foregroundStyle(message.state == .failed ? Theme.Colors.destructive : .primary)
                 .textSelection(.enabled)
@@ -253,7 +246,7 @@ private struct ChatMessageView: View, @MainActor Equatable {
         }
     }
 
-    private var bubbleContent: some View {
+    private func bubbleContent(_ parts: Parts) -> some View {
         VStack(alignment: message.role == .user ? .trailing : .leading, spacing: metrics.spacing.sm) {
             if !message.images.isEmpty {
                 // Wider than the stack's own rhythm: two 96pt tiles at `sm` read as one blob.
@@ -273,15 +266,16 @@ private struct ChatMessageView: View, @MainActor Equatable {
             if !message.text.isEmpty || !message.searches.isEmpty || !message.toolUses.isEmpty
                 || !message.reasoning.isEmpty
             {
-                rendered
+                rendered(parts)
             }
         }
     }
 
     /// Only a reply is markdown — what the user typed is shown back exactly as they typed it.
-    @ViewBuilder private var rendered: some View {
+    @ViewBuilder private func rendered(_ parts: Parts) -> some View {
         if message.role == .assistant {
-            let references = references
+            // Read only once the reply is done: a link half-streamed is not a source yet.
+            let references = message.state == .streaming ? [] : ChatReferences.extract(from: parts.text)
             let segments = message.segments
             VStack(alignment: .leading, spacing: metrics.spacing.lg) {
                 ForEach(Array(segments.enumerated()), id: \.offset) { offset, segment in
@@ -294,7 +288,7 @@ private struct ChatMessageView: View, @MainActor Equatable {
                                     midStream: message.isArriving(segmentAt: offset, of: segments.count)),
                                 failed: message.state == .failed)
                         case .search(let search):
-                            ChatSearchRow(search: search)
+                            ChatActivityRow(search: search)
                         case .tools(let uses):
                             ChatToolRun(uses: uses)
                         case .reasoning(let block):
@@ -497,25 +491,30 @@ private struct ChatImageThumbnail: View {
     @State private var decoded: NSImage?
 
     var body: some View {
+        let key = Key(image: image, pixels: edge * displayScale)
         Group {
             if let decoded {
-                Image(nsImage: decoded)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
+                Image(nsImage: decoded).resizable().scaledToFill()
             } else {
                 Color.clear
             }
         }
         .frame(width: edge, height: edge)
         .clipShape(RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous))
-        .task(id: image) {
-            let data = image.data
-            let pixels = edge * displayScale
+        // Interface Size and the display both move the pixel target, so either redraws the tile.
+        .task(id: key) {
+            let data = key.image.data
             let thumbnail = await Task.detached(priority: .userInitiated) {
-                Self.thumbnail(of: data, filling: pixels)
+                Self.thumbnail(of: data, filling: key.pixels)
             }.value
+            guard !Task.isCancelled else { return }
             decoded = thumbnail.map { NSImage(cgImage: $0, size: .zero) } ?? NSImage(data: data)
         }
+    }
+
+    private struct Key: Hashable {
+        let image: AIImage
+        let pixels: CGFloat
     }
 
     /// The tile is filled, so the short side, not the long one, must reach the pixel size.
@@ -546,11 +545,11 @@ private struct ChatToolRun: View {
 
     var body: some View {
         if uses.count == 1, let use = uses.first {
-            ChatToolRow(use: use)
+            ChatActivityRow(use: use)
         } else {
             VStack(alignment: .leading, spacing: metrics.spacing.sm) {
                 if let running = uses.runningCall {
-                    ChatToolRow(use: running)
+                    ChatActivityRow(use: running)
                 } else {
                     Button {
                         isExpanded.toggle()
@@ -582,79 +581,62 @@ private struct ChatToolRun: View {
                     .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
                     if isExpanded {
                         VStack(alignment: .leading, spacing: metrics.spacing.sm) {
-                            ForEach(uses, id: \.callID) { use in
-                                ChatToolRow(use: use)
-                            }
+                            ForEach(uses, id: \.callID) { ChatActivityRow(use: $0) }
                         }
                         .padding(.leading, metrics.spacing.xxl)
                     }
                 }
             }
-            .animation(
-                reduceMotion ? nil : .easeOut(duration: Theme.Duration.chatFooter), value: uses
-            )
-            .animation(
-                reduceMotion ? nil : .easeOut(duration: Theme.Duration.chatFooter), value: isExpanded)
+            .animation(reduceMotion ? nil : .easeOut(duration: Theme.Duration.chatFooter), value: uses)
+            .animation(reduceMotion ? nil : .easeOut(duration: Theme.Duration.chatFooter), value: isExpanded)
         }
     }
 }
 
-/// A tool call inside a reply; the same row grammar the search one uses, with its own glyph.
-private struct ChatToolRow: View {
+/// A search or tool call inside a reply: a spinner while it runs, then its glyph and what it did.
+private struct ChatActivityRow: View {
     @Environment(\.metrics) private var metrics
-    let use: ChatToolUse
+    /// Nil while running.
+    let symbol: String?
+    var failed = false
+    let label: String
+    var detail: String?
 
-    var body: some View {
-        HStack(spacing: metrics.spacing.sm) {
-            switch use.state {
-            case .running:
-                ProgressView().controlSize(.small)
-            case .completed:
-                glyph("wrench.and.screwdriver")
-            case .failed:
-                glyph("exclamationmark.triangle")
-                    .foregroundStyle(Theme.Colors.destructive)
-            }
-            Text(use.label)
-                .font(metrics.typography.rowTrailing)
-                .lineLimit(1)
+    init(search: ChatSearch) {
+        symbol = search.isComplete ? "globe" : nil
+        label = search.isComplete ? "Searched web" : "Searching web"
+        detail = search.query?.isEmpty == false ? search.query : nil
+    }
+
+    init(use: ChatToolUse) {
+        failed = use.state == .failed
+        symbol = switch use.state {
+        case .running: nil
+        case .completed: "wrench.and.screwdriver"
+        case .failed: "exclamationmark.triangle"
         }
-        .foregroundStyle(Theme.Colors.textSecondary)
-        .animation(.easeOut(duration: Theme.Duration.chatFooter), value: use.state)
+        label = use.label
     }
-
-    /// Sized by the row's own font, like the search row beside it, not by a symbol point size.
-    private func glyph(_ name: String) -> some View {
-        Image(systemName: name)
-            .font(metrics.typography.rowTrailing)
-            .symbolRenderingMode(.hierarchical)
-    }
-}
-
-/// A web search inside a reply: live while it runs, a record of what it looked up once done.
-private struct ChatSearchRow: View {
-    @Environment(\.metrics) private var metrics
-    let search: ChatSearch
 
     var body: some View {
         HStack(spacing: metrics.spacing.sm) {
-            if search.isComplete {
-                Image(systemName: "globe")
-                    .font(metrics.typography.rowTrailing)
+            if let symbol {
+                // Sized by the row's own font, not by a symbol point size.
+                Image(systemName: symbol)
                     .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(failed ? Theme.Colors.destructive : Theme.Colors.textSecondary)
             } else {
                 ProgressView().controlSize(.small)
             }
-            Text(search.isComplete ? "Searched web" : "Searching web")
-                .font(metrics.typography.rowTrailing)
-            if let query = search.query, !query.isEmpty {
-                Text("· \(query)")
-                    .font(metrics.typography.rowTrailing)
+            Text(label).lineLimit(1)
+            if let detail {
+                Text("· \(detail)")
                     .foregroundStyle(Theme.Colors.textTertiary)
                     .lineLimit(1)
             }
         }
+        .font(metrics.typography.rowTrailing)
         .foregroundStyle(Theme.Colors.textSecondary)
-        .animation(.easeOut(duration: Theme.Duration.chatFooter), value: search.isComplete)
+        .animation(.easeOut(duration: Theme.Duration.chatFooter), value: symbol)
     }
 }

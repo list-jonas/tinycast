@@ -59,9 +59,7 @@ final class QuickAICoordinator {
         return attachPastedFile(files: files)
     }
 
-    func attachPastedFile(files: [URL]) -> Bool {
-        chatCoordinator.attachPastedFile(files: files, to: chat)
-    }
+    func attachPastedFile(files: [URL]) -> Bool { chatCoordinator.attachPastedFile(files: files, to: chat) }
 
     /// The one place deciding whether summoning resumes; Pop to Root only forgets the screen.
     private func applyOpenPolicy() {
@@ -89,9 +87,7 @@ final class QuickAICoordinator {
     }
 
     @discardableResult
-    func send(_ input: String) -> Bool {
-        chatCoordinator.send(input, in: chat)
-    }
+    func send(_ input: String) -> Bool { chatCoordinator.send(input, in: chat) }
 
     func startNewChat() {
         chat.startNewChat()
@@ -99,9 +95,7 @@ final class QuickAICoordinator {
         palette.replace(mode: .ai)
     }
 
-    func showHistory() {
-        palette.push(mode: .aiHistory)
-    }
+    func showHistory() { palette.push(mode: .aiHistory) }
 
     /// A chat the window holds opens there, since two writers would each save over the other.
     func openChat(id: UUID) {
@@ -121,13 +115,9 @@ final class QuickAICoordinator {
         chatCoordinator.showWindow()
     }
 
-    func deleteChat(id: UUID) {
-        chats.delete(id: id)
-    }
+    func deleteChat(id: UUID) { chats.delete(id: id) }
 
-    func deleteAllChats() async {
-        await chatCoordinator.deleteAllChats()
-    }
+    func deleteAllChats() async { await chatCoordinator.deleteAllChats() }
 
     /// The window takes the conversation over; the palette closes behind it, as Settings' does.
     func continueInChat() {
@@ -137,28 +127,16 @@ final class QuickAICoordinator {
         chatCoordinator.continueInWindow(draft: draft)
     }
 
-    func stopResponse() {
-        chatCoordinator.stopResponse(in: chat)
-    }
+    func stopResponse() { chatCoordinator.stopResponse(in: chat) }
 
-    func regenerate() {
-        chatCoordinator.regenerate(in: chat)
-    }
+    func regenerate() { chatCoordinator.regenerate(in: chat) }
 
-    func copyLastResponse() {
-        chatCoordinator.copyLastResponse(in: chat)
-    }
+    func copyLastResponse() { chatCoordinator.copyLastResponse(in: chat) }
 
     /// Backspace on an empty composer takes the last staged image before it backs out of chat.
-    func removeLastAttachment() -> Bool {
-        chat.removeLastAttachment()
-    }
+    func removeLastAttachment() -> Bool { chat.removeLastAttachment() }
 
-    func clearAttachments() {
-        chat.clearAttachments()
-    }
+    func clearAttachments() { chat.clearAttachments() }
 
-    func removeAttachment(_ id: UUID) {
-        chat.removeAttachment(id)
-    }
+    func removeAttachment(_ id: UUID) { chat.removeAttachment(id) }
 }

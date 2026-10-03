@@ -118,9 +118,7 @@ private struct ChatHistoryRow: View {
         }
         .padding(.horizontal, metrics.spacing.md)
         .padding(.vertical, metrics.spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous).fill(fill)
-        )
+        .background(RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous).fill(fill))
         .armedHover($hovered)
     }
 }
@@ -138,9 +136,7 @@ struct ChatHistoryPreview: View {
                     messages: chat.session.messages, status: chat.liveStatus, usage: chat.usage,
                     surface: .palette)
             } else if let session {
-                ChatTranscriptView(
-                    messages: session.messages, status: nil, usage: nil,
-                    surface: .palette)
+                ChatTranscriptView(messages: session.messages, status: nil, usage: nil, surface: .palette)
             } else if conversationID != nil {
                 ProgressView().controlSize(.small)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -152,7 +148,8 @@ struct ChatHistoryPreview: View {
             session = nil
             guard let conversationID else { return }
             guard conversationID != chat.session.id || chat.session.messages.isEmpty else { return }
-            session = history.session(id: conversationID)
+            let loaded = await history.loadSession(id: conversationID)
+            if !Task.isCancelled { session = loaded }
         }
     }
 }

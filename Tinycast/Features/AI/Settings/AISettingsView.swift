@@ -19,9 +19,7 @@ struct AISettingsView: View {
                         anchor: .aiAI, title: "Enable AI",
                         subtitle: "Nothing is loaded or sent while it is off.")
                 }
-                SettingsRow(
-                    title: "Providers", subtitle: providerSummary, anchor: .aiProviders
-                ) {
+                SettingsRow(title: "Providers", subtitle: providerSummary, anchor: .aiProviders) {
                     Button("Manage…") { providersPresented = true }
                 }
             } header: {
@@ -45,9 +43,7 @@ struct AISettingsView: View {
         .settingsEditorPanel(isPresented: $providersPresented) {
             AIProvidersPanel(onDone: { providersPresented = false })
         }
-        .onAppear {
-            core.applyInstalledAILifecycle()
-        }
+        .onAppear { core.applyInstalledAILifecycle() }
         // Switched on with the pane already open, provider status would otherwise stay empty.
         .onChange(of: appSettings.aiEnabled) { core.applyInstalledAILifecycle() }
         .onChange(of: settings.enabledInstalledProviders) {
@@ -69,13 +65,8 @@ struct AISettingsView: View {
             AIModelSelectionRows(
                 selection: settings.defaultModel,
                 select: { $0.map(settings.select) },
-                modelLabel: {
-                    SettingsRowTitle(.aiDefault, "Default model")
-                },
-                effortLabel: {
-                    SettingsRowTitle(.aiDefault, "Reasoning effort")
-                }
-            )
+                modelLabel: { SettingsRowTitle(.aiDefault, "Default model") },
+                effortLabel: { SettingsRowTitle(.aiDefault, "Reasoning effort") })
         } header: {
             SettingsSectionHeader(.aiDefault)
         } footer: {
@@ -102,8 +93,7 @@ struct AISettingsView: View {
     private var providerSummary: String {
         var providers: [String] = []
         if subscription.isConnected { providers.append("Codex") }
-        for kind in InstalledAIKind.managedCLIKinds
-        where installedAI.status(for: kind).isReady {
+        for kind in InstalledAIKind.managedCLIKinds where installedAI.status(for: kind).isReady {
             providers.append(kind.title)
         }
         if !settings.connections.isEmpty {

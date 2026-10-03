@@ -514,9 +514,7 @@ private struct TeXReader {
         "Vmatrix": ("‖", "‖"), "cases": ("{", ""), "dcases": ("{", ""), "rcases": ("", "}")
     ]
 
-    private static func tableLayout(
-        _ name: String, columns: [MathNode.Table.Alignment]?
-    ) throws
+    private static func tableLayout(_ name: String, columns: [MathNode.Table.Alignment]?) throws
         -> (alignments: [MathNode.Table.Alignment], gaps: [Double], style: MathNode.Style)
     {
         switch name {

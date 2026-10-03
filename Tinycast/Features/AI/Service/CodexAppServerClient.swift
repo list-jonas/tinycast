@@ -143,16 +143,13 @@ final class CodexAppServerClient {
             throw ClientError.launchFailed("Two MCP servers' secrets would share one variable.")
         }
         do {
-            try FileManager.default.createDirectory(
-                at: workspace, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
             if let codexHome {
-                try FileManager.default.createDirectory(
-                    at: codexHome, withIntermediateDirectories: true)
+                try FileManager.default.createDirectory(at: codexHome, withIntermediateDirectories: true)
                 try FileManager.default.setAttributes(
                     [.posixPermissions: 0o700], ofItemAtPath: codexHome.path)
             }
-            try FileManager.default.setAttributes(
-                [.posixPermissions: 0o700], ofItemAtPath: workspace.path)
+            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: workspace.path)
         } catch {
             throw ClientError.launchFailed("Its private support folder could not be prepared.")
         }
@@ -160,8 +157,7 @@ final class CodexAppServerClient {
         // Unread, the reader's servers would start inside the chat; so Codex does not start either.
         guard
             let foreign = await Self.foreignServerNames(
-                executable: executable, workspace: workspace, codexHome: codexHome,
-                inherited: inherited)
+                executable: executable, workspace: workspace, codexHome: codexHome, inherited: inherited)
         else {
             throw ClientError.launchFailed(
                 "Tinycast could not read which MCP servers your Codex configuration runs, so it "
@@ -186,8 +182,7 @@ final class CodexAppServerClient {
         let stderr = Pipe()
         process.executableURL = executable
         process.arguments =
-            Self.configurationFlags
-            + CodexMCPLaunch.arguments(servers: toolServers, disabling: foreign)
+            Self.configurationFlags + CodexMCPLaunch.arguments(servers: toolServers, disabling: foreign)
             + ["app-server"]
         process.currentDirectoryURL = workspace
         var environment = ExecutableLocator.environment(
@@ -268,9 +263,7 @@ final class CodexAppServerClient {
                 }
             }
         } onCancel: { [weak self] in
-            Task { @MainActor in
-                self?.finishRequest(id, with: .failure(CancellationError()))
-            }
+            Task { @MainActor in self?.finishRequest(id, with: .failure(CancellationError())) }
         }
     }
 
@@ -289,9 +282,7 @@ final class CodexAppServerClient {
 
     /// A `stop` that landed while a launch was reading the list outranks the launch.
     private func checkNotStopped(since generation: Int) throws {
-        guard generation == self.generation else {
-            throw ClientError.processExited("Codex stopped.")
-        }
+        guard generation == self.generation else { throw ClientError.processExited("Codex stopped.") }
     }
 
     /// Closing stdin is the clean exit — the server leaves on EOF — and SIGTERM is the backstop.
@@ -312,11 +303,12 @@ final class CodexAppServerClient {
 
     private func consumeOutput(_ data: Data) {
         outputBuffer.append(data)
-        while let newline = outputBuffer.firstIndex(of: 0x0A) {
-            let line = outputBuffer[..<newline]
-            outputBuffer.removeSubrange(...newline)
-            guard !line.isEmpty else { continue }
-            handle(CodexAppServerProtocol.parse(Data(line)))
+        if let last = outputBuffer.lastIndex(of: 0x0A) {
+            let lines = outputBuffer[..<last].split(separator: 0x0A)
+            outputBuffer.removeSubrange(...last)
+            // A line can stop or replace the process; the rest belonged to the one that is gone.
+            let owner = processID
+            for line in lines where processID == owner { handle(CodexAppServerProtocol.parse(Data(line))) }
         }
         // An unterminated multi-megabyte line means whatever is talking is not the app server.
         guard outputBuffer.count > Self.outputLimit else { return }
@@ -346,8 +338,7 @@ final class CodexAppServerClient {
                 let action: CodexElicitation.Action =
                     await onElicitation(elicitation) ? .accept : .decline
                 // `persist` is never answered: only Settings may change a standing decision.
-                try? self?.send(
-                    CodexAppServerProtocol.response(id: id, result: ["action": action.rawValue]))
+                try? self?.send(CodexAppServerProtocol.response(id: id, result: ["action": action.rawValue]))
             }
             elicitations.append((elicitation.threadID, task))
         case .invalid:
@@ -361,21 +352,15 @@ final class CodexAppServerClient {
         case "item/commandExecution/requestApproval", "item/fileChange/requestApproval":
             result = ["decision": "cancel"]
         case "item/permissions/requestApproval":
-            result = [
-                "permissions": [
-                    "fileSystem": ["entries": []],
-                    "network": ["enabled": false]
-                ]
-            ]
+            result = ["permissions": ["fileSystem": ["entries": []], "network": ["enabled": false]]]
         case "tool/requestUserInput":
             result = ["answers": [:]]
         case "mcpServer/elicitation/request":
             // A form, or a call on a turn that armed nothing: neither is a question Tinycast asks.
             result = ["action": CodexElicitation.Action.decline.rawValue]
         default:
-            try? send(
-                CodexAppServerProtocol.errorResponse(
-                    id: id, message: "Tinycast does not expose Codex tools."))
+            let refusal = "Tinycast does not expose Codex tools."
+            try? send(CodexAppServerProtocol.errorResponse(id: id, message: refusal))
             return
         }
         try? send(CodexAppServerProtocol.response(id: id, result: result))

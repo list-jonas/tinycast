@@ -247,7 +247,9 @@ bottom with the model picker. ⌘J hands a Quick AI conversation to the window.
   third setting for "immediately" because that *is* `A New Conversation` — two controls able to
   express one state would only ever disagree.
 - **History is local and lazy.** Conversation summaries stay in memory while transcripts load from the
-  system SQLite database only for the opened chat. Empty chats are never saved.
+  system SQLite database only for the opened chat. Empty chats are never saved. Quick AI's History
+  preview reads off the main actor on a read-only handle of its own (`loadSession(id:)`), which WAL
+  lets run beside a save, so arrowing through the list never waits on a transcript's images.
 - **A rename and a pin are the reader's, and nothing derived overwrites them.** Both live in
   `conversation_details` beside `conversations`, whose `title` stays the first question: every save
   rewrites that summary, so a rename stored there would be undone by the next turn. A blank rename

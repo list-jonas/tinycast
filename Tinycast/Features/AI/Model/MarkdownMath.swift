@@ -67,8 +67,7 @@ enum MarkdownMath {
                 continue
             }
             flush()
-            pieces.append(
-                .math(tex: tex, display: opener.display, source: String(characters[index..<end])))
+            pieces.append(.math(tex: tex, display: opener.display, source: String(characters[index..<end])))
             index = end
         }
         flush()
@@ -82,9 +81,7 @@ enum MarkdownMath {
     }
 
     /// Pandoc's rule, which keeps "$5 and $10" prose: `$x$` hugs its content, no digit after.
-    private static func isInlineDollar(
-        _ tex: String, followedBy end: Int, in characters: [Character]
-    )
+    private static func isInlineDollar(_ tex: String, followedBy end: Int, in characters: [Character])
         -> Bool
     {
         guard let first = tex.first, let last = tex.last, !first.isWhitespace, !last.isWhitespace
@@ -93,9 +90,7 @@ enum MarkdownMath {
     }
 
     /// The first unescaped closer, short of any code span: a lone `$` pairs with the very next one.
-    private static func closer(
-        _ closer: [Character], from start: Int, in characters: [Character]
-    )
+    private static func closer(_ closer: [Character], from start: Int, in characters: [Character])
         -> Int?
     {
         var index = start

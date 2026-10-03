@@ -59,9 +59,7 @@ struct AIProviderAdvancedSection: View {
                 Text("Variables")
                 Text("Set for \(kind.title) only, each time it starts.")
             }
-            ForEach($variables) { $variable in
-                variableRow($variable)
-            }
+            ForEach($variables) { variableRow($0) }
         } header: {
             Text("Environment")
         } footer: {
@@ -91,11 +89,8 @@ struct AIProviderAdvancedSection: View {
                 .font(.callout.monospaced())
                 .focused($focus, equals: .value(draft.id))
                 .onSubmit(save)
-                Button {
-                    remove(draft.id)
-                } label: {
-                    Image(systemName: "minus.circle")
-                        .foregroundStyle(.secondary)
+                Button(action: { remove(draft.id) }) {
+                    Image(systemName: "minus.circle").foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
                 .help("Remove")
@@ -130,9 +125,7 @@ struct AIProviderAdvancedSection: View {
     private func load() {
         path = settings.override(for: kind).commandPath
         do {
-            variables = try settings.environment(for: kind).map {
-                Draft(name: $0.name, value: $0.value)
-            }
+            variables = try settings.environment(for: kind).map { Draft(name: $0.name, value: $0.value) }
             readFailed = false
         } catch {
             variables = []
@@ -148,8 +141,7 @@ struct AIProviderAdvancedSection: View {
         do {
             try settings.setEnvironment(
                 variables.map {
-                    InstalledAIVariable(
-                        name: $0.name.trimmingCharacters(in: .whitespaces), value: $0.value)
+                    InstalledAIVariable(name: $0.name.trimmingCharacters(in: .whitespaces), value: $0.value)
                 }, for: kind)
             saveFailed = false
         } catch {
@@ -169,9 +161,7 @@ struct AIProviderAdvancedSection: View {
     }
 
     private func choose() {
-        let start =
-            detected?.deletingLastPathComponent()
-            ?? FileManager.default.homeDirectoryForCurrentUser
+        let start = detected?.deletingLastPathComponent() ?? FileManager.default.homeDirectoryForCurrentUser
         guard
             let url = ExecutablePicker.choose(
                 message: "Choose the \(kind.command) command Tinycast should run.",

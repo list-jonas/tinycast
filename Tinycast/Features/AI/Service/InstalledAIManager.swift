@@ -36,8 +36,7 @@ final class InstalledAIManager {
     }
 
     init(supportDirectory: URL = AppPaths.applicationSupport()) {
-        workspace = supportDirectory.appending(
-            path: "InstalledAI/Workspace", directoryHint: .isDirectory)
+        workspace = supportDirectory.appending(path: "InstalledAI/Workspace", directoryHint: .isDirectory)
         let workspace = workspace
         let launch = Date()
         Task.detached(priority: .utility) {
@@ -46,9 +45,7 @@ final class InstalledAIManager {
     }
 
     /// A turn deletes its own files as it ends, so any older than this launch outlived a crash.
-    nonisolated private static func removeStaleTurnFiles(
-        in workspace: URL, olderThan launch: Date
-    ) {
+    nonisolated private static func removeStaleTurnFiles(in workspace: URL, olderThan launch: Date) {
         let fileManager = FileManager.default
         guard
             let files = try? fileManager.contentsOfDirectory(
@@ -99,9 +96,9 @@ final class InstalledAIManager {
         let launch = launchSettings(kind)
         let task = Task { [weak self] in
             guard let self else { return }
-            let result = await Self.probe(kind, launch: launch, workspace: workspace)
+            let status = await Self.probe(kind, launch: launch, workspace: workspace)
             guard !Task.isCancelled else { return }
-            self.statuses[result.0] = result.1
+            self.statuses[kind] = status
         }
         refreshTasks[kind] = task
         return task
@@ -198,38 +195,30 @@ final class InstalledAIManager {
 
     nonisolated private static func probe(
         _ kind: InstalledAIKind, launch: InstalledAILaunch, workspace: URL
-    ) async -> (InstalledAIKind, InstalledAIStatus) {
+    ) async -> InstalledAIStatus {
         let executable: URL
         switch await command(for: kind, launch: launch) {
         case .found(let url): executable = url
-        case .unavailable(let phase): return (kind, InstalledAIStatus(phase: phase))
+        case .unavailable(let phase): return InstalledAIStatus(phase: phase)
         }
         let environment = ExecutableLocator.environment(
             running: executable, inherited: launch.inherited(for: kind))
-        let versionResult = await InstalledAIProbe.run(
-            executable: executable, arguments: ["--version"], workspace: workspace,
-            environment: environment)
+        func run(_ arguments: [String]) async -> InstalledAIProbe.Result {
+            await InstalledAIProbe.run(
+                executable: executable, arguments: arguments, workspace: workspace, environment: environment)
+        }
+        let versionResult = await run(["--version"])
         guard versionResult.status == 0 else {
-            return (
-                kind,
-                InstalledAIStatus(
-                    phase: .failed("The installed command could not run."),
-                    executable: executable)
-            )
+            return InstalledAIStatus(
+                phase: .failed("The installed command could not run."), executable: executable)
         }
         let version = InstalledAIProbe.version(in: versionResult.output)
+        let signedOut = InstalledAIStatus(phase: .signInRequired, version: version, executable: executable)
         switch kind {
         case .claude:
-            let auth = await InstalledAIProbe.run(
-                executable: executable, arguments: ["auth", "status", "--json"],
-                workspace: workspace, environment: environment)
-            let loggedIn = InstalledAIProbe.loggedIn(inStatusJSON: auth.output)
-            guard auth.status == 0, loggedIn else {
-                return (
-                    kind,
-                    InstalledAIStatus(
-                        phase: .signInRequired, version: version, executable: executable)
-                )
+            let auth = await run(["auth", "status", "--json"])
+            guard auth.status == 0, InstalledAIProbe.loggedIn(inStatusJSON: auth.output) else {
+                return signedOut
             }
             // No prompt follows the request, so the CLI answers and exits without calling a model.
             let catalog = await InstalledAIProbe.run(
@@ -239,65 +228,37 @@ final class InstalledAIManager {
                 // The reader's SessionStart hooks run before the CLI answers, however slow.
                 timeout: .seconds(30))
             let models = InstalledAIModel.claudeCatalog(catalog.output)
-            return (
-                kind,
-                InstalledAIStatus(
-                    phase: models.isEmpty
-                        ? .failed("Claude listed no models. Update Claude Code, then Check Again.")
-                        : .ready,
-                    version: version, executable: executable, models: models,
-                    account: InstalledAIModel.claudeAccount(catalog.output))
-            )
+            return InstalledAIStatus(
+                phase: models.isEmpty
+                    ? .failed("Claude listed no models. Update Claude Code, then Check Again.") : .ready,
+                version: version, executable: executable, models: models,
+                account: InstalledAIModel.claudeAccount(catalog.output))
         case .openCode:
-            let models = await InstalledAIProbe.run(
-                executable: executable, arguments: ["models", "--pure", "--verbose"],
-                workspace: workspace, environment: environment)
+            let models = await run(["models", "--pure", "--verbose"])
             let catalog = InstalledAIModel.openCodeCatalog(models.output)
-            return (
-                kind,
-                InstalledAIStatus(
-                    phase: models.status == 0 && !catalog.isEmpty ? .ready : .signInRequired,
-                    version: version, executable: executable, models: catalog)
-            )
+            return InstalledAIStatus(
+                phase: models.status == 0 && !catalog.isEmpty ? .ready : .signInRequired,
+                version: version, executable: executable, models: catalog)
         case .grok:
-            let models = await InstalledAIProbe.run(
-                executable: executable, arguments: ["models"], workspace: workspace, environment: environment)
+            let models = await run(["models"])
             let catalog = InstalledAIModel.grokCatalog(models.output)
             let signedIn = models.status == 0 && InstalledAIModel.grokSignedIn(models.output)
-            return (
-                kind,
-                InstalledAIStatus(
-                    phase: signedIn && !catalog.isEmpty ? .ready : .signInRequired,
-                    version: version, executable: executable,
-                    models: signedIn ? catalog : [])
-            )
+            return InstalledAIStatus(
+                phase: signedIn && !catalog.isEmpty ? .ready : .signInRequired,
+                version: version, executable: executable, models: signedIn ? catalog : [])
         case .cursor:
-            let auth = await InstalledAIProbe.run(
-                executable: executable, arguments: ["status", "--format", "json"],
-                workspace: workspace, environment: environment)
-            let loggedIn = InstalledAIProbe.loggedIn(inStatusJSON: auth.output)
-            guard auth.status == 0, loggedIn else {
-                return (
-                    kind,
-                    InstalledAIStatus(
-                        phase: .signInRequired, version: version, executable: executable)
-                )
+            let auth = await run(["status", "--format", "json"])
+            guard auth.status == 0, InstalledAIProbe.loggedIn(inStatusJSON: auth.output) else {
+                return signedOut
             }
-            let models = await InstalledAIProbe.run(
-                executable: executable, arguments: ["--list-models"], workspace: workspace,
-                environment: environment)
+            let models = await run(["--list-models"])
             let catalog = InstalledAIModel.cursorCatalog(models.output)
-            return (
-                kind,
-                InstalledAIStatus(
-                    phase: models.status == 0 && !catalog.isEmpty
-                        ? .ready
-                        : .failed(
-                            "Cursor returned no models."),
-                    version: version, executable: executable, models: catalog)
-            )
+            return InstalledAIStatus(
+                phase: models.status == 0 && !catalog.isEmpty
+                    ? .ready : .failed("Cursor returned no models."),
+                version: version, executable: executable, models: catalog)
         case .codex:
-            return (kind, InstalledAIStatus(phase: .idle))
+            return InstalledAIStatus(phase: .idle)
         }
     }
 }

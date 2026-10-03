@@ -13,7 +13,11 @@ struct AIModelSelectionRows<ModelLabel: View, EffortLabel: View>: View {
     @ViewBuilder let effortLabel: () -> EffortLabel
 
     var body: some View {
-        if modelGroups.isEmpty {
+        let groups = AIModelOption.availableGroups(
+            settings: settings, subscription: subscription, installedAI: installedAI)
+        let efforts = AIModelOption.efforts(
+            for: selection, settings: settings, subscription: subscription, installedAI: installedAI)
+        if groups.isEmpty {
             Label("No AI provider configured", systemImage: "sparkles")
                 .foregroundStyle(.secondary)
         } else {
@@ -22,11 +26,9 @@ struct AIModelSelectionRows<ModelLabel: View, EffortLabel: View>: View {
                     Text(inheritedTitle).tag(AIModelSelection?.none)
                     Divider()
                 }
-                ForEach(modelGroups) { group in
+                ForEach(groups) { group in
                     Section(group.title) {
-                        ForEach(group.options) { option in
-                            Text(option.title).tag(Optional(option.selection))
-                        }
+                        ForEach(group.options) { Text($0.title).tag(Optional($0.selection)) }
                     }
                 }
             } label: {
@@ -34,25 +36,12 @@ struct AIModelSelectionRows<ModelLabel: View, EffortLabel: View>: View {
             }
             if !efforts.isEmpty {
                 Picker(selection: effortBinding) {
-                    ForEach(efforts) { effort in
-                        Text(effort.title).tag(effort.id)
-                    }
+                    ForEach(efforts) { Text($0.title).tag($0.id) }
                 } label: {
                     effortLabel()
                 }
             }
         }
-    }
-
-    private var modelGroups: [AIModelOptionGroup] {
-        AIModelOption.availableGroups(
-            settings: settings, subscription: subscription, installedAI: installedAI)
-    }
-
-    private var efforts: [ChatGPTSubscription.Effort] {
-        AIModelOption.efforts(
-            for: selection, settings: settings, subscription: subscription,
-            installedAI: installedAI)
     }
 
     private var modelBinding: Binding<AIModelSelection?> {
@@ -62,8 +51,7 @@ struct AIModelSelectionRows<ModelLabel: View, EffortLabel: View>: View {
                 select(
                     value.map {
                         AIModelOption.withDefaultEffort(
-                            $0, settings: settings, subscription: subscription,
-                            installedAI: installedAI)
+                            $0, settings: settings, subscription: subscription, installedAI: installedAI)
                     })
             })
     }

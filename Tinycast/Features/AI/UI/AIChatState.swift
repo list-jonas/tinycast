@@ -50,11 +50,10 @@ final class AIChatState {
             ChatMessage(
                 role: .user, text: text, images: pendingAttachments.compactMap(\.image),
                 documents: pendingAttachments.compactMap(\.document), toolScope: toolScope))
-        clearStaging()
+        clearAttachments()
         if let model { session.model = model }
         startReply(
-            using: provider, webSearch: webSearch, instructions: instructions,
-            contextBudget: contextBudget)
+            using: provider, webSearch: webSearch, instructions: instructions, contextBudget: contextBudget)
         return true
     }
 
@@ -74,8 +73,7 @@ final class AIChatState {
         notice = nil
         if let model { session.model = model }
         startReply(
-            using: provider, webSearch: webSearch, instructions: instructions,
-            contextBudget: contextBudget)
+            using: provider, webSearch: webSearch, instructions: instructions, contextBudget: contextBudget)
         return true
     }
 
@@ -83,8 +81,8 @@ final class AIChatState {
         using provider: any AIProvider, webSearch: Bool, instructions: String?, contextBudget: Int
     ) {
         let request = AIRequest(
-            instructions: instructions,
-            messages: session.requestMessages(textBudget: contextBudget), webSearch: webSearch)
+            instructions: instructions, messages: session.requestMessages(textBudget: contextBudget),
+            webSearch: webSearch)
         session.append(ChatMessage(role: .assistant, text: "", state: .streaming))
         isStreaming = true
         isThinking = false
@@ -94,23 +92,18 @@ final class AIChatState {
         replyGeneration += 1
         let generation = replyGeneration
         replyTask = Task { [weak self, provider] in
+            var failure = "The response ended unexpectedly."
             do {
                 for try await event in provider.stream(request) {
-                    guard let self, !Task.isCancelled, self.replyGeneration == generation else {
-                        return
-                    }
+                    guard let self, !Task.isCancelled, self.replyGeneration == generation else { return }
                     self.receive(event)
                 }
-                guard let self, !Task.isCancelled, self.replyGeneration == generation,
-                    self.isStreaming
-                else { return }
-                self.finishLast(state: .failed, fallback: "The response ended unexpectedly.")
             } catch {
-                guard let self, !Task.isCancelled, self.replyGeneration == generation,
-                    self.isStreaming
-                else { return }
-                self.finishLast(state: .failed, fallback: error.localizedDescription)
+                failure = error.localizedDescription
             }
+            guard let self, !Task.isCancelled, self.replyGeneration == generation, self.isStreaming
+            else { return }
+            self.finishLast(state: .failed, fallback: failure)
         }
     }
 
@@ -145,10 +138,6 @@ final class AIChatState {
     }
 
     func clearAttachments() {
-        clearStaging()
-    }
-
-    private func clearStaging() {
         pendingAttachments = []
         stagingGeneration += 1
     }
@@ -172,7 +161,7 @@ final class AIChatState {
         cancel()
         self.session = session
         notice = nil
-        clearStaging()
+        clearAttachments()
     }
 
     /// Staged images belong to the conversation they were picked in; leaving it drops them.
@@ -202,6 +191,8 @@ final class AIChatState {
     /// The line shown in the empty streaming bubble while nothing has arrived yet.
     var liveStatus: String? { isThinking ? "Thinking…" : nil }
 
+    var canRegenerate: Bool { !isStreaming && session.messages.last?.role == .assistant }
+
     var lastAssistantText: String? {
         session.messages.last(where: { $0.role == .assistant && !$0.text.isEmpty })?.text
     }
@@ -213,7 +204,8 @@ final class AIChatState {
             if isThinking { isThinking = false }
             // Buffered in order: thinking before this text must land before it, not after.
             if !pendingReasoning.isEmpty { flushPendingText() }
-            queueDelta(text)
+            pendingText += text
+            scheduleFlush()
         case .thinking:
             isThinking = true
         case .reasoning(let text):
@@ -237,7 +229,7 @@ final class AIChatState {
                 if let index = message.searches.lastIndex(where: { !$0.isComplete }) {
                     message.searches[index].query = message.searches[index].query ?? query
                 }
-                message.searches = message.searches.map { Self.completed($0) }
+                Self.completeSearches(in: &message)
             }
         case .toolCall(let id, let origin, let title):
             flushPendingText()
@@ -271,11 +263,6 @@ final class AIChatState {
     }
 
     /// A due leading flush keeps the first token instant; the trailing task coalesces the rest.
-    private func queueDelta(_ text: String) {
-        pendingText += text
-        scheduleFlush()
-    }
-
     private func scheduleFlush() {
         guard flushTask == nil else { return }
         if ContinuousClock().now - lastFlush >= Self.flushInterval { flushPendingText() }
@@ -298,7 +285,7 @@ final class AIChatState {
         pendingReasoning = ""
         if !pendingText.isEmpty {
             // Text after a search means the search is over, whether or not the route says so.
-            message.searches = message.searches.map { Self.completed($0) }
+            Self.completeSearches(in: &message)
             // The answer resuming is where that stretch of thinking ended.
             closeReasoning(in: &message)
         }
@@ -326,9 +313,11 @@ final class AIChatState {
         }
         message.state = state
         closeReasoning(in: &message)
-        message.searches = message.searches.map { Self.completed($0) }
+        Self.completeSearches(in: &message)
         // A call still running when the turn ends never reported back, whatever ended the turn.
-        message.toolUses = message.toolUses.map { Self.settled($0) }
+        for index in message.toolUses.indices where message.toolUses[index].state == .running {
+            message.toolUses[index].state = .failed
+        }
         session.replaceLast(with: message)
         history.save(session)
         isStreaming = false
@@ -359,20 +348,9 @@ final class AIChatState {
         message.reasoning[message.reasoning.count - 1].duration = Date().timeIntervalSince(started)
         reasoningStartedAt = nil
     }
-}
 
-extension AIChatState {
-    fileprivate static func completed(_ search: ChatSearch) -> ChatSearch {
-        var search = search
-        search.isComplete = true
-        return search
-    }
-
-    fileprivate static func settled(_ use: ChatToolUse) -> ChatToolUse {
-        guard use.state == .running else { return use }
-        var use = use
-        use.state = .failed
-        return use
+    private static func completeSearches(in message: inout ChatMessage) {
+        for index in message.searches.indices { message.searches[index].isComplete = true }
     }
 }
 

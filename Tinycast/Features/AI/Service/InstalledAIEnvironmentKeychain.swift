@@ -5,24 +5,21 @@ extension InstalledAIEnvironmentStore {
     static let keychain = InstalledAIEnvironmentStore(
         values: { kind in
             guard
-                let stored = try KeychainSecretStore.installedAIEnvironment.secret(
-                    for: kind.keychainAccount)
+                let stored = try KeychainSecretStore.installedAIEnvironment.secret(for: kind.keychainAccount)
             else { return [:] }
             let values = try? JSONDecoder().decode([String: String].self, from: Data(stored.utf8))
             return values ?? [:]
         },
         save: { values, kind in
             guard !values.isEmpty else {
-                try KeychainSecretStore.installedAIEnvironment.removeSecret(
-                    for: kind.keychainAccount)
+                try KeychainSecretStore.installedAIEnvironment.removeSecret(for: kind.keychainAccount)
                 return
             }
             let data = try JSONEncoder().encode(values)
             guard let encoded = String(bytes: data, encoding: .utf8) else {
                 throw KeychainSecretStore.StoreError.invalidEncoding
             }
-            try KeychainSecretStore.installedAIEnvironment.setSecret(
-                encoded, for: kind.keychainAccount)
+            try KeychainSecretStore.installedAIEnvironment.setSecret(encoded, for: kind.keychainAccount)
         })
 }
 

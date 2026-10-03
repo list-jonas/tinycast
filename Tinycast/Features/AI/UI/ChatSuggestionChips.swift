@@ -47,9 +47,7 @@ struct ChatFlowLayout: Layout {
         return CGSize(width: min(widest, width), height: height)
     }
 
-    func placeSubviews(
-        in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()
-    ) {
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         var y = bounds.minY
         for row in arrange(subviews, width: bounds.width) {
             var x = bounds.minX

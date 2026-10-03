@@ -113,7 +113,7 @@ final class ChatHistoryStore {
     }
 
     func load() {
-        guard ensureDatabase() else { return }
+        guard let db = open() else { return }
         let sql = """
             SELECT c.id, c.title, c.preview, c.created_at, c.updated_at, c.message_count,
               m.custom_title, COALESCE(m.pinned, 0), m.generated_title
@@ -122,14 +122,14 @@ final class ChatHistoryStore {
             ORDER BY c.updated_at DESC;
             """
         var loaded: [ChatConversation] = []
-        let read = query(sql, []) { row in
-            guard let id = UUID(uuidString: Self.text(row, 0)) else { return }
+        let read = db.query(sql, []) { row in
+            guard let id = UUID(uuidString: row.text(0)) else { return }
             loaded.append(
                 ChatConversation(
-                    id: id, title: Self.text(row, 1), preview: Self.text(row, 2),
-                    createdAt: Self.date(row, 3), updatedAt: Self.date(row, 4),
-                    messageCount: Self.int(row, 5) ?? 0, customTitle: Self.optionalText(row, 6),
-                    isPinned: Self.int(row, 7) != 0, generatedTitle: Self.optionalText(row, 8)))
+                    id: id, title: row.text(1), preview: row.text(2), createdAt: row.date(3),
+                    updatedAt: row.date(4), messageCount: row.int(5) ?? 0,
+                    customTitle: row.optionalText(6), isPinned: row.int(7) != 0,
+                    generatedTitle: row.optionalText(8)))
         }
         if read { conversations = loaded }
     }
@@ -158,17 +158,14 @@ final class ChatHistoryStore {
     func rename(id: UUID, to title: String) {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let custom = trimmed.isEmpty ? nil : String(trimmed.prefix(Self.titleLimit))
-        guard var conversation = conversation(id: id),
-            write(.customTitle(custom), of: id)
-        else { return }
+        guard var conversation = conversation(id: id), write(.customTitle(custom), of: id) else { return }
         conversation.customTitle = custom
         replace(conversation)
     }
 
     /// The harness's name for a chat; stored beside it, so a later save cannot derive it away.
     func setGeneratedTitle(_ title: String, id: UUID) {
-        guard var conversation = conversation(id: id), write(.generatedTitle(title), of: id)
-        else { return }
+        guard var conversation = conversation(id: id), write(.generatedTitle(title), of: id) else { return }
         conversation.generatedTitle = title
         replace(conversation)
     }
@@ -184,108 +181,28 @@ final class ChatHistoryStore {
     private static let titleLimit = 120
 
     func session(id: UUID) -> ChatSession? {
-        guard ensureDatabase() else { return nil }
-        let key = SQLValue.text(id.uuidString)
-        var dates: (created: Date, updated: Date)?
-        query("SELECT created_at, updated_at FROM conversations WHERE id = ? LIMIT 1;", [key]) {
-            dates = (Self.date($0, 0), Self.date($0, 1))
-        }
-        guard let dates else { return nil }
-        let images = children(
-            "SELECT i.message_id, i.mime_type, i.data FROM message_images i", of: id, order: "i"
-        ) { row in Self.blob(row, 2).map { AIImage(data: $0, mimeType: Self.text(row, 1)) } }
-        let documents = children(
-            "SELECT d.message_id, d.name, d.mime_type, d.data FROM message_documents d", of: id,
-            order: "d"
-        ) { row in
-            Self.blob(row, 3).map {
-                AIDocument(data: $0, mimeType: Self.text(row, 2), name: Self.text(row, 1))
-            }
-        }
-        // A stored search is always finished: only a live reply has one in progress.
-        let searches = children(
-            "SELECT s.message_id, s.query, s.text_offset, s.position FROM message_searches s",
-            of: id, order: "s"
-        ) { row in
-            ChatSearch(
-                query: Self.optionalText(row, 1), isComplete: true,
-                textOffset: Self.int(row, 2) ?? 0, sequence: Self.int(row, 3) ?? 0)
-        }
-        // A call left running belonged to a process that is gone, so it never reported back.
-        let toolUses = children(
-            """
-            SELECT t.message_id, t.call_id, t.origin, t.title, t.state, t.text_offset, t.position
-            FROM message_tools t
-            """, of: id, order: "t"
-        ) { row in
-            let stored = ChatToolUse.State(rawValue: Self.text(row, 4)) ?? .failed
-            return ChatToolUse(
-                callID: Self.text(row, 1), origin: Self.text(row, 2), title: Self.text(row, 3),
-                state: stored == .running ? .failed : stored, textOffset: Self.int(row, 5) ?? 0,
-                sequence: Self.int(row, 6) ?? 0)
-        }
-        let reasoning = children(
-            "SELECT r.message_id, r.text, r.text_offset, r.duration FROM message_thinking r",
-            of: id, order: "r"
-        ) { row in
-            ChatReasoning(
-                text: Self.text(row, 1), textOffset: Self.int(row, 2) ?? 0,
-                duration: Self.real(row, 3))
-        }
-        // A row with no usage column set is a scope alone: the reply reported nothing.
-        let meta = children(
-            """
-            SELECT x.message_id, x.tool_scope, x.input_tokens, x.output_tokens, x.cached_tokens,
-              x.reasoning_tokens, x.context_window, x.cost_usd
-            FROM message_details x
-            """, of: id, order: nil
-        ) { row -> (toolScope: String?, usage: AIUsage?) in
-            let usage = AIUsage(
-                inputTokens: Self.int(row, 2), outputTokens: Self.int(row, 3),
-                cachedInputTokens: Self.int(row, 4), reasoningTokens: Self.int(row, 5),
-                contextWindow: Self.int(row, 6), costUSD: Self.real(row, 7))
-            return (Self.optionalText(row, 1), usage == AIUsage() ? nil : usage)
-        }
-        let messageSQL = """
-            SELECT id, role, text, state, sent_at FROM messages
-            WHERE conversation_id = ? ORDER BY position;
-            """
-        var messages: [ChatMessage] = []
-        let read = query(messageSQL, [key]) { row in
-            guard
-                let messageID = UUID(uuidString: Self.text(row, 0)),
-                let role = ChatMessage.Role(rawValue: Self.text(row, 1)),
-                let stored = ChatMessage.State(rawValue: Self.text(row, 3))
-            else { return }
-            let body = Self.text(row, 2)
-            let interrupted = stored == .streaming
-            let details = meta[messageID]?.first
-            messages.append(
-                ChatMessage(
-                    id: messageID, role: role,
-                    text: interrupted && body.isEmpty ? "Response interrupted." : body,
-                    state: interrupted ? .failed : stored, sentAt: Self.date(row, 4),
-                    images: images[messageID] ?? [], documents: documents[messageID] ?? [],
-                    searches: searches[messageID] ?? [], toolUses: toolUses[messageID] ?? [],
-                    reasoning: reasoning[messageID] ?? [],
-                    usage: details?.usage, toolScope: details?.toolScope))
-        }
-        guard read else { return nil }
-        return ChatSession(
-            id: id, createdAt: dates.created, updatedAt: dates.updated, messages: messages,
-            model: model(forConversation: id))
+        open()?.session(id: id)
+    }
+
+    /// The History preview reads on its own handle off the main actor; WAL lets it beside a write.
+    func loadSession(id: UUID) async -> ChatSession? {
+        guard open() != nil else { return nil }
+        let path = databaseURL.path
+        return await Task.detached(priority: .userInitiated) {
+            var handle: OpaquePointer?
+            defer { sqlite3_close(handle) }
+            guard sqlite3_open_v2(path, &handle, SQLITE_OPEN_READONLY, nil) == SQLITE_OK, let handle
+            else { return nil }
+            return ChatDatabase(handle: handle).session(id: id)
+        }.value
     }
 
     func save(_ session: ChatSession) {
-        guard !session.messages.isEmpty, ensureDatabase(), let database else { return }
-        guard sqlite3_exec(database, "BEGIN IMMEDIATE", nil, nil, nil) == SQLITE_OK else { return }
-        guard saveConversation(session), rewriteTail(of: session), saveModel(of: session)
+        guard !session.messages.isEmpty, let db = open(), db.exec("BEGIN IMMEDIATE") else { return }
+        guard saveConversation(session, in: db), rewriteTail(of: session, in: db), saveModel(of: session),
+            db.exec("COMMIT")
         else {
-            sqlite3_exec(database, "ROLLBACK", nil, nil, nil)
-            return
-        }
-        guard sqlite3_exec(database, "COMMIT", nil, nil, nil) == SQLITE_OK else {
-            sqlite3_exec(database, "ROLLBACK", nil, nil, nil)
+            _ = db.exec("ROLLBACK")
             return
         }
         var summary = session.summary
@@ -313,7 +230,7 @@ final class ChatHistoryStore {
     }
 
     private func write(_ meta: Meta, of id: UUID) -> Bool {
-        guard ensureDatabase() else { return false }
+        guard let db = open() else { return false }
         let column: String
         let value: SQLValue
         switch meta {
@@ -326,7 +243,7 @@ final class ChatHistoryStore {
             else { return false }
             (column, value) = ("model", .text(encoded))
         }
-        return run(
+        return db.run(
             """
             INSERT INTO conversation_details(conversation_id, \(column)) VALUES(?, ?)
             ON CONFLICT(conversation_id) DO UPDATE SET \(column) = excluded.\(column);
@@ -334,69 +251,65 @@ final class ChatHistoryStore {
     }
 
     func remove(id: UUID) {
-        guard ensureDatabase(),
-            run("DELETE FROM conversations WHERE id = ?;", [[.text(id.uuidString)]])
+        guard let db = open(), db.run("DELETE FROM conversations WHERE id = ?;", [[.text(id.uuidString)]])
         else { return }
         conversations.removeAll { $0.id == id }
     }
 
     /// Pinned chats are the ones the reader asked to keep, so clearing the rest spares them.
     func clearAll() {
-        guard ensureDatabase(),
-            sqlite3_exec(
-                database, "DELETE FROM conversations WHERE id NOT IN (\(Self.pinnedIDs))", nil,
-                nil, nil) == SQLITE_OK
+        guard let db = open(), db.exec("DELETE FROM conversations WHERE id NOT IN (\(Self.pinnedIDs))")
         else { return }
         conversations.removeAll { !$0.isPinned }
     }
 
-    private static let pinnedIDs =
-        "SELECT conversation_id FROM conversation_details WHERE pinned = 1"
+    private static let pinnedIDs = "SELECT conversation_id FROM conversation_details WHERE pinned = 1"
 
     /// Inline BLOBs make this the one store where a delete frees pages without shrinking the file.
     @discardableResult
     func prune(before cutoff: Date) -> Int {
-        guard ensureDatabase(),
-            run(
+        guard let db = open(),
+            db.run(
                 "DELETE FROM conversations WHERE updated_at < ? AND id NOT IN (\(Self.pinnedIDs));",
                 [[.real(cutoff.timeIntervalSince1970)]])
         else { return 0 }
-        let removed = Int(sqlite3_changes(database))
+        let removed = Int(sqlite3_changes(db.handle))
         guard removed > 0 else { return 0 }
-        sqlite3_exec(database, "VACUUM", nil, nil, nil)
+        _ = db.exec("VACUUM")
         conversations.removeAll { $0.updatedAt < cutoff && !$0.isPinned }
         return removed
     }
 
-    private func ensureDatabase() -> Bool {
-        if database != nil { return true }
+    private func open() -> ChatDatabase? {
+        if let database { return ChatDatabase(handle: database) }
         do {
             try FileManager.default.createDirectory(
                 at: databaseURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         } catch {
             isAvailable = false
-            return false
+            return nil
         }
         guard
             sqlite3_open_v2(
                 databaseURL.path, &database,
                 SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK,
-            sqlite3_exec(database, "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;", nil, nil, nil)
+            let handle = database,
+            sqlite3_exec(handle, "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;", nil, nil, nil)
                 == SQLITE_OK,
-            sqlite3_exec(database, Self.schema, nil, nil, nil) == SQLITE_OK
+            sqlite3_exec(handle, Self.schema, nil, nil, nil) == SQLITE_OK
         else {
             sqlite3_close(database)
             database = nil
             isAvailable = false
-            return false
+            return nil
         }
         isAvailable = true
-        return true
+        return ChatDatabase(handle: handle)
     }
 
-    private func saveConversation(_ session: ChatSession) -> Bool {
+    private func saveConversation(_ session: ChatSession, in db: ChatDatabase) -> Bool {
         let summary = session.summary
-        return run(
+        return db.run(
             """
             INSERT INTO conversations(id, title, preview, created_at, updated_at, message_count)
             VALUES(?, ?, ?, ?, ?, ?)
@@ -414,20 +327,20 @@ final class ChatHistoryStore {
     }
 
     /// A session only appends or replaces its last, so a save rewrites the stored tail alone.
-    private func rewriteTail(of session: ChatSession) -> Bool {
+    private func rewriteTail(of session: ChatSession, in db: ChatDatabase) -> Bool {
         let key = SQLValue.text(session.id.uuidString)
         var stored = 0
-        query("SELECT COUNT(*) FROM messages WHERE conversation_id = ?;", [key]) {
-            stored = Self.int($0, 0) ?? 0
+        db.query("SELECT COUNT(*) FROM messages WHERE conversation_id = ?;", [key]) {
+            stored = $0.int(0) ?? 0
         }
         // A store holding more rows than memory is foreign state; rewrite it whole, never splice.
         let rewriteFrom = stored > session.messages.count ? 0 : max(stored - 1, 0)
         let tail = session.messages.enumerated().dropFirst(rewriteFrom)
         guard
-            run(
+            db.run(
                 "DELETE FROM messages WHERE conversation_id = ? AND position >= ?;",
                 [[key, .int(rewriteFrom)]]),
-            run(
+            db.run(
                 """
                 INSERT INTO messages(id, conversation_id, position, role, text, state, sent_at)
                 VALUES(?, ?, ?, ?, ?, ?, ?);
@@ -440,16 +353,16 @@ final class ChatHistoryStore {
                     ]
                 })
         else { return false }
-        return tail.allSatisfy { saveDetails(of: $0.element) }
+        return tail.allSatisfy { saveDetails(of: $0.element, in: db) }
     }
 
-    private func saveDetails(of message: ChatMessage) -> Bool {
+    private func saveDetails(of message: ChatMessage, in db: ChatDatabase) -> Bool {
         let id = SQLValue.text(message.id.uuidString)
         let usage = message.usage
-        return run(
+        return db.run(
             "INSERT INTO message_images(message_id, position, mime_type, data) VALUES(?, ?, ?, ?);",
             message.images.enumerated().map { [id, .int($0), .text($1.mimeType), .blob($1.data)] })
-            && run(
+            && db.run(
                 """
                 INSERT INTO message_documents(message_id, position, name, mime_type, data)
                 VALUES(?, ?, ?, ?, ?);
@@ -457,13 +370,10 @@ final class ChatHistoryStore {
                 message.documents.enumerated().map {
                     [id, .int($0), .text($1.name), .text($1.mimeType), .blob($1.data)]
                 })
-            && run(
-                """
-                INSERT INTO message_searches(message_id, position, query, text_offset)
-                VALUES(?, ?, ?, ?);
-                """,
+            && db.run(
+                "INSERT INTO message_searches(message_id, position, query, text_offset) VALUES(?, ?, ?, ?);",
                 message.searches.map { [id, .int($0.sequence), .text($0.query), .int($0.textOffset)] })
-            && run(
+            && db.run(
                 """
                 INSERT INTO message_tools(
                   message_id, position, call_id, origin, title, state, text_offset)
@@ -475,7 +385,7 @@ final class ChatHistoryStore {
                         .text($0.state.rawValue), .int($0.textOffset)
                     ]
                 })
-            && run(
+            && db.run(
                 """
                 INSERT INTO message_thinking(message_id, position, text, text_offset, duration)
                 VALUES(?, ?, ?, ?, ?);
@@ -484,7 +394,7 @@ final class ChatHistoryStore {
                     [id, .int($0), .text($1.text), .int($1.textOffset), .real($1.duration)]
                 })
             // Only a message with a scope or a usage report writes a row.
-            && run(
+            && db.run(
                 """
                 INSERT INTO message_details(message_id, tool_scope, input_tokens, output_tokens,
                   cached_tokens, reasoning_tokens, context_window, cost_usd)
@@ -506,27 +416,112 @@ final class ChatHistoryStore {
         return write(.model(model), of: session.id)
     }
 
+    /// A chat already saved changes model between turns; one not yet saved takes it on its first.
+    func setModel(_ model: AIModelSelection, id: UUID) {
+        guard conversation(id: id) != nil else { return }
+        _ = write(.model(model), of: id)
+    }
+}
+
+/// One open connection; actor-free, so the History preview can read on a handle of its own.
+private struct ChatDatabase {
+    let handle: OpaquePointer
+
+    func session(id: UUID) -> ChatSession? {
+        let key = SQLValue.text(id.uuidString)
+        var dates: (created: Date, updated: Date)?
+        query("SELECT created_at, updated_at FROM conversations WHERE id = ? LIMIT 1;", [key]) {
+            dates = ($0.date(0), $0.date(1))
+        }
+        guard let dates else { return nil }
+        let images = children(
+            "SELECT i.message_id, i.mime_type, i.data FROM message_images i", of: id, order: "i"
+        ) { row in row.blob(2).map { AIImage(data: $0, mimeType: row.text(1)) } }
+        let documents = children(
+            "SELECT d.message_id, d.name, d.mime_type, d.data FROM message_documents d", of: id, order: "d"
+        ) { row in row.blob(3).map { AIDocument(data: $0, mimeType: row.text(2), name: row.text(1)) } }
+        // A stored search is always finished: only a live reply has one in progress.
+        let searches = children(
+            "SELECT s.message_id, s.query, s.text_offset, s.position FROM message_searches s",
+            of: id, order: "s"
+        ) { row in
+            ChatSearch(
+                query: row.optionalText(1), isComplete: true, textOffset: row.int(2) ?? 0,
+                sequence: row.int(3) ?? 0)
+        }
+        // A call left running belonged to a process that is gone, so it never reported back.
+        let toolUses = children(
+            """
+            SELECT t.message_id, t.call_id, t.origin, t.title, t.state, t.text_offset, t.position
+            FROM message_tools t
+            """, of: id, order: "t"
+        ) { row in
+            let stored = ChatToolUse.State(rawValue: row.text(4)) ?? .failed
+            return ChatToolUse(
+                callID: row.text(1), origin: row.text(2), title: row.text(3),
+                state: stored == .running ? .failed : stored, textOffset: row.int(5) ?? 0,
+                sequence: row.int(6) ?? 0)
+        }
+        let reasoning = children(
+            "SELECT r.message_id, r.text, r.text_offset, r.duration FROM message_thinking r",
+            of: id, order: "r"
+        ) { row in ChatReasoning(text: row.text(1), textOffset: row.int(2) ?? 0, duration: row.real(3)) }
+        // A row with no usage column set is a scope alone: the reply reported nothing.
+        let meta = children(
+            """
+            SELECT x.message_id, x.tool_scope, x.input_tokens, x.output_tokens, x.cached_tokens,
+              x.reasoning_tokens, x.context_window, x.cost_usd
+            FROM message_details x
+            """, of: id, order: nil
+        ) { row -> (toolScope: String?, usage: AIUsage?) in
+            let usage = AIUsage(
+                inputTokens: row.int(2), outputTokens: row.int(3), cachedInputTokens: row.int(4),
+                reasoningTokens: row.int(5), contextWindow: row.int(6), costUSD: row.real(7))
+            return (row.optionalText(1), usage == AIUsage() ? nil : usage)
+        }
+        let messageSQL = """
+            SELECT id, role, text, state, sent_at FROM messages
+            WHERE conversation_id = ? ORDER BY position;
+            """
+        var messages: [ChatMessage] = []
+        let read = query(messageSQL, [key]) { row in
+            guard
+                let messageID = UUID(uuidString: row.text(0)),
+                let role = ChatMessage.Role(rawValue: row.text(1)),
+                let stored = ChatMessage.State(rawValue: row.text(3))
+            else { return }
+            let body = row.text(2)
+            let interrupted = stored == .streaming
+            let details = meta[messageID]?.first
+            messages.append(
+                ChatMessage(
+                    id: messageID, role: role,
+                    text: interrupted && body.isEmpty ? "Response interrupted." : body,
+                    state: interrupted ? .failed : stored, sentAt: row.date(4),
+                    images: images[messageID] ?? [], documents: documents[messageID] ?? [],
+                    searches: searches[messageID] ?? [], toolUses: toolUses[messageID] ?? [],
+                    reasoning: reasoning[messageID] ?? [],
+                    usage: details?.usage, toolScope: details?.toolScope))
+        }
+        guard read else { return nil }
+        return ChatSession(
+            id: id, createdAt: dates.created, updatedAt: dates.updated, messages: messages,
+            model: model(forConversation: id))
+    }
+
     /// A route removed since is the coordinator's to repair; an unreadable one is simply absent.
     private func model(forConversation id: UUID) -> AIModelSelection? {
         var model: AIModelSelection?
         query(
             "SELECT model FROM conversation_details WHERE conversation_id = ? AND model IS NOT NULL;",
             [.text(id.uuidString)]
-        ) { model = try? JSONDecoder().decode(AIModelSelection.self, from: Data(Self.text($0, 0).utf8)) }
+        ) { model = try? JSONDecoder().decode(AIModelSelection.self, from: Data($0.text(0).utf8)) }
         return model
     }
 
-    /// A chat already saved changes model between turns; one not yet saved takes it on its first.
-    func setModel(_ model: AIModelSelection, id: UUID) {
-        guard conversation(id: id) != nil else { return }
-        _ = write(.model(model), of: id)
-    }
-
-    // MARK: - SQLite
-
     /// Rows of one table keyed by message, for every message of one conversation.
     private func children<T>(
-        _ select: String, of id: UUID, order alias: String?, _ make: (OpaquePointer) -> T?
+        _ select: String, of id: UUID, order alias: String?, _ make: (ChatRow) -> T?
     ) -> [UUID: [T]] {
         let table = alias ?? "x"
         let order = alias.map { " ORDER BY \($0).message_id, \($0).position" } ?? ""
@@ -537,31 +532,32 @@ final class ChatHistoryStore {
             """
         var rows: [UUID: [T]] = [:]
         query(sql, [.text(id.uuidString)]) { row in
-            guard let messageID = UUID(uuidString: Self.text(row, 0)), let value = make(row)
-            else { return }
+            guard let messageID = UUID(uuidString: row.text(0)), let value = make(row) else { return }
             rows[messageID, default: []].append(value)
         }
         return rows
     }
 
+    func exec(_ sql: String) -> Bool {
+        sqlite3_exec(handle, sql, nil, nil, nil) == SQLITE_OK
+    }
+
     @discardableResult
-    private func query(_ sql: String, _ values: [SQLValue], _ row: (OpaquePointer) -> Void) -> Bool {
+    func query(_ sql: String, _ values: [SQLValue], _ row: (ChatRow) -> Void) -> Bool {
         guard let statement = prepare(sql) else { return false }
         defer { sqlite3_finalize(statement) }
         guard bind(values, to: statement) else { return false }
-        while sqlite3_step(statement) == SQLITE_ROW { row(statement) }
+        while sqlite3_step(statement) == SQLITE_ROW { row(ChatRow(statement: statement)) }
         return true
     }
 
     /// One statement stepped once per row; no rows is a success that never touches the database.
-    private func run(_ sql: String, _ rows: [[SQLValue]]) -> Bool {
+    func run(_ sql: String, _ rows: [[SQLValue]]) -> Bool {
         guard !rows.isEmpty else { return true }
         guard let statement = prepare(sql) else { return false }
         defer { sqlite3_finalize(statement) }
         for values in rows {
-            guard bind(values, to: statement), sqlite3_step(statement) == SQLITE_DONE else {
-                return false
-            }
+            guard bind(values, to: statement), sqlite3_step(statement) == SQLITE_DONE else { return false }
             sqlite3_reset(statement)
             sqlite3_clear_bindings(statement)
         }
@@ -570,8 +566,7 @@ final class ChatHistoryStore {
 
     private func prepare(_ sql: String) -> OpaquePointer? {
         var statement: OpaquePointer?
-        guard let database, sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK
-        else { return nil }
+        guard sqlite3_prepare_v2(handle, sql, -1, &statement, nil) == SQLITE_OK else { return nil }
         return statement
     }
 
@@ -585,8 +580,7 @@ final class ChatHistoryStore {
             case .real(let number?): sqlite3_bind_double(statement, index, number)
             case .blob(let data):
                 let bound = data.withUnsafeBytes {
-                    sqlite3_bind_blob(
-                        statement, index, $0.baseAddress, Int32($0.count), chatSQLiteTransient)
+                    sqlite3_bind_blob(statement, index, $0.baseAddress, Int32($0.count), chatSQLiteTransient)
                 }
                 guard bound == SQLITE_OK else { return false }
             case .text(nil), .int(nil), .real(nil): continue
@@ -594,35 +588,30 @@ final class ChatHistoryStore {
         }
         return true
     }
+}
 
-    private static func isNull(_ row: OpaquePointer, _ index: Int32) -> Bool {
-        sqlite3_column_type(row, index) == SQLITE_NULL
+/// The current row of a stepped statement.
+private struct ChatRow {
+    let statement: OpaquePointer
+
+    private func isNull(_ index: Int32) -> Bool { sqlite3_column_type(statement, index) == SQLITE_NULL }
+
+    func text(_ index: Int32) -> String {
+        sqlite3_column_text(statement, index).map { String(cString: $0) } ?? ""
     }
 
-    private static func text(_ row: OpaquePointer, _ index: Int32) -> String {
-        sqlite3_column_text(row, index).map { String(cString: $0) } ?? ""
-    }
+    func optionalText(_ index: Int32) -> String? { isNull(index) ? nil : text(index) }
 
-    private static func optionalText(_ row: OpaquePointer, _ index: Int32) -> String? {
-        isNull(row, index) ? nil : text(row, index)
-    }
+    func int(_ index: Int32) -> Int? { isNull(index) ? nil : Int(sqlite3_column_int64(statement, index)) }
 
-    private static func int(_ row: OpaquePointer, _ index: Int32) -> Int? {
-        isNull(row, index) ? nil : Int(sqlite3_column_int64(row, index))
-    }
+    func real(_ index: Int32) -> Double? { isNull(index) ? nil : sqlite3_column_double(statement, index) }
 
-    private static func real(_ row: OpaquePointer, _ index: Int32) -> Double? {
-        isNull(row, index) ? nil : sqlite3_column_double(row, index)
-    }
-
-    private static func date(_ row: OpaquePointer, _ index: Int32) -> Date {
-        Date(timeIntervalSince1970: sqlite3_column_double(row, index))
-    }
+    func date(_ index: Int32) -> Date { Date(timeIntervalSince1970: sqlite3_column_double(statement, index)) }
 
     /// A zero-length blob reads as no pointer, and such an attachment is dropped as before.
-    private static func blob(_ row: OpaquePointer, _ index: Int32) -> Data? {
-        sqlite3_column_blob(row, index).map {
-            Data(bytes: $0, count: Int(sqlite3_column_bytes(row, index)))
+    func blob(_ index: Int32) -> Data? {
+        sqlite3_column_blob(statement, index).map {
+            Data(bytes: $0, count: Int(sqlite3_column_bytes(statement, index)))
         }
     }
 }

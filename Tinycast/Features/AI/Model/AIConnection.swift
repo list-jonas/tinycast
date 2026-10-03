@@ -42,8 +42,7 @@ struct AIConnection: Codable, Equatable, Identifiable, Sendable {
         let defaultEffort: String?
 
         /// Named for OpenRouter's own spelling, where `none` likewise disables reasoning entirely.
-        static let thinkingSwitch = ReasoningOptions(
-            efforts: ["default", "none"], defaultEffort: "default")
+        static let thinkingSwitch = ReasoningOptions(efforts: ["default", "none"], defaultEffort: "default")
 
         func resolvedEffort(_ preferred: String?) -> String? {
             guard !efforts.isEmpty else { return nil }
@@ -89,9 +88,7 @@ struct AIConnection: Codable, Equatable, Identifiable, Sendable {
     }
 
     func selection(_ model: String, effort: String? = nil) -> AIModelSelection {
-        .api(
-            connection: id, model: model,
-            effort: reasoningOptions(for: model)?.resolvedEffort(effort))
+        .api(connection: id, model: model, effort: reasoningOptions(for: model)?.resolvedEffort(effort))
     }
 
     var firstSelection: AIModelSelection? { models.first.map { selection($0) } }
@@ -119,12 +116,9 @@ struct AIModelCapabilities: Equatable, Sendable {
     /// Every route but the on-device one and the three CLIs with no MCP switch of their own.
     let tools: Bool
 
-    static let none = AIModelCapabilities(
-        images: false, documents: false, webSearch: false, tools: false)
-    static let chatGPT = AIModelCapabilities(
-        images: true, documents: false, webSearch: true, tools: false)
-    static let codex = AIModelCapabilities(
-        images: true, documents: false, webSearch: true, tools: true)
+    static let none = AIModelCapabilities(images: false, documents: false, webSearch: false, tools: false)
+    static let chatGPT = AIModelCapabilities(images: true, documents: false, webSearch: true, tools: false)
+    static let codex = AIModelCapabilities(images: true, documents: false, webSearch: true, tools: true)
     /// Pictures ride in its stream-json input; its own client runs Tinycast's MCP servers.
     static let claudeCommand = AIModelCapabilities(
         images: true, documents: false, webSearch: false, tools: true)

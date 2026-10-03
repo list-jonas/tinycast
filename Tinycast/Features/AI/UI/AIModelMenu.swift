@@ -18,8 +18,7 @@ enum AIModelMenu {
             }
         }
         if loading {
-            items.insert(
-                PopoverMenuItem(title: "Loading models…", icon: .blank, isLoading: true) {}, at: 0)
+            items.insert(PopoverMenuItem(title: "Loading models…", icon: .blank, isLoading: true) {}, at: 0)
         }
         guard !items.isEmpty else {
             return PopoverMenuContent(items: [
@@ -47,17 +46,13 @@ enum AIModelMenu {
     /// One row per staged file, its ✕ beside the name: picking one takes that file back alone.
     static func attachments(coordinator: AIChatCoordinator, chat: AIChatState) -> PopoverMenuContent {
         var items = chat.pendingAttachments.map { attachment in
-            PopoverMenuItem(
-                title: attachment.name, icon: attachment.menuIcon, detail: "✕"
-            ) {
+            PopoverMenuItem(title: attachment.name, icon: attachment.menuIcon, detail: "✕") {
                 coordinator.removeAttachment(attachment.id, in: chat)
             }
         }
         if items.count > 1 {
             items.append(
-                PopoverMenuItem(
-                    title: "Remove All", systemImage: "xmark.circle", startsSection: true
-                ) {
+                PopoverMenuItem(title: "Remove All", systemImage: "xmark.circle", startsSection: true) {
                     coordinator.clearAttachments(in: chat)
                 })
         }

@@ -21,62 +21,30 @@ struct AIScreen: PaletteScreen {
 
     func actions(at selection: Int) -> PopoverMenuContent? {
         var items: [PopoverMenuItem] = []
-        if chat.isStreaming {
-            items.append(
-                PopoverMenuItem(title: "Stop Response", systemImage: "stop.fill", shortcut: "⌘.") {
-                    coordinator.stopResponse()
-                })
+        func add(
+            _ title: String, _ symbol: String, _ shortcut: String? = nil, section: Bool = false,
+            _ run: @escaping () -> Void
+        ) {
+            let item = PopoverMenuItem(
+                title: title, systemImage: symbol, startsSection: section, shortcut: shortcut, action: run)
+            items.append(item)
         }
-        items.append(
-            PopoverMenuItem(
-                title: chat.session.messages.isEmpty ? "Open AI Chat" : "Continue in AI Chat",
-                systemImage: "bubble.left.and.bubble.right", shortcut: "⌘J"
-            ) {
-                coordinator.continueInChat()
-            })
-        items.append(
-            PopoverMenuItem(title: "New Chat", systemImage: "plus.bubble", shortcut: "⌘N") {
-                coordinator.startNewChat()
-            })
-        if canRegenerate {
-            items.append(
-                PopoverMenuItem(
-                    title: "Regenerate Response", systemImage: "arrow.clockwise", shortcut: "⌘R"
-                ) {
-                    coordinator.regenerate()
-                })
+        if chat.isStreaming { add("Stop Response", "stop.fill", "⌘.") { coordinator.stopResponse() } }
+        let continueTitle = chat.session.messages.isEmpty ? "Open AI Chat" : "Continue in AI Chat"
+        add(continueTitle, "bubble.left.and.bubble.right", "⌘J") { coordinator.continueInChat() }
+        add("New Chat", "plus.bubble", "⌘N") { coordinator.startNewChat() }
+        if chat.canRegenerate {
+            add("Regenerate Response", "arrow.clockwise", "⌘R") { coordinator.regenerate() }
         }
-        if chat.lastAssistantText != nil {
-            items.append(
-                PopoverMenuItem(
-                    title: "Copy Last Response", systemImage: "doc.on.doc", startsSection: true,
-                    shortcut: "⇧⌘C"
-                ) {
-                    coordinator.copyLastResponse()
-                })
+        let canCopy = chat.lastAssistantText != nil
+        if canCopy {
+            add("Copy Last Response", "doc.on.doc", "⇧⌘C", section: true) { coordinator.copyLastResponse() }
         }
         if !chat.pendingAttachments.isEmpty {
-            items.append(
-                PopoverMenuItem(
-                    title: "Remove Attachments", systemImage: "paperclip",
-                    startsSection: chat.lastAssistantText == nil
-                ) {
-                    coordinator.clearAttachments()
-                })
+            add("Remove Attachments", "paperclip", section: !canCopy) { coordinator.clearAttachments() }
         }
-        items.append(
-            PopoverMenuItem(
-                title: "Chat History", systemImage: "clock.arrow.circlepath", startsSection: true,
-                shortcut: "⌘Y"
-            ) {
-                coordinator.showHistory()
-            })
-        items.append(
-            PopoverMenuItem(
-                title: "AI Settings", systemImage: "slider.horizontal.3", shortcut: "⌥⌘,"
-            ) {
-                chatCoordinator.showSettings()
-            })
+        add("Chat History", "clock.arrow.circlepath", "⌘Y", section: true) { coordinator.showHistory() }
+        add("AI Settings", "slider.horizontal.3", "⌥⌘,") { chatCoordinator.showSettings() }
         return PopoverMenuContent(header: chatCoordinator.title(of: chat), items: items)
     }
 
@@ -96,7 +64,7 @@ struct AIScreen: PaletteScreen {
         switch shortcut {
         case .continueInChat: coordinator.continueInChat()
         case .newItem: coordinator.startNewChat()
-        case .restart where canRegenerate: coordinator.regenerate()
+        case .restart where chat.canRegenerate: coordinator.regenerate()
         case .copyFile where chat.lastAssistantText != nil: coordinator.copyLastResponse()
         case .quickLook: coordinator.showHistory()
         case .pin where chat.isStreaming: coordinator.stopResponse()
@@ -106,13 +74,7 @@ struct AIScreen: PaletteScreen {
         return true
     }
 
-    private var canRegenerate: Bool {
-        !chat.isStreaming && chat.session.messages.last?.role == .assistant
-    }
-
-    func headerAccessory(
-        at selection: Int, focus: FocusState<String?>.Binding
-    ) -> PaletteHeaderAccessory? {
+    func headerAccessory(at selection: Int, focus: FocusState<String?>.Binding) -> PaletteHeaderAccessory? {
         let attachments = chat.pendingAttachments
         let addressed = chatCoordinator.addressedServer(in: vm.query)
         guard !attachments.isEmpty || addressed != nil else { return nil }
@@ -140,10 +102,8 @@ struct AIScreen: PaletteScreen {
     func body(selection: Int, scroll: ScrollIntent) -> AnyView {
         AnyView(
             AIChatView(
-                chat: chat,
-                availability: { chatCoordinator.availability(for: chat) },
-                onConfigure: chatCoordinator.showSettings,
-                onAppear: chatCoordinator.prepareForChat,
+                chat: chat, availability: { chatCoordinator.availability(for: chat) },
+                onConfigure: chatCoordinator.showSettings, onAppear: chatCoordinator.prepareForChat,
                 onChoose: { coordinator.send($0) }))
     }
 }
@@ -166,11 +126,8 @@ private struct AIChatView: View {
                     onConfigure: onConfigure)
             } else {
                 ChatTranscriptView(
-                    messages: chat.session.messages,
-                    status: chat.liveStatus,
-                    usage: chat.usage,
-                    surface: .palette,
-                    onChoose: chat.isStreaming ? nil : onChoose)
+                    messages: chat.session.messages, status: chat.liveStatus, usage: chat.usage,
+                    surface: .palette, onChoose: chat.isStreaming ? nil : onChoose)
             }
         }
         .onAppear(perform: onAppear)
@@ -191,9 +148,7 @@ private struct AttachmentsPill: View {
     static func width(for attachments: [ChatAttachment], _ metrics: InterfaceMetrics) -> CGFloat {
         let pill = metrics.size.chatAttachmentInset * 2 + metrics.size.chatAttachmentThumb
         guard let others = others(attachments) else { return pill }
-        let text = (others as NSString).size(
-            withAttributes: [.font: metrics.typography.chipNSFont]
-        ).width
+        let text = (others as NSString).size(withAttributes: [.font: metrics.typography.chipNSFont]).width
         return pill + metrics.spacing.xs + text + metrics.spacing.xs
     }
 
@@ -262,11 +217,7 @@ struct AIModelButton: View {
 
     var body: some View {
         HeaderMenuButton(
-            title: title,
-            icon: icon,
-            isOpen: isOpen,
-            help: "Switch AI model  ⌘P",
-            action: action
+            title: title, icon: icon, isOpen: isOpen, help: "Switch AI model  ⌘P", action: action
         )
         .fixedSize(horizontal: true, vertical: false)
     }
@@ -279,12 +230,8 @@ struct AIReasoningButton: View {
 
     var body: some View {
         HeaderMenuButton(
-            title: title,
-            systemImage: "brain",
-            symbolSize: Theme.Size.barBrandIcon,
-            isOpen: isOpen,
-            help: "Change reasoning effort",
-            action: action
+            title: title, systemImage: "brain", symbolSize: Theme.Size.barBrandIcon, isOpen: isOpen,
+            help: "Change reasoning effort", action: action
         )
         .fixedSize(horizontal: true, vertical: false)
     }
