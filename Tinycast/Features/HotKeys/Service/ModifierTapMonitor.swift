@@ -60,8 +60,7 @@ final class ModifierTapMonitor: HealthCheckable {
     private var globeDown = false
     private var holdKey: ModifierKey?
     private var holding = false
-    @ObservationIgnored private var tapPort: CFMachPort?
-    @ObservationIgnored private var runLoopSource: CFRunLoopSource?
+    @ObservationIgnored private var tap: EventTap?
     @ObservationIgnored private var sessionTokens: [NotificationToken] = []
     private var sessionActive = true
     private var loggedTapFailure = false
@@ -74,7 +73,9 @@ final class ModifierTapMonitor: HealthCheckable {
     }
 
     func start() {
-        installObserversIfNeeded()
+        if sessionTokens.isEmpty {
+            sessionTokens = EventTap.observeSession { [weak self] in self?.sessionDidChange(active: $0) }
+        }
         syncTapPresence()
     }
 
@@ -86,8 +87,6 @@ final class ModifierTapMonitor: HealthCheckable {
         resetDetectors()
         syncTapPresence()
     }
-
-    // MARK: - Detection
 
     fileprivate func process(isFlagsChanged: Bool, flagsRaw: UInt64, keyCode: Int) {
         guard !isPaused else { return }
@@ -212,30 +211,6 @@ final class ModifierTapMonitor: HealthCheckable {
         flags.contains(.maskSecondaryFn)
     }
 
-    // MARK: - Tap lifecycle
-
-    private func installObserversIfNeeded() {
-        guard sessionTokens.isEmpty else { return }
-        // Fast user switching: another session owns the keyboard, so stop watching.
-        let center = NSWorkspace.shared.notificationCenter
-        sessionTokens = [
-            NotificationToken(
-                center.addObserver(
-                    forName: NSWorkspace.sessionDidResignActiveNotification, object: nil,
-                    queue: .main
-                ) { [weak self] _ in
-                    MainActor.assumeIsolated { self?.sessionDidChange(active: false) }
-                }, center: center),
-            NotificationToken(
-                center.addObserver(
-                    forName: NSWorkspace.sessionDidBecomeActiveNotification, object: nil,
-                    queue: .main
-                ) { [weak self] _ in
-                    MainActor.assumeIsolated { self?.sessionDidChange(active: true) }
-                }, center: center)
-        ]
-    }
-
     private func sessionDidChange(active: Bool) {
         sessionActive = active
         resetDetectors()
@@ -254,22 +229,14 @@ final class ModifierTapMonitor: HealthCheckable {
     }
 
     private func installTapIfNeeded() {
-        guard tapPort == nil else { return }
-        let mask: CGEventMask =
-            (1 << CGEventType.keyDown.rawValue)
-            | (1 << CGEventType.flagsChanged.rawValue)
-            | (1 << CGEventType.leftMouseDown.rawValue)
-            | (1 << CGEventType.rightMouseDown.rawValue)
-            | (1 << CGEventType.otherMouseDown.rawValue)
+        guard tap == nil else { return }
         guard
-            let port = CGEvent.tapCreate(
-                tap: .cgSessionEventTap,
+            let tap = EventTap(
                 // Appended, so `HyperKeyTap`'s rewrite lands first. See docs/features/hotkeys.md.
                 place: .tailAppendEventTap,
                 options: .listenOnly,
-                eventsOfInterest: mask,
-                callback: modifierTapEventTapCallback,
-                userInfo: Unmanaged.passUnretained(self).toOpaque())
+                events: [.keyDown, .flagsChanged, .leftMouseDown, .rightMouseDown, .otherMouseDown],
+                callback: modifierTapEventTapCallback, owner: self)
         else {
             // Even a listen-only tap needs Accessibility; the health timer retries until granted.
             if !loggedTapFailure {
@@ -280,44 +247,33 @@ final class ModifierTapMonitor: HealthCheckable {
             return
         }
         loggedTapFailure = false
-        tapPort = port
-        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, port, 0)
-        runLoopSource = source
-        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
-        CGEvent.tapEnable(tap: port, enable: true)
+        self.tap = tap
         needsAccessibility = false
     }
 
     private func tearDownTap() {
         resetDetectors()
-        if let runLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-            self.runLoopSource = nil
-        }
-        if let tapPort {
-            CGEvent.tapEnable(tap: tapPort, enable: false)
-            CFMachPortInvalidate(tapPort)
-            self.tapPort = nil
-        }
+        tap?.invalidate()
+        tap = nil
     }
 
     /// Called when the system disables the tap; any half-tracked press is stale by then.
     fileprivate func tapWasDisabled() {
         resetDetectors()
-        if let tapPort { CGEvent.tapEnable(tap: tapPort, enable: true) }
+        tap?.setEnabled(true)
     }
 
     /// One-second watchdog while something is bound. See docs/features/hotkeys.md#lifecycle.
     func healthCheck() {
         guard !bound.isEmpty, sessionActive else { return }
-        if tapPort == nil {
+        if tap == nil {
             installTapIfNeeded()
         } else if !Permissions.isAccessibilityTrusted() {
             tearDownTap()
             needsAccessibility = true
-        } else if let tapPort, !CGEvent.tapIsEnabled(tap: tapPort) {
+        } else if let tap, !tap.isEnabled {
             resetDetectors()
-            CGEvent.tapEnable(tap: tapPort, enable: true)
+            tap.setEnabled(true)
         }
     }
 }

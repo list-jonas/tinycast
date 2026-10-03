@@ -209,10 +209,11 @@ enum MCPOAuth {
                 .joined(separator: "&").utf8)
     }
 
+    private static let unreserved = CharacterSet(
+        charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+
     static func escape(_ value: String) -> String {
-        let allowed = CharacterSet(
-            charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
-        return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? ""
+        value.addingPercentEncoding(withAllowedCharacters: unreserved) ?? ""
     }
 
     static func authorizeURL(

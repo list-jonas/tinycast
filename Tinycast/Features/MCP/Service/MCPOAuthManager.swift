@@ -1,5 +1,4 @@
 import AppKit
-import Observation
 
 @MainActor
 @Observable

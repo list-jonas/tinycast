@@ -10,6 +10,7 @@
 - `DoubleTapModifier` / `DoubleTapDetector` — the double-tap recognizer.
 - `ModifierKey` / `ModifierKeyDetector` — physical sides, lone presses, taps and holds.
 - `ModifierTapMonitor` — the shared modifier-only tap, including Dictation's hold/release callbacks.
+- `EventTap` — the main-run-loop `CGEventTap` lifecycle and session observers both taps share.
 
 `HotKeyManager` owns them all: persistence, conflict lookup, and dispatch. Every action reads and
 writes one `HotKeyBinding`, so all cases share persistence, conflict detection, the recorder and
@@ -186,8 +187,8 @@ top-row media functions fire *below* the tap, so binding F1 as Hyper still dimme
 
 The caps-lock toggle — both the LED and the latch — happens below every `CGEventTap`, so no tap can
 suppress it. The key must therefore stop being Caps Lock **at the source**: while Caps Lock serves as
-Hyper, `CapsLockRemap` installs an IOKit `UserKeyMapping` remapping it to **F18**, the same mechanism
-`hidutil` uses. The tap then intercepts F18 in its place. The remap is cleared on unbind and on quit,
+Hyper, `CapsLockRemap` runs `hidutil` to install a `UserKeyMapping` remapping it to **F18**.
+The tap then intercepts F18 in its place. The remap is cleared on unbind and on quit,
 and never survives a reboot. Remaps apply on a serial queue, so rapid on→off→on toggles land in call
 order instead of racing as independent detached tasks and leaving the wrong final state.
 

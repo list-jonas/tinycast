@@ -4,10 +4,11 @@ import CoreAudio
 import Darwin
 
 struct SystemActionFailure: LocalizedError, Sendable {
-    enum Settings: Sendable {
-        case accessibility
-        case automation
-        case bluetooth
+    /// Raw values are the Privacy & Security anchors the recovery button opens.
+    enum Settings: String, Sendable {
+        case accessibility = "Privacy_Accessibility"
+        case automation = "Privacy_Automation"
+        case bluetooth = "Privacy_Bluetooth"
     }
 
     let message: String
@@ -76,12 +77,8 @@ enum SystemActionRunner {
                         .showScreenSaver, SystemActionFailure(error.localizedDescription))
                 }
             }
-        case .playPause:
-            try postMediaKey(16)
-        case .nextTrack:
-            try postMediaKey(17)
-        case .previousTrack:
-            try postMediaKey(18)
+        case .playPause, .nextTrack, .previousTrack:
+            try postMediaKey(mediaKeys[id]!)
         case .toggleMute:
             try toggleMute()
         case .volumeUp:
@@ -90,16 +87,8 @@ enum SystemActionRunner {
             try stepVolume(up: false)
         case .setVolume:
             break  // AppCore owns the value-picking dialog and calls setVolume directly.
-        case .volume0:
-            try setVolume(0)
-        case .volume25:
-            try setVolume(0.25)
-        case .volume50:
-            try setVolume(0.5)
-        case .volume75:
-            try setVolume(0.75)
-        case .volume100:
-            try setVolume(1)
+        case .volume0, .volume25, .volume50, .volume75, .volume100:
+            try setVolume(presetVolumes[id]!)
         case .showDesktop:
             // Executing the binary directly is SIGKILLed; only a LaunchServices launch is allowed.
             let configuration = NSWorkspace.OpenConfiguration()
@@ -171,6 +160,14 @@ enum SystemActionRunner {
         return nil
     }
 
+    private static let mediaKeys: [SystemAction.ID: Int32] = [
+        .playPause: 16, .nextTrack: 17, .previousTrack: 18
+    ]
+
+    private static let presetVolumes: [SystemAction.ID: Float32] = [
+        .volume0: 0, .volume25: 0.25, .volume50: 0.5, .volume75: 0.75, .volume100: 1
+    ]
+
     /// Finder writes the key only once the box is changed, so an absent key is its default: on.
     static var finderWarnsBeforeEmptyingTrash: Bool {
         let key = "WarnOnEmptyTrash"
@@ -201,16 +198,17 @@ enum SystemActionRunner {
     /// What the HUD renders; without a mute control, zero level reads as muted.
     static func outputState() throws -> (level: Float32, muted: Bool) {
         let level = try currentVolume()
-        let device = try defaultOutputDevice()
+        return (level, try readMuted(on: defaultOutputDevice()) ?? (level == 0))
+    }
+
+    private static func readMuted(on device: AudioDeviceID) -> Bool? {
         var address = muteAddress
         var muted: UInt32 = 0
         var size = UInt32(MemoryLayout<UInt32>.size)
         guard AudioObjectHasProperty(device, &address),
             AudioObjectGetPropertyData(device, &address, 0, nil, &size, &muted) == noErr
-        else {
-            return (level, level == 0)
-        }
-        return (level, muted != 0)
+        else { return nil }
+        return muted != 0
     }
 
     static func setVolume(_ requested: Float32) throws {
@@ -261,11 +259,7 @@ enum SystemActionRunner {
         return elements
     }
 
-    private static func volumeAddress(
-        element: AudioObjectPropertyElement
-    )
-        -> AudioObjectPropertyAddress
-    {
+    private static func volumeAddress(element: AudioObjectPropertyElement) -> AudioObjectPropertyAddress {
         AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyVolumeScalar,
             mScope: kAudioDevicePropertyScopeOutput,
@@ -300,13 +294,8 @@ enum SystemActionRunner {
 
     private static func toggleMute() throws {
         let device = try defaultOutputDevice()
-        var address = muteAddress
-        var muted: UInt32 = 0
-        var size = UInt32(MemoryLayout<UInt32>.size)
-        if AudioObjectHasProperty(device, &address),
-            AudioObjectGetPropertyData(device, &address, 0, nil, &size, &muted) == noErr
-        {
-            try setMuted(muted == 0, on: device)
+        if let muted = readMuted(on: device) {
+            try setMuted(!muted, on: device)
             return
         }
         // No mute control: park the volume at zero and restore it afterwards.
@@ -324,13 +313,7 @@ enum SystemActionRunner {
 
     private static func setMuted(_ muted: Bool, on device: AudioDeviceID) throws {
         var address = muteAddress
-        guard AudioObjectHasProperty(device, &address) else {
-            guard muted else { return }
-            let current = try currentVolume()
-            if current > 0 { lastNonZeroVolume = current }
-            try setVolume(0)
-            return
-        }
+        guard AudioObjectHasProperty(device, &address) else { return }
         var value: UInt32 = muted ? 1 : 0
         let status = AudioObjectSetPropertyData(
             device, &address, 0, nil, UInt32(MemoryLayout<UInt32>.size), &value)
@@ -339,12 +322,16 @@ enum SystemActionRunner {
         }
     }
 
-    private static func postKey(keyCode: CGKeyCode, flags: CGEventFlags) throws {
+    private static func requireAccessibility() throws {
         guard Permissions.ensureAccessibility() else {
             throw SystemActionFailure(
                 "Allow Tinycast to control your Mac in Accessibility settings, then try again.",
                 settings: .accessibility)
         }
+    }
+
+    private static func postKey(keyCode: CGKeyCode, flags: CGEventFlags) throws {
+        try requireAccessibility()
         let source = CGEventSource(stateID: .combinedSessionState)
         guard let down = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true),
             let up = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)
@@ -356,11 +343,7 @@ enum SystemActionRunner {
     }
 
     private static func postMediaKey(_ key: Int32) throws {
-        guard Permissions.ensureAccessibility() else {
-            throw SystemActionFailure(
-                "Allow Tinycast to control your Mac in Accessibility settings, then try again.",
-                settings: .accessibility)
-        }
+        try requireAccessibility()
         // The same route as the keyboard's media keys; 0xA/0xB are down and up.
         for state in [0xA, 0xB] {
             let data1 = Int((key << 16) | (Int32(state) << 8))
@@ -385,7 +368,6 @@ enum SystemActionRunner {
         previousApp?.activate()
     }
 
-    @discardableResult
     private static func ejectAllDisks() throws -> Int {
         let keys: Set<URLResourceKey> = [
             .volumeIsEjectableKey, .volumeIsInternalKey, .volumeIsLocalKey,
@@ -438,10 +420,9 @@ enum SystemActionRunner {
     @discardableResult
     private static func toggleDefault(domain: String, key: String) async throws -> Bool {
         let read = try await process("/usr/bin/defaults", arguments: ["read", domain, key])
-        let normalized = read.stdout.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let current: Bool
         if read.status == 0 {
-            guard let parsed = booleanDefault(normalized) else {
+            guard let parsed = booleanDefault(read.stdout) else {
                 throw SystemActionFailure("macOS reported an unexpected value for this setting.")
             }
             current = parsed
@@ -456,15 +437,14 @@ enum SystemActionRunner {
             "/usr/bin/defaults",
             arguments: ["write", domain, key, "-bool", requested ? "true" : "false"])
         let verify = try await process("/usr/bin/defaults", arguments: ["read", domain, key])
-        let verified = verify.stdout.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard verify.status == 0, booleanDefault(verified) == requested else {
+        guard verify.status == 0, booleanDefault(verify.stdout) == requested else {
             throw SystemActionFailure("macOS did not save the requested setting.")
         }
         return requested
     }
 
     private static func booleanDefault(_ value: String) -> Bool? {
-        switch value {
+        switch value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
         case "1", "true", "yes": return true
         case "0", "false", "no": return false
         default: return nil
@@ -473,11 +453,7 @@ enum SystemActionRunner {
 
     /// Returns how many were dismissed, so an empty screen reads as information.
     private static func dismissNotifications() async throws -> Int {
-        guard Permissions.ensureAccessibility() else {
-            throw SystemActionFailure(
-                "Allow Tinycast to control your Mac in Accessibility settings, then try again.",
-                settings: .accessibility)
-        }
+        try requireAccessibility()
         guard
             let app = NSRunningApplication.runningApplications(
                 withBundleIdentifier: "com.apple.notificationcenterui"
@@ -505,9 +481,18 @@ enum SystemActionRunner {
     /// Matched on AX subrole, so the search never depends on the UI language.
     private static func firstNotification(in element: AXUIElement, depth: Int) -> AXUIElement? {
         guard depth < 20 else { return nil }
-        let subrole = axString(element, attribute: kAXSubroleAttribute as CFString)?.lowercased()
-        if let subrole, subrole.contains("notificationcenter") { return element }
-        for child in axChildren(element) {
+        var subrole: CFTypeRef?
+        if AXUIElementCopyAttributeValue(element, kAXSubroleAttribute as CFString, &subrole) == .success,
+            let subrole = subrole as? String, subrole.lowercased().contains("notificationcenter")
+        {
+            return element
+        }
+        var children: CFTypeRef?
+        guard
+            AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &children)
+                == .success
+        else { return nil }
+        for child in children as? [AXUIElement] ?? [] {
             if let found = firstNotification(in: child, depth: depth + 1) { return found }
         }
         return nil
@@ -520,22 +505,6 @@ enum SystemActionRunner {
             let names = actions as? [String]
         else { return nil }
         return names.first { $0.hasPrefix("Name:Close\n") || $0.hasPrefix("Name:Clear All\n") }
-    }
-
-    private static func axChildren(_ element: AXUIElement) -> [AXUIElement] {
-        var value: CFTypeRef?
-        guard
-            AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &value)
-                == .success,
-            let children = value as? [AXUIElement]
-        else { return [] }
-        return children
-    }
-
-    private static func axString(_ element: AXUIElement, attribute: CFString) -> String? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, attribute, &value) == .success else { return nil }
-        return value as? String
     }
 
     /// Returns the state it settled into; the setter is void, so polling is the only way.

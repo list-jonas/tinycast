@@ -4,7 +4,7 @@ import AppKit
 @MainActor
 final class SystemActionCoordinator {
     private let paletteCoordinator: PaletteCoordinator
-    @ObservationIgnored private lazy var volumeHUD = VolumeHUDController(settings: core.settings)
+    private lazy var volumeHUD = VolumeHUDController(settings: core.settings)
     /// Dialog and message-HUD presentation only — never for state this type owns.
     private unowned let core: AppCore
 
@@ -78,13 +78,8 @@ final class SystemActionCoordinator {
                 recovery: failure.settings == nil ? nil : "Open System Settings…"),
             let settings = failure.settings
         else { return }
-        let pane: String
-        switch settings {
-        case .accessibility: pane = "Privacy_Accessibility"
-        case .automation: pane = "Privacy_Automation"
-        case .bluetooth: pane = "Privacy_Bluetooth"
-        }
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") {
+        let pane = "x-apple.systempreferences:com.apple.preference.security?\(settings.rawValue)"
+        if let url = URL(string: pane) {
             NSWorkspace.shared.open(url)
         }
     }

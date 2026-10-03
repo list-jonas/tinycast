@@ -5,11 +5,7 @@ protocol DictationRecognizer {
 }
 
 extension QwenRecognizer: DictationRecognizer {}
-extension ParakeetRecognizer: DictationRecognizer {
-    func transcribe(_ samples: [Float], language: String?) throws -> String {
-        try transcribe(samples)
-    }
-}
+extension ParakeetRecognizer: DictationRecognizer {}
 
 @main
 enum DictationHelper {

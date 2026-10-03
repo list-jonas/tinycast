@@ -14,24 +14,24 @@ enum HyperKeyPhysicalKey: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .none: return "None"
-        case .capsLock: return "Caps Lock (⇪)"
-        case .rightControl: return "Right Control (⌃)"
-        case .rightShift: return "Right Shift (⇧)"
-        case .rightOption: return "Right Option (⌥)"
-        case .rightCommand: return "Right Command (⌘)"
+        case .none: "None"
+        case .capsLock: "Caps Lock (⇪)"
+        case .rightControl: "Right Control (⌃)"
+        case .rightShift: "Right Shift (⇧)"
+        case .rightOption: "Right Option (⌥)"
+        case .rightCommand: "Right Command (⌘)"
         }
     }
 
     /// Virtual key code of the physical key, `nil` only for `.none`.
     var keyCode: Int? {
         switch self {
-        case .none: return nil
-        case .capsLock: return kVK_CapsLock
-        case .rightControl: return kVK_RightControl
-        case .rightShift: return kVK_RightShift
-        case .rightOption: return kVK_RightOption
-        case .rightCommand: return kVK_RightCommand
+        case .none: nil
+        case .capsLock: kVK_CapsLock
+        case .rightControl: kVK_RightControl
+        case .rightShift: kVK_RightShift
+        case .rightOption: kVK_RightOption
+        case .rightCommand: kVK_RightCommand
         }
     }
 
@@ -49,12 +49,12 @@ enum HyperKeyPhysicalKey: String, CaseIterable, Identifiable, Sendable {
     /// The generic flag this key contributes, so the tap can strip it when outside the set.
     var ownFlag: CGEventFlags? {
         switch self {
-        case .none: return nil
-        case .capsLock: return .maskAlphaShift
-        case .rightControl: return .maskControl
-        case .rightShift: return .maskShift
-        case .rightOption: return .maskAlternate
-        case .rightCommand: return .maskCommand
+        case .none: nil
+        case .capsLock: .maskAlphaShift
+        case .rightControl: .maskControl
+        case .rightShift: .maskShift
+        case .rightOption: .maskAlternate
+        case .rightCommand: .maskCommand
         }
     }
 

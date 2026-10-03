@@ -56,9 +56,8 @@ struct SystemAction: Identifiable, Hashable, Sendable {
 
 enum SystemActionCatalog {
     static let all: [SystemAction] = SystemAction.ID.allCases.map { id in
-        SystemAction(
-            id: id, name: name(for: id), sfSymbol: symbol(for: id),
-            confirmation: confirmation(for: id))
+        let (name, symbol) = presentation(for: id)
+        return SystemAction(id: id, name: name, sfSymbol: symbol, confirmation: confirmation(for: id))
     }
 
     private static let byEntryID = Dictionary(uniqueKeysWithValues: all.map { ($0.entryID, $0) })
@@ -73,72 +72,40 @@ enum SystemActionCatalog {
         byID[id]!
     }
 
-    private static func name(for id: SystemAction.ID) -> String {
+    private static func presentation(for id: SystemAction.ID) -> (name: String, symbol: String) {
         switch id {
-        case .lockScreen: return "Lock Screen"
-        case .sleep: return "Sleep"
-        case .sleepDisplays: return "Sleep Displays"
-        case .restart: return "Restart"
-        case .shutDown: return "Shut Down"
-        case .logOut: return "Log Out"
-        case .showScreenSaver: return "Show Screen Saver"
-        case .playPause: return "Play / Pause"
-        case .nextTrack: return "Next Track"
-        case .previousTrack: return "Previous Track"
-        case .toggleMute: return "Toggle Mute"
-        case .volumeUp: return "Turn Volume Up"
-        case .volumeDown: return "Turn Volume Down"
-        case .setVolume: return "Set Volume…"
-        case .volume0: return "Set Volume to 0%"
-        case .volume25: return "Set Volume to 25%"
-        case .volume50: return "Set Volume to 50%"
-        case .volume75: return "Set Volume to 75%"
-        case .volume100: return "Set Volume to 100%"
-        case .showDesktop: return "Show Desktop"
-        case .toggleAppearance: return "Toggle System Appearance"
-        case .toggleStageManager: return "Toggle Stage Manager"
-        case .openTrash: return "Open Trash"
-        case .emptyTrash: return "Empty Trash"
-        case .ejectAllDisks: return "Eject All Disks"
-        case .toggleHiddenFiles: return "Toggle Hidden Files"
-        case .hideOtherApps: return "Hide All Apps Except Frontmost"
-        case .unhideAllApps: return "Unhide All Hidden Apps"
-        case .quitAllApps: return "Quit All Applications"
-        case .dismissNotifications: return "Dismiss Notifications"
-        case .toggleBluetooth: return "Toggle Bluetooth"
-        }
-    }
-
-    private static func symbol(for id: SystemAction.ID) -> String {
-        switch id {
-        case .lockScreen: return "lock"
-        case .sleep: return "moon.zzz"
-        case .sleepDisplays: return "display"
-        case .restart: return "arrow.clockwise"
-        case .shutDown: return "power"
-        case .logOut: return "rectangle.portrait.and.arrow.right"
-        case .showScreenSaver: return "rectangle.inset.filled"
-        case .playPause: return "playpause"
-        case .nextTrack: return "forward.end"
-        case .previousTrack: return "backward.end"
-        case .toggleMute: return "speaker.slash"
-        case .volumeUp: return "speaker.plus"
-        case .volumeDown: return "speaker.minus"
-        case .setVolume, .volume0, .volume25, .volume50, .volume75, .volume100:
-            return "speaker.wave.2"
-        case .showDesktop: return "macwindow.on.rectangle"
-        case .toggleAppearance: return "circle.lefthalf.filled"
-        case .toggleStageManager: return "squares.leading.rectangle"
-        case .openTrash: return "trash"
-        case .emptyTrash: return "trash.slash"
-        case .ejectAllDisks: return "eject"
-        case .toggleHiddenFiles: return "eye.slash"
-        case .hideOtherApps: return "eye.slash.circle"
-        case .unhideAllApps: return "eye.circle"
-        case .quitAllApps: return "xmark.circle"
-        case .dismissNotifications: return "bell.slash"
+        case .lockScreen: ("Lock Screen", "lock")
+        case .sleep: ("Sleep", "moon.zzz")
+        case .sleepDisplays: ("Sleep Displays", "display")
+        case .restart: ("Restart", "arrow.clockwise")
+        case .shutDown: ("Shut Down", "power")
+        case .logOut: ("Log Out", "rectangle.portrait.and.arrow.right")
+        case .showScreenSaver: ("Show Screen Saver", "rectangle.inset.filled")
+        case .playPause: ("Play / Pause", "playpause")
+        case .nextTrack: ("Next Track", "forward.end")
+        case .previousTrack: ("Previous Track", "backward.end")
+        case .toggleMute: ("Toggle Mute", "speaker.slash")
+        case .volumeUp: ("Turn Volume Up", "speaker.plus")
+        case .volumeDown: ("Turn Volume Down", "speaker.minus")
+        case .setVolume: ("Set Volume…", "speaker.wave.2")
+        case .volume0: ("Set Volume to 0%", "speaker.wave.2")
+        case .volume25: ("Set Volume to 25%", "speaker.wave.2")
+        case .volume50: ("Set Volume to 50%", "speaker.wave.2")
+        case .volume75: ("Set Volume to 75%", "speaker.wave.2")
+        case .volume100: ("Set Volume to 100%", "speaker.wave.2")
+        case .showDesktop: ("Show Desktop", "macwindow.on.rectangle")
+        case .toggleAppearance: ("Toggle System Appearance", "circle.lefthalf.filled")
+        case .toggleStageManager: ("Toggle Stage Manager", "squares.leading.rectangle")
+        case .openTrash: ("Open Trash", "trash")
+        case .emptyTrash: ("Empty Trash", "trash.slash")
+        case .ejectAllDisks: ("Eject All Disks", "eject")
+        case .toggleHiddenFiles: ("Toggle Hidden Files", "eye.slash")
+        case .hideOtherApps: ("Hide All Apps Except Frontmost", "eye.slash.circle")
+        case .unhideAllApps: ("Unhide All Hidden Apps", "eye.circle")
+        case .quitAllApps: ("Quit All Applications", "xmark.circle")
+        case .dismissNotifications: ("Dismiss Notifications", "bell.slash")
         // Not an SF Symbol: the logo is a trademark, so this is a bundled asset.
-        case .toggleBluetooth: return "bluetooth"
+        case .toggleBluetooth: ("Toggle Bluetooth", "bluetooth")
         }
     }
 

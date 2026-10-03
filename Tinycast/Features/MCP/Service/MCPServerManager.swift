@@ -1,5 +1,4 @@
 import Foundation
-import Observation
 
 /// Every running server's lifecycle. Whether a call may run is the coordinator's decision.
 @MainActor

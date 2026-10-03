@@ -115,9 +115,7 @@ final class HyperKeyTap: HealthCheckable {
     private(set) var status: Status = .off
 
     @ObservationIgnored private var settings: AppSettings?
-    // Raw CF handles the tap callback and teardown reach; never a view dependency.
-    @ObservationIgnored private var tapPort: CFMachPort?
-    @ObservationIgnored private var runLoopSource: CFRunLoopSource?
+    @ObservationIgnored private var tap: EventTap?
     @ObservationIgnored private var sessionTokens: [NotificationToken] = []
     @ObservationIgnored private var hidConnect: io_connect_t = IO_OBJECT_NULL
 
@@ -142,25 +140,7 @@ final class HyperKeyTap: HealthCheckable {
         self.settings = settings
         applyKey(settings.hyperKey)
         observeKey()
-
-        // Fast user switching: drop half-held state and stop rewriting until we are back.
-        let center = NSWorkspace.shared.notificationCenter
-        sessionTokens = [
-            NotificationToken(
-                center.addObserver(
-                    forName: NSWorkspace.sessionDidResignActiveNotification, object: nil,
-                    queue: .main
-                ) { [weak self] _ in
-                    MainActor.assumeIsolated { self?.sessionDidResign() }
-                }, center: center),
-            NotificationToken(
-                center.addObserver(
-                    forName: NSWorkspace.sessionDidBecomeActiveNotification, object: nil,
-                    queue: .main
-                ) { [weak self] _ in
-                    MainActor.assumeIsolated { self?.sessionDidBecomeActive() }
-                }, center: center)
-        ]
+        sessionTokens = EventTap.observeSession { [weak self] in self?.sessionDidChange(active: $0) }
     }
 
     /// Fires synchronously on main before the write lands, so the task re-arms, then applies.
@@ -175,8 +155,6 @@ final class HyperKeyTap: HealthCheckable {
             }
         }
     }
-
-    // MARK: - Hyper chord flags
 
     /// The flags OR'd in while Hyper is held: the generic masks plus left-side device bits.
     private var hyperFlagsRaw: UInt64 {
@@ -198,11 +176,11 @@ final class HyperKeyTap: HealthCheckable {
 
     private static func deviceBits(for flag: CGEventFlags) -> UInt64 {
         switch flag {
-        case .maskControl: return DeviceFlag.leftControl | DeviceFlag.rightControl
-        case .maskShift: return DeviceFlag.leftShift | DeviceFlag.rightShift
-        case .maskAlternate: return DeviceFlag.leftOption | DeviceFlag.rightOption
-        case .maskCommand: return DeviceFlag.leftCommand | DeviceFlag.rightCommand
-        default: return 0
+        case .maskControl: DeviceFlag.leftControl | DeviceFlag.rightControl
+        case .maskShift: DeviceFlag.leftShift | DeviceFlag.rightShift
+        case .maskAlternate: DeviceFlag.leftOption | DeviceFlag.rightOption
+        case .maskCommand: DeviceFlag.leftCommand | DeviceFlag.rightCommand
+        default: 0
         }
     }
 
@@ -212,8 +190,6 @@ final class HyperKeyTap: HealthCheckable {
     private func hyperized(_ flagsRaw: UInt64) -> UInt64 {
         (flagsRaw & ~strippedFlagsRaw) | hyperFlagsRaw
     }
-
-    // MARK: - Event decisions
 
     func decide(
         type: CGEventType, keyCode: Int, flagsRaw: UInt64, isAutorepeat: Bool, isSynthetic: Bool
@@ -269,8 +245,6 @@ final class HyperKeyTap: HealthCheckable {
         return .rewrite(flags: flagsRaw & ~strippedFlagsRaw, keyCode: keyCode)
     }
 
-    // MARK: - Hold state machine
-
     private func beginHold() {
         hyperActive = true
         hyperDownAt = clock.now
@@ -306,8 +280,6 @@ final class HyperKeyTap: HealthCheckable {
         otherKeyPressed = false
     }
 
-    // MARK: - Configuration
-
     private func applyKey(_ newKey: HyperKeyPhysicalKey) {
         guard newKey != key else { return }
         cancelHold()
@@ -328,8 +300,6 @@ final class HyperKeyTap: HealthCheckable {
         if key == .capsLock { CapsLockRemap.clearBlocking() }
     }
 
-    // MARK: - Tap lifecycle
-
     private func syncTapPresence() {
         if key == .none {
             tearDownTap()
@@ -342,78 +312,55 @@ final class HyperKeyTap: HealthCheckable {
     }
 
     private func installTapIfNeeded() {
-        guard tapPort == nil, key != .none else { return }
-        let mask: CGEventMask =
-            (1 << CGEventType.keyDown.rawValue)
-            | (1 << CGEventType.keyUp.rawValue)
-            | (1 << CGEventType.flagsChanged.rawValue)
+        guard tap == nil, key != .none else { return }
         guard
-            let port = CGEvent.tapCreate(
-                tap: .cgSessionEventTap,
-                place: .headInsertEventTap,
-                options: .defaultTap,
-                eventsOfInterest: mask,
-                callback: hyperKeyEventTapCallback,
-                userInfo: Unmanaged.passUnretained(self).toOpaque())
+            let tap = EventTap(
+                place: .headInsertEventTap, options: .defaultTap,
+                events: [.keyDown, .keyUp, .flagsChanged],
+                callback: hyperKeyEventTapCallback, owner: self)
         else {
             // A modifying tap needs Accessibility; the health timer retries until granted.
             status = .needsAccessibility
             return
         }
-        tapPort = port
-        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, port, 0)
-        runLoopSource = source
-        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+        self.tap = tap
         status = .active
     }
 
     private func tearDownTap() {
         cancelHold()
-        if let runLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-            self.runLoopSource = nil
-        }
-        if let tapPort {
-            CGEvent.tapEnable(tap: tapPort, enable: false)
-            CFMachPortInvalidate(tapPort)
-            self.tapPort = nil
-        }
+        tap?.invalidate()
+        tap = nil
     }
 
     /// Called when the system disables the tap; any half-tracked hold is stale by then.
     fileprivate func reenable() {
         cancelHold()
-        if let tapPort { CGEvent.tapEnable(tap: tapPort, enable: true) }
+        tap?.setEnabled(true)
     }
 
     /// One-second watchdog while a key is configured. See docs/features/hotkeys.md#lifecycle.
     func healthCheck() {
         guard key != .none else { return }
-        if tapPort == nil {
+        if tap == nil {
             installTapIfNeeded()
         } else if !Permissions.isAccessibilityTrusted() {
             tearDownTap()
             status = .needsAccessibility
-        } else if let tapPort, !CGEvent.tapIsEnabled(tap: tapPort) {
-            CGEvent.tapEnable(tap: tapPort, enable: true)
+        } else if let tap, !tap.isEnabled {
+            tap.setEnabled(true)
         }
-
     }
 
-    private func sessionDidResign() {
-        cancelHold()
-        if let tapPort { CGEvent.tapEnable(tap: tapPort, enable: false) }
-    }
-
-    private func sessionDidBecomeActive() {
-        if let tapPort {
-            CGEvent.tapEnable(tap: tapPort, enable: true)
-        } else {
+    /// Drops half-held state and stops rewriting while another session owns the keyboard.
+    private func sessionDidChange(active: Bool) {
+        if !active { cancelHold() }
+        if let tap {
+            tap.setEnabled(active)
+        } else if active {
             installTapIfNeeded()
         }
     }
-
-    // MARK: - Synthetics & caps state
 
     /// Synthesize a bare key press for Quick Press, tagged so `decide` ignores it.
     private func postKey(_ keyCode: CGKeyCode) {

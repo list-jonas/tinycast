@@ -21,8 +21,6 @@ struct CommandOutputView: View {
         .background(Theme.Colors.terminalSurface)
     }
 
-    // MARK: - Header
-
     private func header(_ run: CommandRun) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.md) {
             SymbolImage(name: run.symbol, size: Self.headerGlyph)
@@ -67,8 +65,6 @@ struct CommandOutputView: View {
         }
         .tooltip(help)
     }
-
-    // MARK: - Footer
 
     private func footer(_ run: CommandRun) -> some View {
         HStack(spacing: Theme.Spacing.sm) {

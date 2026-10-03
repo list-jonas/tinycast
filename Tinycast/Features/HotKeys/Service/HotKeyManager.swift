@@ -198,29 +198,19 @@ final class HotKeyManager {
         center.unregister(id: action.defaultsKey)
         register(action)
 
+        let bound = binding != nil
         switch action {
-        case .app(let bundleID):
-            index(bundleID, bound: binding != nil, key: boundKey)
-        case .settingsPane(let bundleID):
-            index(bundleID, bound: binding != nil, key: boundPaneKey)
-        case .customCommand(let id):
-            index(id, bound: binding != nil, key: boundCustomCommandKey)
-        case .quicklink(let id):
-            index(id, bound: binding != nil, key: boundQuicklinkKey)
-        case .quickAction(let id):
-            index(id, bound: binding != nil, key: boundQuickActionKey)
-        case .windowLayout(let id):
-            index(id, bound: binding != nil, key: boundWindowLayoutKey)
-        case .windowRoom(let id):
-            index(id, bound: binding != nil, key: boundWindowRoomKey)
-        case .customWindowSize(let id):
-            index(id, bound: binding != nil, key: boundCustomWindowSizeKey)
-        case .appleShortcut(let id):
-            index(id, bound: binding != nil, key: boundAppleShortcutKey)
-        case .snippet(let id):
-            index(id, bound: binding != nil, key: boundSnippetKey)
-        case .extensionCommand(let entryID):
-            index(entryID, bound: binding != nil, key: boundExtensionCommandKey)
+        case .app(let bundleID): index(bundleID, bound: bound, key: boundKey)
+        case .settingsPane(let bundleID): index(bundleID, bound: bound, key: boundPaneKey)
+        case .customCommand(let id): index(id, bound: bound, key: boundCustomCommandKey)
+        case .quicklink(let id): index(id, bound: bound, key: boundQuicklinkKey)
+        case .quickAction(let id): index(id, bound: bound, key: boundQuickActionKey)
+        case .windowLayout(let id): index(id, bound: bound, key: boundWindowLayoutKey)
+        case .windowRoom(let id): index(id, bound: bound, key: boundWindowRoomKey)
+        case .customWindowSize(let id): index(id, bound: bound, key: boundCustomWindowSizeKey)
+        case .appleShortcut(let id): index(id, bound: bound, key: boundAppleShortcutKey)
+        case .snippet(let id): index(id, bound: bound, key: boundSnippetKey)
+        case .extensionCommand(let entryID): index(entryID, bound: bound, key: boundExtensionCommandKey)
         case .togglePalette, .dictation, .command, .systemAction, .windowCommand:
             break
         }
@@ -282,36 +272,21 @@ final class HotKeyManager {
 
     private func displayName(of action: HotKeyAction) -> String {
         switch action {
-        case .togglePalette:
-            return "App Launcher"
-        case .dictation:
-            return "Dictation"
-        case .command(let id):
-            return id.name
-        case .app(let bundleID), .settingsPane(let bundleID):
-            return displayName?(action) ?? bundleID
-        case .customCommand:
-            return displayName?(action) ?? "Custom Command"
-        case .systemAction(let id):
-            return SystemActionCatalog.action(id: id).name
-        case .windowCommand(let id):
-            return WindowCommandCatalog.command(id: id)?.name ?? "Window Command"
-        case .windowLayout:
-            return displayName?(action) ?? "Window Layout"
-        case .windowRoom:
-            return displayName?(action) ?? "Room"
-        case .customWindowSize:
-            return displayName?(action) ?? "Custom Size"
-        case .quicklink:
-            return displayName?(action) ?? "Quicklink"
-        case .quickAction:
-            return displayName?(action) ?? "Quick Action"
-        case .appleShortcut:
-            return displayName?(action) ?? "Apple Shortcut"
-        case .snippet:
-            return displayName?(action) ?? "Snippet"
-        case .extensionCommand:
-            return displayName?(action) ?? "Extension Command"
+        case .togglePalette: "App Launcher"
+        case .dictation: "Dictation"
+        case .command(let id): id.name
+        case .systemAction(let id): SystemActionCatalog.action(id: id).name
+        case .windowCommand(let id): WindowCommandCatalog.command(id: id)?.name ?? "Window Command"
+        case .app(let bundleID), .settingsPane(let bundleID): displayName?(action) ?? bundleID
+        case .customCommand: displayName?(action) ?? "Custom Command"
+        case .windowLayout: displayName?(action) ?? "Window Layout"
+        case .windowRoom: displayName?(action) ?? "Room"
+        case .customWindowSize: displayName?(action) ?? "Custom Size"
+        case .quicklink: displayName?(action) ?? "Quicklink"
+        case .quickAction: displayName?(action) ?? "Quick Action"
+        case .appleShortcut: displayName?(action) ?? "Apple Shortcut"
+        case .snippet: displayName?(action) ?? "Snippet"
+        case .extensionCommand: displayName?(action) ?? "Extension Command"
         }
     }
 
@@ -366,8 +341,6 @@ final class HotKeyManager {
         case .extensionCommand(let entryID): onRunExtensionCommand?(entryID)
         }
     }
-
-    // MARK: - UUID-keyed indexes
 
     private func boundIDs(key: String) -> [UUID] {
         (UserDefaults.standard.stringArray(forKey: key) ?? []).compactMap(UUID.init(uuidString:))

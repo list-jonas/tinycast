@@ -50,8 +50,6 @@ struct HotKeySpelling: Sendable {
         return shortcut(from: spelled).map(HotKeyBinding.combo)
     }
 
-    // MARK: - Combos
-
     private func text(for shortcut: KeyShortcut) -> String {
         var modifiers = shortcut.carbonModifiers
         var parts: [String] = []
@@ -103,8 +101,6 @@ struct HotKeySpelling: Sendable {
         else { return nil }
         return code
     }
-
-    // MARK: - Vocabulary
 
     private static let hyperName = "hyper"
     private static let doubleTapPrefix = "double-tap "

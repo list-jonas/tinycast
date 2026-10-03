@@ -7,15 +7,9 @@ struct CustomCommandEditorPanel: View {
 
     @Environment(\.settingsEditorDismiss) private var dismiss
     @Environment(AppCore.self) private var core
-    @State private var name: String
-    @State private var shellCommand: String
-    @State private var loadsShellEnvironment: Bool
-    @State private var requiresConfirmation: Bool
-    @State private var showsConfirmation: Bool
-    @State private var showsOutput: Bool
+    /// Editing keeps the UUID, and with it every reference the command owns.
+    @State private var draft: CustomCommand
     @State private var arguments: [ArgumentDraft]
-    @State private var workingDirectory: String
-    @State private var iconSymbol: String?
     @State private var showingIconPicker = false
     @State private var errorMessage: String?
 
@@ -28,18 +22,11 @@ struct CustomCommandEditorPanel: View {
 
     init(command: CustomCommand?) {
         self.command = command
-        _name = State(initialValue: command?.name ?? "")
-        _shellCommand = State(initialValue: command?.command ?? "")
-        _loadsShellEnvironment = State(initialValue: command?.loadsShellEnvironment ?? false)
-        _requiresConfirmation = State(initialValue: command?.requiresConfirmation ?? false)
-        _showsConfirmation = State(initialValue: command?.showsConfirmation ?? false)
-        _showsOutput = State(initialValue: command?.showsOutput ?? false)
+        _draft = State(initialValue: command ?? CustomCommand(name: "", command: ""))
         _arguments = State(
             initialValue: (command?.arguments ?? []).map {
                 ArgumentDraft(name: $0.name, isOptional: $0.isOptional)
             })
-        _workingDirectory = State(initialValue: command?.workingDirectory ?? "")
-        _iconSymbol = State(initialValue: command?.iconSymbol)
     }
 
     var body: some View {
@@ -51,7 +38,7 @@ struct CustomCommandEditorPanel: View {
                 VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                     Text("Name")
                         .font(.callout.weight(.medium))
-                    TextField("Sleep Displays", text: $name)
+                    TextField("Sleep Displays", text: $draft.name)
                         .settingsEditorTextField()
                 }
                 iconField
@@ -60,7 +47,7 @@ struct CustomCommandEditorPanel: View {
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 Text("Command")
                     .font(.callout.weight(.medium))
-                TextEditor(text: $shellCommand)
+                TextEditor(text: $draft.command)
                     .font(.body.monospaced())
                     .settingsEditorTextArea(height: Theme.Size.editorTextHeight)
             }
@@ -75,16 +62,16 @@ struct CustomCommandEditorPanel: View {
 
             VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                 optionToggle(
-                    "Load shell environment", isOn: $loadsShellEnvironment,
+                    "Load shell environment", isOn: $draft.loadsShellEnvironment,
                     detail: "Resolves aliases, functions and PATH. Slower to start.")
                 optionToggle(
-                    "Needs confirmation", isOn: $requiresConfirmation,
+                    "Needs confirmation", isOn: $draft.requiresConfirmation,
                     detail: "Ask before running this command.")
                 optionToggle(
-                    "Show confirmation", isOn: $showsConfirmation,
+                    "Show confirmation", isOn: $draft.showsConfirmation,
                     detail: "Confirm on screen after the command succeeds.")
                 optionToggle(
-                    "Show output", isOn: $showsOutput,
+                    "Show output", isOn: $draft.showsOutput,
                     detail: "Open a window with everything the command printed when it finishes.")
             }
 
@@ -102,8 +89,8 @@ struct CustomCommandEditorPanel: View {
                     .buttonStyle(.modalAction(.primary))
                     .keyboardShortcut(.defaultAction)
                     .disabled(
-                        name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                            || shellCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            || draft.command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
         .padding(Theme.Spacing.dialogInset)
@@ -128,8 +115,8 @@ struct CustomCommandEditorPanel: View {
                 showingIconPicker = true
             } label: {
                 HStack(spacing: Theme.Spacing.sm) {
-                    SymbolImage(name: iconSymbol ?? CustomCommand.sfSymbol, size: 14)
-                    Text(iconSymbol == nil ? "Automatic" : "Custom")
+                    SymbolImage(name: draft.symbol, size: 14)
+                    Text(draft.iconSymbol == nil ? "Automatic" : "Custom")
                         .lineLimit(1)
                     Spacer(minLength: 0)
                 }
@@ -137,7 +124,7 @@ struct CustomCommandEditorPanel: View {
             }
             .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
                 SymbolPicker(
-                    selection: $iconSymbol, fallback: CustomCommand.sfSymbol,
+                    selection: $draft.iconSymbol, fallback: CustomCommand.sfSymbol,
                     symbols: Self.iconSymbols
                 ) {
                     showingIconPicker = false
@@ -148,12 +135,16 @@ struct CustomCommandEditorPanel: View {
 
     private static let iconFieldWidth: CGFloat = 130
 
+    private var workingDirectory: Binding<String> {
+        Binding(get: { draft.workingDirectory ?? "" }, set: { draft.workingDirectory = $0 })
+    }
+
     private var workingDirectoryField: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             Text("Run In")
                 .font(.callout.weight(.medium))
             HStack(spacing: Theme.Spacing.sm) {
-                TextField("Home folder", text: $workingDirectory)
+                TextField("Home folder", text: workingDirectory)
                     .settingsEditorTextField()
                 Button("Choose…", action: chooseWorkingDirectory)
             }
@@ -170,14 +161,14 @@ struct CustomCommandEditorPanel: View {
         panel.allowsMultipleSelection = false
         panel.prompt = "Choose"
         panel.message = "Choose the folder this command runs in."
-        if !workingDirectory.isEmpty {
+        if let directory = draft.workingDirectory, !directory.isEmpty {
             panel.directoryURL = URL(
-                fileURLWithPath: (workingDirectory as NSString).expandingTildeInPath)
+                fileURLWithPath: (directory as NSString).expandingTildeInPath)
         }
         // Tinycast is an accessory app, so the panel opens behind the frontmost app without this.
         NSApp.activate(ignoringOtherApps: true)
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        workingDirectory = (url.path as NSString).abbreviatingWithTildeInPath
+        draft.workingDirectory = (url.path as NSString).abbreviatingWithTildeInPath
     }
 
     private var argumentsSection: some View {
@@ -247,18 +238,8 @@ struct CustomCommandEditorPanel: View {
     }
 
     private func save() {
-        // Editing keeps the UUID, and with it every reference the command owns.
-        let draft = CustomCommand(
-            id: command?.id ?? UUID(), name: name, command: shellCommand,
-            // The pane's row owns the checkbox; an edit carries the flag rather than resetting it.
-            isEnabled: command?.isEnabled ?? true,
-            loadsShellEnvironment: loadsShellEnvironment,
-            requiresConfirmation: requiresConfirmation,
-            showsConfirmation: showsConfirmation,
-            arguments: arguments.map {
-                CustomCommandArgument(name: $0.name, isOptional: $0.isOptional)
-            },
-            showsOutput: showsOutput, workingDirectory: workingDirectory, iconSymbol: iconSymbol)
+        var draft = draft
+        draft.arguments = arguments.map { CustomCommandArgument(name: $0.name, isOptional: $0.isOptional) }
         do {
             if command == nil {
                 try core.customCommandCoordinator.addCustomCommand(draft)

@@ -88,8 +88,7 @@ final class DictationModelStore {
         downloadID = id
         let destination = directory(for: model)
         let task = Task.detached(priority: .utility) { [weak self] in
-            try await DictationModelDownloader.download(model, destination: destination) {
-                [weak self] received, total in
+            try await DictationModelDownloader.download(model, destination: destination) { [weak self] received, total in
                 Task { @MainActor [weak self] in
                     guard let self, self.downloadID == id else { return }
                     self.downloadProgress = (max(self.downloadProgress?.received ?? 0, received), total)
