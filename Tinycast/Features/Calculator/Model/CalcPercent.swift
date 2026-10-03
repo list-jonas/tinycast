@@ -3,10 +3,11 @@ import Foundation
 /// Percentage phrasings the arithmetic parser misses: `20% off 500`, `50 as % of 200`.
 enum CalcPercent {
     static func evaluate(_ tokens: [CalcToken], query: String) -> CalcResult? {
-        parseOff(tokens, query: query) ?? parseAsPercentOf(tokens, query: query) ?? parseTip(
-            tokens, query: query) ?? parseWhatPercentOf(tokens, query: query) ?? parseIsPercentOfWhat(
-                tokens, query: query) ?? parseRatio(tokens, query: query) ?? parseAggregate(
-                tokens, query: query) ?? parseRoundToNearest(tokens, query: query)
+        let parsers = [
+            parseOff, parseAsPercentOf, parseTip, parseWhatPercentOf, parseIsPercentOfWhat, parseRatio,
+            parseAggregate, parseRoundToNearest
+        ]
+        return parsers.lazy.compactMap { $0(tokens, query) }.first
     }
 
     /// `<pct>% off <value>` → the value reduced by pct percent (`20% off 500` → 400).
@@ -15,9 +16,7 @@ enum CalcPercent {
             let pct = CalcExpressionParser.scalar(Array(tokens[0..<(off - 1)])),
             let base = CalcExpressionParser.scalar(Array(tokens[(off + 1)...]))
         else { return nil }
-        let result = base * (1 - pct / 100)
-        guard result.isFinite else { return nil }
-        return card(query, .number(result), target: "Discounted")
+        return card(query, base * (1 - pct / 100), target: "Discounted")
     }
 
     /// `<x> as % of <y>` → x / y × 100, rendered as a percentage (`50 as % of 200` → 25%).
@@ -27,17 +26,17 @@ enum CalcPercent {
             let x = CalcExpressionParser.scalar(Array(tokens[0..<asIdx])),
             let y = CalcExpressionParser.scalar(Array(tokens[(asIdx + 3)...])), y != 0
         else { return nil }
-        let ratio = x / y * 100
-        guard ratio.isFinite else { return nil }
-        return card(query, .number(ratio, suffix: "%"), target: "Percentage")
+        return card(query, x / y * 100, suffix: "%", target: "Percentage")
     }
 
-    private static func card(
-        _ query: String, _ payload: CalcResult.Payload, target: String = "Result"
-    ) -> CalcResult {
+    private static func card(_ query: String, _ payload: CalcResult.Payload, target: String) -> CalcResult {
         CalcResult(
             expression: query.split(whereSeparator: \.isWhitespace).joined(separator: " "),
             sourceBadge: "Expression", targetBadge: target, payload: payload)
+    }
+
+    private static func card(_ query: String, _ value: Double, suffix: String = "", target: String) -> CalcResult? {
+        value.isFinite ? card(query, .number(value, suffix: suffix), target: target) : nil
     }
 
     /// The tip alone, not the total: it is the number the phrase asks for.
@@ -48,9 +47,7 @@ enum CalcPercent {
             let pct = CalcExpressionParser.scalar(Array(tokens[0..<(tip - 1)])),
             let bill = CalcExpressionParser.scalar(Array(tokens[(tip + 2)...]))
         else { return nil }
-        let amount = bill * pct / 100
-        guard amount.isFinite else { return nil }
-        return card(query, .number(amount), target: "Tip")
+        return card(query, bill * pct / 100, target: "Tip")
     }
 
     private static func parseWhatPercentOf(_ tokens: [CalcToken], query: String) -> CalcResult? {
@@ -59,9 +56,7 @@ enum CalcPercent {
             tokens[isIdx + 3] == .ident("of"), let x = CalcExpressionParser.scalar(Array(tokens[0..<isIdx])),
             let y = CalcExpressionParser.scalar(Array(tokens[(isIdx + 4)...])), y != 0
         else { return nil }
-        let ratio = x / y * 100
-        guard ratio.isFinite else { return nil }
-        return card(query, .number(ratio, suffix: "%"), target: "Percentage")
+        return card(query, x / y * 100, suffix: "%", target: "Percentage")
     }
 
     private static func parseIsPercentOfWhat(_ tokens: [CalcToken], query: String) -> CalcResult? {
@@ -70,9 +65,7 @@ enum CalcPercent {
             let x = CalcExpressionParser.scalar(Array(tokens[0..<isIdx])),
             let pct = CalcExpressionParser.scalar(Array(tokens[(isIdx + 1)..<(tokens.count - 3)])), pct != 0
         else { return nil }
-        let whole = x / (pct / 100)
-        guard whole.isFinite else { return nil }
-        return card(query, .number(whole), target: "Total")
+        return card(query, x / (pct / 100), target: "Total")
     }
 
     /// Integers only, so the reduced pair stays exact.
@@ -100,8 +93,8 @@ enum CalcPercent {
             tokens[1] == .ident("of")
         else { return nil }
         let values = splitList(Array(tokens[2...]))
-        guard values.count >= 2, let result = aggregate.reduce(values), result.isFinite else { return nil }
-        return card(query, .number(result), target: aggregate.name)
+        guard values.count >= 2, let result = aggregate.reduce(values) else { return nil }
+        return card(query, result, target: aggregate.name)
     }
 
     /// Snaps to a step, not to a digit count, so `nearest 5` means multiples of 5.
@@ -112,9 +105,7 @@ enum CalcPercent {
             let value = CalcExpressionParser.scalar(Array(tokens[1..<toIdx])),
             let step = CalcExpressionParser.scalar(Array(tokens[(toIdx + 2)...])), step != 0
         else { return nil }
-        let result = (value / step).rounded() * step
-        guard result.isFinite else { return nil }
-        return card(query, .number(result), target: "Rounded")
+        return card(query, (value / step).rounded() * step, target: "Rounded")
     }
 
     /// The badge names which reduction ran, so `min` and `max` are told apart on the card.
@@ -123,14 +114,14 @@ enum CalcPercent {
         let reduce: @Sendable ([Double]) -> Double?
     }
 
-    private static let aggregates: [String: Aggregate] = [
-        "average": Aggregate(name: "Average") { $0.reduce(0, +) / Double($0.count) },
-        "avg": Aggregate(name: "Average") { $0.reduce(0, +) / Double($0.count) },
-        "mean": Aggregate(name: "Average") { $0.reduce(0, +) / Double($0.count) },
-        "sum": Aggregate(name: "Sum") { $0.reduce(0, +) },
-        "total": Aggregate(name: "Sum") { $0.reduce(0, +) }, "min": Aggregate(name: "Minimum") { $0.min() },
-        "max": Aggregate(name: "Maximum") { $0.max() }
-    ]
+    private static let aggregates: [String: Aggregate] = {
+        let average = Aggregate(name: "Average") { $0.reduce(0, +) / Double($0.count) }
+        let sum = Aggregate(name: "Sum") { $0.reduce(0, +) }
+        return [
+            "average": average, "avg": average, "mean": average, "sum": sum, "total": sum,
+            "min": Aggregate(name: "Minimum") { $0.min() }, "max": Aggregate(name: "Maximum") { $0.max() }
+        ]
+    }()
 
     /// Each run is evaluated whole, so `sum of 2*3, 4` stays two operands.
     private static func splitList(_ tokens: [CalcToken]) -> [Double] {

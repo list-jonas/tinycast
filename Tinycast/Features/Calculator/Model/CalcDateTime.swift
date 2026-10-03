@@ -128,12 +128,7 @@ private struct DateResolver {
     /// `next monday`, `tomorrow`, `tomorrow at 9am` — a moment named without any arithmetic.
     func bareMoment(_ query: String, echo: String) -> CalcResult? {
         guard let moment = parseMoment(query, bias: .nearest) else { return nil }
-        let date = moment.date
-        let hasTime = moment.hasTime
-        let text = answerString(date, hasTime: hasTime)
-        return CalcResult(
-            expression: echo, sourceBadge: dateString(now), targetBadge: weekdayName(date),
-            payload: .text(text))
+        return answer(moment, echo: echo, source: dateString(now))
     }
 
     /// `9am`, `5:30pm`, `14:00` as a wall clock, with no bias applied.
@@ -168,11 +163,7 @@ private struct DateResolver {
         guard let week = calendar.dateInterval(of: .weekOfYear, for: landing),
             let result = shift(week.start, days: (weekday - calendar.firstWeekday + 7) % 7)
         else { return nil }
-
-        let text = answerString(result, hasTime: false)
-        return CalcResult(
-            expression: echo, sourceBadge: dateString(now), targetBadge: weekdayName(result),
-            payload: .text(text))
+        return answer(Moment(date: result, hasTime: false), echo: echo, source: dateString(now))
     }
 
     /// `5 weekdays from now`, `3 days from today`, `2 weeks ago` — the duration leads.
@@ -198,12 +189,10 @@ private struct DateResolver {
         guard let anchor = parseMoment(anchorPhrase),
             let shifted = shift(anchor, by: durationText, op: sign < 0 ? "-" : "+")
         else { return nil }
-        let result = shifted.date
         let hasTime = shifted.hasTime && (subDay || anchorPhrase != "now")
-        let display = answerString(result, hasTime: hasTime)
-        return CalcResult(
-            expression: echo, sourceBadge: momentString(anchor.date, hasTime: hasTime),
-            targetBadge: weekdayName(result), payload: .text(display))
+        return answer(
+            Moment(date: shifted.date, hasTime: hasTime), echo: echo,
+            source: momentString(anchor.date, hasTime: hasTime))
     }
 
     func parseUntil(_ query: String, echo: String) -> CalcResult? {
@@ -265,10 +254,7 @@ private struct DateResolver {
 
         // C: moment ± duration, chained left to right — every term after the first shifts again.
         if targetUnit == nil, let shifted = applyShifts(op, right, to: base) {
-            let display = answerString(shifted.date, hasTime: shifted.hasTime)
-            return CalcResult(
-                expression: echo, sourceBadge: momentString(base.date, hasTime: base.hasTime),
-                targetBadge: weekdayName(shifted.date), payload: .text(display))
+            return answer(shifted, echo: echo, source: momentString(base.date, hasTime: base.hasTime))
         }
 
         // D: moment − moment. Two letter-free operands (`5/2 - 1/2`) belong to the calculator.
@@ -662,8 +648,12 @@ private struct DateResolver {
             from: date, calendar: calendar, zone: calendar.timeZone, template: template)
     }
 
-    /// The answer's own weekday, which the date itself never spells out.
-    func weekdayName(_ date: Date) -> String { format(date, pattern: "EEEE") }
+    /// Badged with its own weekday, which the date itself never spells out.
+    func answer(_ moment: Moment, echo: String, source: String) -> CalcResult {
+        CalcResult(
+            expression: echo, sourceBadge: source, targetBadge: format(moment.date, pattern: "EEEE"),
+            payload: .text(answerString(moment.date, hasTime: moment.hasTime)))
+    }
 
     func format(_ date: Date, pattern: String) -> String {
         CalcDateFormatters.string(from: date, calendar: calendar, zone: calendar.timeZone, pattern: pattern)

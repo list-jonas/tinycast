@@ -305,6 +305,13 @@ struct CalcExpressionParser {
         }
     }
 
+    /// Odd roots keep the sign that a fractional power of a negative would lose.
+    private func cubeRoot(_ value: CalcValue) -> CalcValue? {
+        guard let root = power(CalcValue(amount: abs(value.effective), kind: value.kind), exponent: 1.0 / 3)
+        else { return nil }
+        return CalcValue(amount: value.effective < 0 ? -root.amount : root.amount, kind: root.kind)
+    }
+
     private func finiteDivision(
         _ numerator: Double, _ denominator: Double, kind: CalcValue.Kind
     ) -> CalcValue? {
@@ -382,12 +389,7 @@ struct CalcExpressionParser {
                 if current == .ident("of") { position += 1 }
                 guard let value = parseOperand(), !value.isBoolean else { return nil }
                 operationCount += 1
-                if name == "square" { return power(value, exponent: 0.5) }
-                guard
-                    let result = power(
-                        CalcValue(amount: abs(value.effective), kind: value.kind), exponent: 1.0 / 3)
-                else { return nil }
-                return CalcValue(amount: value.amount < 0 ? -result.amount : result.amount, kind: result.kind)
+                return name == "square" ? power(value, exponent: 0.5) : cubeRoot(value)
             }
             if let constant = CalcMath.constants[name] {
                 position += 1
@@ -411,14 +413,7 @@ struct CalcExpressionParser {
                     return derived(function(argument.amount * unit.factor), dimension: .scalar)
                 }
                 if name == "sqrt" { return power(argument, exponent: 0.5) }
-                if name == "cbrt" {
-                    guard
-                        let result = power(
-                            CalcValue(amount: abs(argument.amount), kind: argument.kind), exponent: 1.0 / 3)
-                    else { return nil }
-                    return CalcValue(
-                        amount: argument.amount < 0 ? -result.amount : result.amount, kind: result.kind)
-                }
+                if name == "cbrt" { return cubeRoot(argument) }
                 if ["abs", "floor", "ceil", "round", "trunc"].contains(name) {
                     return CalcValue(amount: function(argument.amount), kind: argument.kind)
                 }

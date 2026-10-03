@@ -51,8 +51,8 @@ extension DictionaryEntry {
         var pronunciation: String?
         var body = plainText[...]
         if pipes.count == 2 {
-            let spoken = plainText[pipes[0].upperBound..<pipes[1].lowerBound].trimmingCharacters(
-                in: .whitespaces)
+            let spoken = plainText[pipes[0].upperBound..<pipes[1].lowerBound]
+                .trimmingCharacters(in: .whitespaces)
             pronunciation = spoken.isEmpty ? nil : spoken
             body = plainText[pipes[1].upperBound...]
         }
@@ -67,8 +67,8 @@ extension DictionaryEntry.Block {
     var text: String {
         switch self {
         case .headword(let word, let homograph, let pronunciation):
-            return [word, homograph, pronunciation.map { "| \($0) |" }].compactMap { $0 }.joined(
-                separator: " ")
+            return [word, homograph, pronunciation.map { "| \($0) |" }].compactMap { $0 }
+                .joined(separator: " ")
         case .sense(let number, let runs): return [number, runs.text].compactMap { $0 }.joined(separator: " ")
         case .subsense(let runs): return "• " + runs.text
         case .section(let title): return "\n" + title

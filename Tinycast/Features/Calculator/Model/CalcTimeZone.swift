@@ -57,14 +57,8 @@ enum CalcTimeZone {
         guard
             var source = sourceMoment(leading, allowZoneConnector: ahead == nil, now: now, calendar: calendar)
         else { return nil }
-        if let ahead {
-            guard let shifted = calendar.date(byAdding: ahead.component, value: ahead.count, to: source.date)
-            else { return nil }
-            source = SourceMoment(date: shifted, zone: source.zone)
-        }
-        if let offset {
-            guard
-                let shifted = calendar.date(byAdding: offset.component, value: offset.count, to: source.date)
+        for shift in [ahead, offset].compactMap({ $0 }) {
+            guard let shifted = calendar.date(byAdding: shift.component, value: shift.count, to: source.date)
             else { return nil }
             source = SourceMoment(date: shifted, zone: source.zone)
         }
@@ -225,13 +219,9 @@ enum CalcTimeZone {
         var source = calendar
         source.timeZone = zone
         let day = source.dateComponents([.year, .month, .day], from: now)
-        var components = DateComponents()
-        components.year = day.year
-        components.month = day.month
-        components.day = day.day
-        components.hour = clock.hour
-        components.minute = clock.minute
-        components.timeZone = zone
+        let components = DateComponents(
+            timeZone: zone, year: day.year, month: day.month, day: day.day, hour: clock.hour,
+            minute: clock.minute)
         guard let date = source.date(from: components) else { return nil }
         let resolved = source.dateComponents([.year, .month, .day, .hour, .minute], from: date)
         guard resolved.year == components.year, resolved.month == components.month,
