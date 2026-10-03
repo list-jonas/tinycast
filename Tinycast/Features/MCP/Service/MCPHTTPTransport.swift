@@ -12,10 +12,7 @@ final class MCPHTTPTransport: MCPTransport {
     private var sessionID: String?
     private var protocolVersion = MCPProtocol.version
     private var nextID = 1
-    /// One per connection, so every request after the first reuses its TCP and TLS session.
-    private var session: URLSession?
-
-    isolated deinit { session?.finishTasksAndInvalidate() }
+    private var isConnected = false
 
     init(
         url: String, headerName: String, headerValue: String,
@@ -32,12 +29,11 @@ final class MCPHTTPTransport: MCPTransport {
     }
 
     func connect() async throws {
-        guard session == nil else { return }
-        session = MCPOAuthHTTP.session(followsSameOrigin: true)
+        isConnected = true
     }
 
     func request(_ method: String, _ params: [String: Any]?) async throws -> JSONValue {
-        guard session != nil else { throw MCPTransportError.notRunning }
+        guard isConnected else { throw MCPTransportError.notRunning }
         let id = nextID
         nextID += 1
         let body = try MCPProtocol.request(id: id, method: method, params: params)
@@ -58,23 +54,20 @@ final class MCPHTTPTransport: MCPTransport {
     }
 
     func notify(_ method: String, _ params: [String: Any]?) throws {
-        guard session != nil else { throw MCPTransportError.notRunning }
+        guard isConnected else { throw MCPTransportError.notRunning }
         let body = try MCPProtocol.notification(method: method, params: params)
         // Fire and forget: a notification has no reply to wait for, and 202 is the whole answer.
         Task { [weak self] in _ = try? await self?.post(body, timeout: 15) }
     }
 
     func close() {
-        // In-flight requests still finish, as they did when each one owned its session.
-        session?.finishTasksAndInvalidate()
-        session = nil
+        isConnected = false
         sessionID = nil
     }
 
     private func post(
         _ body: Data, timeout: TimeInterval
     ) async throws -> (Data, HTTPURLResponse) {
-        guard let session else { throw MCPTransportError.notRunning }
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.timeoutInterval = timeout
@@ -89,6 +82,8 @@ final class MCPHTTPTransport: MCPTransport {
         } else if !headerName.isEmpty, !headerValue.isEmpty {
             request.setValue(headerValue, forHTTPHeaderField: headerName)
         }
+        let session = MCPOAuthHTTP.session(followsSameOrigin: true)
+        defer { session.invalidateAndCancel() }
         do {
             let (data, response) = try await session.data(for: request)
             guard let response = response as? HTTPURLResponse else {
