@@ -11,18 +11,12 @@ struct EmojiScreen: PaletteScreen {
     let defaultColumns: EmojiGridColumns
     let openActions: () -> Void
 
-    private var columns: EmojiGridColumns {
-        vm.emojiGridColumnsOverride ?? defaultColumns
-    }
+    private var columns: EmojiGridColumns { vm.emojiGridColumnsOverride ?? defaultColumns }
 
     /// The pins the grid shows; a stored glyph the catalog lacks must not shift any position.
-    private var visiblePins: [String] {
-        pinned.glyphs.filter { index.entry(for: $0) != nil }
-    }
+    private var visiblePins: [String] { pinned.glyphs.filter { index.entry(for: $0) != nil } }
 
-    private var isBrowsing: Bool {
-        vm.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
+    private var isBrowsing: Bool { vm.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     /// Pinned is the first section here, so a pin's position is also its flat selection index.
     private var pinsLeadGrid: Bool {
@@ -40,9 +34,10 @@ struct EmojiScreen: PaletteScreen {
 
     var primaryActionTitle: String { vm.pasteTarget?.pasteTitle ?? "Paste" }
 
+    /// Indexes the owning section, so an action never flattens the whole catalog to find one cell.
     private func entry(at selection: Int) -> EmojiEntry? {
-        let rows = rows
-        return rows.indices.contains(selection) ? rows[selection] : nil
+        let section = sections.first { $0.entries.indices.contains(selection - $0.start) }
+        return section.map { $0.entries[selection - $0.start] }
     }
 
     func actions(at selection: Int) -> PopoverMenuContent? {
@@ -116,8 +111,7 @@ struct EmojiScreen: PaletteScreen {
         guard count > 0 else { return selection }
         switch axis {
         case .vertical:
-            let geometry = EmojiGridGeometry(
-                counts: sections.map(\.entries.count), columns: columns.rawValue)
+            let geometry = EmojiGridGeometry(counts: sections.map(\.entries.count), columns: columns.rawValue)
             return delta > 0 ? geometry.down(from: selection) : geometry.up(from: selection)
         case .horizontal:
             return min(max(selection + delta, 0), count - 1)
@@ -183,9 +177,7 @@ enum EmojiActionsMenu {
         entry: EmojiEntry, core: AppCore, target: PasteTarget?, pinPosition: Int?, pinCount: Int,
         canZoom: (EmojiGridZoom) -> Bool, togglePin: @escaping () -> Void,
         movePin: @escaping (Int) -> Void, zoom: @escaping (EmojiGridZoom) -> Void
-    )
-        -> PopoverMenuContent
-    {
+    ) -> PopoverMenuContent {
         let noun = entry.category.itemTitle
         var items = [
             PopoverMenuItem(
@@ -194,9 +186,7 @@ enum EmojiActionsMenu {
             ) {
                 core.emojiCoordinator.pasteEmoji(entry)
             },
-            PopoverMenuItem(
-                title: "Copy to Clipboard", systemImage: "doc.on.doc", shortcut: "⌘↵"
-            ) {
+            PopoverMenuItem(title: "Copy to Clipboard", systemImage: "doc.on.doc", shortcut: "⌘↵") {
                 core.emojiCoordinator.copyEmoji(entry)
             },
             PopoverMenuItem(

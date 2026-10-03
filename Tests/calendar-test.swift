@@ -49,9 +49,7 @@ struct CalendarTests {
         expect(provider("https://us02web.zoom.us/j/8901234567") == .zoom, "a Zoom /j/ link is Zoom")
         expect(provider("https://zoom.us/w/123?pwd=xy") == .zoom, "a Zoom webinar link is Zoom")
         expect(provider("https://acme.zoomgov.com/j/55") == .zoom, "zoomgov is Zoom")
-        expect(
-            provider("https://meet.google.com/abc-defg-hij") == .googleMeet,
-            "a Meet code is Google Meet")
+        expect(provider("https://meet.google.com/abc-defg-hij") == .googleMeet, "a Meet code is Google Meet")
         expect(
             provider("https://teams.microsoft.com/l/meetup-join/19%3ameeting_Zm8") == .teams,
             "a Teams meetup-join link is Teams")
@@ -188,9 +186,7 @@ struct CalendarTests {
         expect(
             participant("mailto:a+b@domain.com") == "a+b@domain.com",
             "a plus survives the decode, so accountURL can encode it again")
-        expect(
-            participant("urn:uuid:1F2A") == nil,
-            "a non-mailto participant URL yields no address")
+        expect(participant("urn:uuid:1F2A") == nil, "a non-mailto participant URL yields no address")
         expect(
             participant("mailto:unknownorganizer@calendar.google.com") != nil,
             "a placeholder organizer address is still an address, left for isCurrentUser to refuse")
@@ -242,9 +238,7 @@ struct CalendarTests {
             "the grace period never outlives the meeting")
 
         let linkless = event(id: "linkless", start: 60, link: nil)
-        expect(
-            window.carded(from: [linkless], now: start) == nil,
-            "a meeting with no link is never carded")
+        expect(window.carded(from: [linkless], now: start) == nil, "a meeting with no link is never carded")
         expect(
             UpcomingWindow.agenda(from: [linkless], now: start).map(\.id) == ["linkless"],
             "but it stays on the agenda, so it is still listed and searchable")
@@ -267,8 +261,7 @@ struct CalendarTests {
             window.joinable(from: [running, next], now: at(120).addingTimeInterval(-120))?.id
                 == "next",
             "inside the card window the chord joins what is on screen")
-        expect(
-            window.joinable(from: [], now: now) == nil, "an empty day offers nothing to join")
+        expect(window.joinable(from: [], now: now) == nil, "an empty day offers nothing to join")
         expect(
             window.joinable(from: [event(id: "past", start: -120)], now: now) == nil,
             "a meeting that is over is not offered")
@@ -280,8 +273,7 @@ struct CalendarTests {
         let start = date(year: 2026, month: 9, day: 23, hour: 17)
         let meeting = event(id: "review", starting: start, minutes: 30)
         func pill(_ offset: TimeInterval) -> UpcomingWindow.RowPill? {
-            UpcomingWindow.rowPill(
-                for: meeting, now: start.addingTimeInterval(offset), calendar: calendar)
+            UpcomingWindow.rowPill(for: meeting, now: start.addingTimeInterval(offset), calendar: calendar)
         }
         expect(
             pill(-60 * 60) == .init(text: "in 60 min", isImminent: true),
@@ -292,8 +284,7 @@ struct CalendarTests {
         expect(
             pill(-18 * 60 * 60) == .init(text: "Wed, Sep 23", isImminent: false),
             "a meeting tomorrow names its date")
-        expect(
-            pill(-40 * 60)?.text == "in 40 min", "inside the hour a countdown beats the date")
+        expect(pill(-40 * 60)?.text == "in 40 min", "inside the hour a countdown beats the date")
         expect(pill(0)?.text == "Now", "the start reads as Now")
         expect(pill(29 * 60) == .init(text: "Now", isImminent: true), "a meeting under way stays Now")
         expect(pill(30 * 60) == nil, "a finished meeting earns no pill")
@@ -451,8 +442,7 @@ struct CalendarTests {
             summary.event(from: [midnight], now: thirtyOneMinutesOut) == nil,
             "Today does not keep tomorrow's event more than thirty minutes away")
         expect(
-            !MenuBarSummary.hasUpcomingEvent(
-                from: [midnight], now: thirtyOneMinutesOut, calendar: calendar),
+            !MenuBarSummary.hasUpcomingEvent(from: [midnight], now: thirtyOneMinutesOut, calendar: calendar),
             "the empty label appears once today is over and tomorrow is not imminent")
     }
 
@@ -532,8 +522,7 @@ struct CalendarTests {
 
         let now = at(0)
         expect(draft.start(from: now) == now, "an offset of zero starts now")
-        expect(
-            draft.end(from: now) == now.addingTimeInterval(1800), "the default runs thirty minutes")
+        expect(draft.end(from: now) == now.addingTimeInterval(1800), "the default runs thirty minutes")
         draft.startOffsetMinutes = 30
         draft.durationMinutes = 60
         expect(draft.start(from: now) == at(30), "an offset pushes the start out")
@@ -559,8 +548,7 @@ struct CalendarTests {
         expect(
             notes("<b>Agenda</b><br>Q&amp;A<br/><br><br>Wrap&nbsp;up") == "Agenda\nQ&A\n\nWrap up",
             "HTML notes lose their tags, keep their breaks and decode entities")
-        expect(
-            notes("<ul><li>One</li><li>Two</li></ul>") == "• One\n• Two", "list items become bullets")
+        expect(notes("<ul><li>One</li><li>Two</li></ul>") == "• One\n• Two", "list items become bullets")
         expect(
             notes("<p>See <a href=\"https://example.com\">https://example.com</a></p>")
                 == "See https://example.com",
@@ -605,9 +593,7 @@ struct CalendarTests {
             event(id: "kickoff", start: 33 * 60), event(id: "offsite", start: 81 * 60)
         ]
         let groups = MeetingDayGroup.grouping(agenda, now: now, calendar: calendar)
-        expect(
-            groups.map(\.day.offset) == [0, 1, 3],
-            "one group per day, in start order")
+        expect(groups.map(\.day.offset) == [0, 1, 3], "one group per day, in start order")
         expect(
             groups.map { $0.meetings.map(\.id) } == [["standup", "review"], ["kickoff"], ["offsite"]],
             "a day's meetings stay together and in order")
@@ -650,8 +636,7 @@ struct CalendarTests {
     }
 
     static func date(year: Int, month: Int, day: Int, hour: Int, minute: Int = 0) -> Date {
-        calendar.date(
-            from: DateComponents(year: year, month: month, day: day, hour: hour, minute: minute))!
+        calendar.date(from: DateComponents(year: year, month: month, day: day, hour: hour, minute: minute))!
     }
 
     static func link(_ text: String) -> MeetingLink? { MeetingLink.detect(in: text) }

@@ -15,18 +15,14 @@ final class PinnedEmojiStore {
     init(fileURL: URL = AppPaths.applicationSupport().appendingPathComponent("emoji-pinned.json")) {
         self.fileURL = fileURL
         let decoded =
-            (try? Data(contentsOf: fileURL))
-            .flatMap { try? JSONDecoder().decode([String].self, from: $0) } ?? []
+            (try? Data(contentsOf: fileURL)).flatMap { try? JSONDecoder().decode([String].self, from: $0) }
+            ?? []
         glyphs = Self.normalized(decoded)
     }
 
     func toggle(_ glyph: String) {
         guard !glyph.isEmpty else { return }
-        if let index = glyphs.firstIndex(of: glyph) {
-            glyphs.remove(at: index)
-        } else {
-            glyphs.append(glyph)
-        }
+        if let index = glyphs.firstIndex(of: glyph) { glyphs.remove(at: index) } else { glyphs.append(glyph) }
         didChange()
     }
 
@@ -38,8 +34,7 @@ final class PinnedEmojiStore {
 
     /// The caller names the neighbour: a stored pin the catalog cannot show is not one.
     func swap(_ glyph: String, with other: String) {
-        guard let source = glyphs.firstIndex(of: glyph),
-            let destination = glyphs.firstIndex(of: other)
+        guard let source = glyphs.firstIndex(of: glyph), let destination = glyphs.firstIndex(of: other)
         else { return }
         glyphs.swapAt(source, destination)
         didChange()
@@ -50,9 +45,7 @@ final class PinnedEmojiStore {
         do {
             let data = try JSONEncoder().encode(glyphs)
             try data.write(to: fileURL, options: .atomic)
-        } catch {
-            onPersistenceFailure?()
-        }
+        } catch { onPersistenceFailure?() }
     }
 
     private static func normalized(_ glyphs: [String]) -> [String] {

@@ -46,9 +46,7 @@ struct CalculatorCard: View {
             switch result.payload {
             case .value(let display, _):
                 HStack(spacing: 0) {
-                    LeadCardColumn(
-                        text: CalcSyntax.highlighted(result.expression),
-                        badge: result.sourceBadge)
+                    LeadCardColumn(text: CalcSyntax.highlighted(result.expression), badge: result.sourceBadge)
                     Image(systemName: "arrow.right")
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(.tertiary)
@@ -93,9 +91,7 @@ private enum CalcSyntax {
     }
 
     /// `in` joins two units and follows one; in `10 in in cm` only the second joins.
-    private static func isConnector(
-        _ word: Substring, at index: Int, of words: [Substring]
-    ) -> Bool {
+    private static func isConnector(_ word: Substring, at index: Int, of words: [Substring]) -> Bool {
         let lowered = word.lowercased()
         if connectors.contains(lowered) { return true }
         guard lowered == "in", index > 0, index + 1 < words.count else { return false }
@@ -120,9 +116,7 @@ enum CalcActionsMenu {
                 PopoverMenuItem(title: "Copy Answer", systemImage: "doc.on.doc", shortcut: "↵") {
                     core.calculatorCoordinator.copyCalculatorResult(result)
                 },
-                PopoverMenuItem(
-                    title: "Copy Calculation", systemImage: "doc.on.doc.fill", shortcut: "⇧⌘↵"
-                ) {
+                PopoverMenuItem(title: "Copy Calculation", systemImage: "doc.on.doc.fill", shortcut: "⇧⌘↵") {
                     core.calculatorCoordinator.copyCalculationWithExpression(result)
                 }
             ]

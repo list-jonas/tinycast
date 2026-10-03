@@ -154,18 +154,14 @@ struct CalculatorHistoryScreen: PaletteScreen {
 enum CalcHistoryActionsMenu {
     static func content(
         entry: CalcHistoryEntry, core: AppCore, calcHistory: CalculatorHistoryStore
-    )
-        -> PopoverMenuContent
-    {
+    ) -> PopoverMenuContent {
         PopoverMenuContent(
             header: core.calcNumberFormat.localizedExpression(entry.expression),
             items: [
                 PopoverMenuItem(title: "Copy Answer", systemImage: "doc.on.doc", shortcut: "↵") {
                     core.calculatorCoordinator.copyHistoryEntry(entry)
                 },
-                PopoverMenuItem(
-                    title: "Copy Expression", systemImage: "doc.on.doc.fill", shortcut: "⌘↵"
-                ) {
+                PopoverMenuItem(title: "Copy Expression", systemImage: "doc.on.doc.fill", shortcut: "⌘↵") {
                     core.calculatorCoordinator.copyHistoryExpression(entry)
                 },
                 PopoverMenuItem(

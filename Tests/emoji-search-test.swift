@@ -38,9 +38,7 @@ struct EmojiSearchTests {
         expect(pinned.glyphs == ["A", "B"], "toggling an existing pin removes it")
         pinned.replace(["B", "B", "D", ""])
         expect(pinned.glyphs == ["B", "D"], "backup replacement preserves sanitized order")
-        expect(
-            PinnedEmojiStore(fileURL: pinnedURL).glyphs == ["B", "D"],
-            "pin order survives a store reload")
+        expect(PinnedEmojiStore(fileURL: pinnedURL).glyphs == ["B", "D"], "pin order survives a store reload")
         var reportedPersistenceFailure = false
         let unwritable = PinnedEmojiStore(fileURL: directory)
         unwritable.onPersistenceFailure = { reportedPersistenceFailure = true }
@@ -140,8 +138,7 @@ struct EmojiSearchTests {
             boundaries.search("blue red", frequent: frequent).first?.glyph == "B",
             "a literal full name outranks metadata matches")
 
-        await boundaries.load(
-            "A|red balloon|ob|0|\nB|zebra|ob|0|red\nC|redwood|ob|0|\nD|red|ob|0|")
+        await boundaries.load("A|red balloon|ob|0|\nB|zebra|ob|0|red\nC|redwood|ob|0|\nD|red|ob|0|")
         expect(
             boundaries.search("red", frequent: frequent).map(\.glyph) == ["D", "A", "B", "C"],
             "full name, complete leading word, exact keyword, then partial leading word")

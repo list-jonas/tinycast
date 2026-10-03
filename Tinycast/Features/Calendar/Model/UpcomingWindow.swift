@@ -8,9 +8,7 @@ struct UpcomingWindow: Sendable {
 
     /// The one place the rule lives, so card, chord, schedule and launcher cannot drift.
     static func agenda(from events: [MeetingEvent], now: Date) -> [MeetingEvent] {
-        events
-            .filter { !$0.isAllDay && !$0.isDeclined && $0.end > now }
-            .sorted { $0.start < $1.start }
+        events.filter { !$0.isAllDay && !$0.isDeclined && $0.end > now }.sorted { $0.start < $1.start }
     }
 
     /// The grace period never outlives the meeting, so a stand-up clears at its end.
@@ -44,9 +42,8 @@ struct UpcomingWindow: Sendable {
         let delta = event.start.timeIntervalSince(now)
         guard delta > 0 else { return nil }
         let isImminent = delta <= 60 * 60
-        guard isImminent || calendar.isDate(event.start, inSameDayAs: now) else {
-            return RowPill(text: dayLabel(event.start, calendar: calendar), isImminent: false)
-        }
+        guard isImminent || calendar.isDate(event.start, inSameDayAs: now)
+        else { return RowPill(text: dayLabel(event.start, calendar: calendar), isImminent: false) }
         return RowPill(text: countdown(to: event.start, now: now), isImminent: isImminent)
     }
 
@@ -62,9 +59,7 @@ struct UpcomingWindow: Sendable {
         return "Now"
     }
 
-    private static func duration(
-        _ interval: TimeInterval, rounding: FloatingPointRoundingRule
-    ) -> String {
+    private static func duration(_ interval: TimeInterval, rounding: FloatingPointRoundingRule) -> String {
         let minutes = max(1, Int((interval / 60).rounded(rounding)))
         guard minutes > 60 else { return "\(minutes) min" }
         let hours = max(1, Int((Double(minutes) / 60).rounded()))

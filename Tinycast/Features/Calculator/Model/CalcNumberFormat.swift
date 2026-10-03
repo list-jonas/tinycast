@@ -35,9 +35,8 @@ struct CalcNumberFormat: Equatable, Sendable {
 
     /// nil for a decimal separator canonical syntax can't express, such as the Arabic `٫`.
     init?(decimalSeparator: String, groupingSeparator: String?) {
-        guard let decimal = Self.single(decimalSeparator), decimal == "." || decimal == "," else {
-            return nil
-        }
+        guard let decimal = Self.single(decimalSeparator), decimal == "." || decimal == ","
+        else { return nil }
         let grouping = groupingSeparator.flatMap(Self.single).flatMap {
             $0 != decimal && Self.groupingScalars.contains($0) ? $0 : nil
         }
@@ -75,8 +74,7 @@ struct CalcNumberFormat: Equatable, Sendable {
                 index += 1
                 continue
             }
-            let end = numberEnd(
-                scalars, from: index, decimal: decimalSeparator, grouping: groupingSeparator)
+            let end = numberEnd(scalars, from: index, decimal: decimalSeparator, grouping: groupingSeparator)
             let run = scalars[index..<end]
             if Self.isClockFragment(scalars, run: index..<end) {
                 output.append(contentsOf: run)
@@ -92,12 +90,9 @@ struct CalcNumberFormat: Equatable, Sendable {
     private func canonicalNumber(_ run: ArraySlice<Unicode.Scalar>) -> [Unicode.Scalar]? {
         let parts = run.split(separator: decimalSeparator, omittingEmptySubsequences: false)
         // Where the dot is the decimal, `19.2.27` is a date exactly as English reads it.
-        if parts.count > 2 {
-            return !usesDecimalComma && !run.contains(where: isGrouping) ? Array(run) : nil
-        }
+        if parts.count > 2 { return !usesDecimalComma && !run.contains(where: isGrouping) ? Array(run) : nil }
         if parts.count == 2, parts[1].contains(where: isGrouping) { return nil }
-        let groups = parts[0].split(
-            omittingEmptySubsequences: false, whereSeparator: isGrouping)
+        let groups = parts[0].split(omittingEmptySubsequences: false, whereSeparator: isGrouping)
         if groups.count > 1, !Self.isValidGrouping(groups) {
             // A dotted date's dots are grouping dots here, and no valid grouping has short groups.
             let isDottedDate = groupingSeparator == "." && parts.count == 1 && groups.count > 2
@@ -116,14 +111,10 @@ struct CalcNumberFormat: Equatable, Sendable {
     // MARK: - Output
 
     /// An answer's numbers in this format; any other text, commas included, is left as written.
-    func localized(_ text: String) -> String {
-        rewrite(text, separatingArguments: false)
-    }
+    func localized(_ text: String) -> String { rewrite(text, separatingArguments: false) }
 
     /// An echoed expression, whose canonical argument commas also take this format's separator.
-    func localizedExpression(_ text: String) -> String {
-        rewrite(text, separatingArguments: true)
-    }
+    func localizedExpression(_ text: String) -> String { rewrite(text, separatingArguments: true) }
 
     func localized(_ result: CalcResult) -> CalcResult {
         guard self != .english else { return result }
@@ -131,8 +122,7 @@ struct CalcNumberFormat: Equatable, Sendable {
         switch result.payload {
         case .value(let display, let copyText):
             payload = .value(display: localized(display), copyText: localized(copyText))
-        case .error:
-            payload = result.payload
+        case .error: payload = result.payload
         }
         return CalcResult(
             expression: localizedExpression(result.expression), sourceBadge: result.sourceBadge,
@@ -201,21 +191,17 @@ struct CalcNumberFormat: Equatable, Sendable {
     // MARK: - Scanning
 
     /// A digit, or a decimal separator leading one (`,5`) that no digit precedes.
-    private func startsNumber(
-        _ scalars: [Unicode.Scalar], at index: Int, decimal: Unicode.Scalar
-    ) -> Bool {
+    private func startsNumber(_ scalars: [Unicode.Scalar], at index: Int, decimal: Unicode.Scalar) -> Bool {
         let scalar = scalars[index]
         if Self.isDigit(scalar) { return true }
-        guard scalar == decimal, index + 1 < scalars.count, Self.isDigit(scalars[index + 1]) else {
-            return false
-        }
+        guard scalar == decimal, index + 1 < scalars.count, Self.isDigit(scalars[index + 1])
+        else { return false }
         return index == 0 || !Self.isDigit(scalars[index - 1])
     }
 
     /// Digits and the separators between them; a trailing decimal stays, so `2,` still answers.
     private func numberEnd(
-        _ scalars: [Unicode.Scalar], from start: Int, decimal: Unicode.Scalar,
-        grouping: Unicode.Scalar?
+        _ scalars: [Unicode.Scalar], from start: Int, decimal: Unicode.Scalar, grouping: Unicode.Scalar?
     ) -> Int {
         var end = start
         while end < scalars.count {

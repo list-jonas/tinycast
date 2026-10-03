@@ -140,7 +140,9 @@ run app-name-test          Tinycast/Platform/AppDisplayName.swift \
                            $L/SearchRelevance.swift
 run favorites-test         $L/FavoriteSlots.swift
 run apple-shortcut-test    Tinycast/Features/AppleShortcuts/Model/*.swift
-run calc-test              Tinycast/Features/Calculator/Model/*.swift
+run calc-test              Tests/calc-harness.swift Tinycast/Features/Calculator/Model/*.swift
+run calc-date-test         Tests/calc-harness.swift Tinycast/Features/Calculator/Model/*.swift
+run calc-currency-test     Tests/calc-harness.swift Tinycast/Features/Calculator/Model/*.swift
 run index calc-performance Tinycast/Features/Calculator/Model/*.swift
 run calendar-test          Tinycast/Features/Calendar/Model/*.swift
 run clipboard-test         Tinycast/Features/Clipboard/Model/ClipboardStore.swift \

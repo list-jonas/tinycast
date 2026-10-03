@@ -82,9 +82,7 @@ private struct EmojiColumnCountPreview: View {
         let shape = RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
         EmojiGridDots(columns: columns)
             .fill(isSelected ? Theme.Colors.textTertiary : Theme.Colors.border)
-            .background(
-                shape.fill(isSelected ? Theme.Colors.controlSurface : Color.clear)
-            )
+            .background(shape.fill(isSelected ? Theme.Colors.controlSurface : Color.clear))
             .overlay(
                 shape.strokeBorder(
                     isSelected ? Theme.Colors.border : Theme.Colors.cardStroke,

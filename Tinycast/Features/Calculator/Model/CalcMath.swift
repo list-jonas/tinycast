@@ -2,14 +2,12 @@ import Foundation
 
 enum CalcMath {
     static let functions: [String: @Sendable (Double) -> Double] = [
-        "sqrt": { sqrt($0) }, "log": { log10($0) }, "ln": { log($0) }, "sin": { sin($0) },
-        "cos": { cos($0) }, "tan": { tan($0) }, "abs": { abs($0) }, "floor": { floor($0) },
-        "ceil": { ceil($0) }, "round": { $0.rounded() },
-        "cot": { 1 / tan($0) }, "sec": { 1 / cos($0) }, "csc": { 1 / sin($0) },
-        "asin": { asin($0) }, "acos": { acos($0) }, "atan": { atan($0) },
-        "arcsin": { asin($0) }, "arccos": { acos($0) }, "arctan": { atan($0) },
-        "sinh": { sinh($0) }, "cosh": { cosh($0) }, "tanh": { tanh($0) },
-        "asinh": { asinh($0) }, "acosh": { acosh($0) }, "atanh": { atanh($0) },
+        "sqrt": { sqrt($0) }, "log": { log10($0) }, "ln": { log($0) }, "sin": { sin($0) }, "cos": { cos($0) },
+        "tan": { tan($0) }, "abs": { abs($0) }, "floor": { floor($0) }, "ceil": { ceil($0) },
+        "round": { $0.rounded() }, "cot": { 1 / tan($0) }, "sec": { 1 / cos($0) }, "csc": { 1 / sin($0) },
+        "asin": { asin($0) }, "acos": { acos($0) }, "atan": { atan($0) }, "arcsin": { asin($0) },
+        "arccos": { acos($0) }, "arctan": { atan($0) }, "sinh": { sinh($0) }, "cosh": { cosh($0) },
+        "tanh": { tanh($0) }, "asinh": { asinh($0) }, "acosh": { acosh($0) }, "atanh": { atanh($0) },
         "cbrt": { cbrt($0) }, "exp": { exp($0) }, "log2": { log2($0) },
         "sign": { $0 > 0 ? 1 : ($0 < 0 ? -1 : 0) }, "trunc": { $0.rounded(.towardZero) }
     ]
@@ -31,12 +29,10 @@ enum CalcMath {
     }
 
     static let multipleArguments: Set<String> = [
-        "hypot", "round", "log", "gcd", "lcm", "atan2", "pow", "root", "fmod",
-        "min", "max", "sum", "avg", "mean", "average"
+        "hypot", "round", "log", "gcd", "lcm", "atan2", "pow", "root", "fmod", "min", "max", "sum", "avg",
+        "mean", "average"
     ]
-    static let measurements: Set<String> = [
-        "hypot", "round", "min", "max", "sum", "avg", "mean", "average"
-    ]
+    static let measurements: Set<String> = ["hypot", "round", "min", "max", "sum", "avg", "mean", "average"]
 
     static func isFunction(_ name: String) -> Bool {
         CalcMath.functions[name] != nil || multipleArguments.contains(name)
@@ -92,8 +88,7 @@ enum CalcMath {
                     guard second != 0 else { return nil }
                     result =
                         first < 0 && second.truncatingRemainder(dividingBy: 2) != 0
-                            && second.rounded() == second
-                        ? -pow(-first, 1 / second) : pow(first, 1 / second)
+                            && second.rounded() == second ? -pow(-first, 1 / second) : pow(first, 1 / second)
                 case "fmod": result = first.truncatingRemainder(dividingBy: second)
                 default: return nil
                 }

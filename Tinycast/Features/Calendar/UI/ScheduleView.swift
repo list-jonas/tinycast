@@ -27,9 +27,7 @@ struct ScheduleList: View {
         }
     }
 
-    private var firstRowSelected: Bool {
-        selectedID != nil && selectedID == results.first?.id
-    }
+    private var firstRowSelected: Bool { selectedID != nil && selectedID == results.first?.id }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -40,9 +38,7 @@ struct ScheduleList: View {
                         case .header(let title):
                             SectionHeader(title: title, isFirst: row.id == rows.first?.id)
                         case .meeting(let meeting):
-                            MeetingRow(
-                                meeting: meeting, now: now, selected: meeting.id == selectedID
-                            )
+                            MeetingRow(meeting: meeting, now: now, selected: meeting.id == selectedID)
                             .contentShape(Rectangle())
                             .onTapGesture { onActivate(meeting) }
                             .onRightClick { onActions(meeting) }
@@ -58,8 +54,7 @@ struct ScheduleList: View {
             }
             .edgeDissolve()
             .thinScrollbar()
-            .scrollFollowsSelection(
-                scroll, row: selectedID, atOrigin: firstRowSelected, proxy: proxy)
+            .scrollFollowsSelection(scroll, row: selectedID, atOrigin: firstRowSelected, proxy: proxy)
         }
     }
 }

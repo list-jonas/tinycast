@@ -15,17 +15,13 @@ struct EventDraft: Sendable, Equatable {
 
     var trimmedTitle: String { title.trimmingCharacters(in: .whitespacesAndNewlines) }
 
-    func start(from now: Date) -> Date {
-        now.addingTimeInterval(TimeInterval(startOffsetMinutes * 60))
-    }
+    func start(from now: Date) -> Date { now.addingTimeInterval(TimeInterval(startOffsetMinutes * 60)) }
 
     func end(from now: Date) -> Date {
         start(from: now).addingTimeInterval(TimeInterval(durationMinutes * 60))
     }
 
-    static func label(startOffset minutes: Int) -> String {
-        minutes == 0 ? "Now" : label(duration: minutes)
-    }
+    static func label(startOffset minutes: Int) -> String { minutes == 0 ? "Now" : label(duration: minutes) }
 
     static func label(duration minutes: Int) -> String {
         minutes < 60 ? "\(minutes) min" : "\(minutes / 60) hr"

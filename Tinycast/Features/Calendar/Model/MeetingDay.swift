@@ -2,7 +2,6 @@ import Foundation
 
 /// The day a meeting falls on, counted from today, so My Schedule and the menu bar head it alike.
 struct MeetingDay: Hashable, Sendable {
-    /// The midnight that starts the day.
     let start: Date
     /// Whole days after today; a meeting still running from before midnight is happening today.
     let offset: Int
@@ -32,9 +31,7 @@ struct MeetingDayGroup: Identifiable, Sendable {
     var id: MeetingDay { day }
 
     /// `agenda` is already in start order, so a change of day is where a group begins.
-    static func grouping(
-        _ agenda: [MeetingEvent], now: Date, calendar: Calendar
-    ) -> [MeetingDayGroup] {
+    static func grouping(_ agenda: [MeetingEvent], now: Date, calendar: Calendar) -> [MeetingDayGroup] {
         var groups: [MeetingDayGroup] = []
         for meeting in agenda {
             let day = MeetingDay(for: meeting.start, now: now, calendar: calendar)
@@ -51,7 +48,6 @@ struct MeetingDayGroup: Identifiable, Sendable {
 extension Calendar {
     /// This calendar's own locale and zone, so a test calendar formats exactly like a user's.
     var formatStyle: Date.FormatStyle {
-        Date.FormatStyle(
-            locale: locale ?? Locale(identifier: "en_US"), calendar: self, timeZone: timeZone)
+        Date.FormatStyle(locale: locale ?? Locale(identifier: "en_US"), calendar: self, timeZone: timeZone)
     }
 }

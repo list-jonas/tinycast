@@ -41,9 +41,7 @@ struct DictionaryEntry: Equatable, Identifiable, Sendable {
     }
 
     /// What a copy carries: one line per block, so the pasted text keeps the page's shape.
-    var text: String {
-        blocks.map(\.text).joined(separator: "\n")
-    }
+    var text: String { blocks.map(\.text).joined(separator: "\n") }
 }
 
 extension DictionaryEntry {
@@ -58,13 +56,10 @@ extension DictionaryEntry {
             pronunciation = spoken.isEmpty ? nil : spoken
             body = plainText[pipes[1].upperBound...]
         }
-        let senses = body.split(separator: "•")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-            .map { Block.paragraph([Run(text: $0, style: .plain)]) }
+        let senses = body.split(separator: "•").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }.map { Block.paragraph([Run(text: $0, style: .plain)]) }
         self.init(
-            term: term,
-            blocks: [.headword(term, homograph: nil, pronunciation: pronunciation)] + senses)
+            term: term, blocks: [.headword(term, homograph: nil, pronunciation: pronunciation)] + senses)
     }
 }
 
@@ -72,10 +67,9 @@ extension DictionaryEntry.Block {
     var text: String {
         switch self {
         case .headword(let word, let homograph, let pronunciation):
-            return [word, homograph, pronunciation.map { "| \($0) |" }]
-                .compactMap { $0 }.joined(separator: " ")
-        case .sense(let number, let runs):
-            return [number, runs.text].compactMap { $0 }.joined(separator: " ")
+            return [word, homograph, pronunciation.map { "| \($0) |" }].compactMap { $0 }
+                .joined(separator: " ")
+        case .sense(let number, let runs): return [number, runs.text].compactMap { $0 }.joined(separator: " ")
         case .subsense(let runs): return "• " + runs.text
         case .section(let title): return "\n" + title
         case .partOfSpeech(let runs), .note(let runs), .phrase(let runs), .paragraph(let runs):
@@ -84,6 +78,4 @@ extension DictionaryEntry.Block {
     }
 }
 
-extension [DictionaryEntry.Run] {
-    var text: String { map(\.text).joined() }
-}
+extension [DictionaryEntry.Run] { var text: String { map(\.text).joined() } }

@@ -58,16 +58,13 @@ private struct ChoiceRow: View {
                             .frame(height: metrics.size.dialogButtonHeight)
                             .contentShape(Rectangle())
                             .background(
-                                RoundedRectangle(
-                                    cornerRadius: metrics.radius.row, style: .continuous
-                                )
+                                RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous)
                                 .fill(fill(for: value)))
                     }
                     .buttonStyle(.plain)
                     .onHover { hoveredValue = $0 ? value : nil }
                     .accessibilityLabel(title(value))
-                    .accessibilityAddTraits(
-                        selection == value ? [.isButton, .isSelected] : .isButton)
+                    .accessibilityAddTraits(selection == value ? [.isButton, .isSelected] : .isButton)
                 }
             }
             .background(

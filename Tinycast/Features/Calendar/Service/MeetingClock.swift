@@ -33,9 +33,7 @@ final class MeetingClock {
         tick = nil
     }
 
-    isolated deinit {
-        tick?.cancel()
-    }
+    isolated deinit { tick?.cancel() }
 
     /// The reference date is itself a minute boundary, so the remainder is the offset into one.
     private static func secondsToNextMinute() -> TimeInterval {

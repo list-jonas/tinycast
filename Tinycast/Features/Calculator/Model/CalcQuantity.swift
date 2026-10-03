@@ -25,28 +25,23 @@ enum CalcQuantity {
                 parser.operationCount > 0 || (!preserveStandaloneUnit && tokens.count > 1)
             else { return nil }
             return CalcResult(
-                expression: CalcFormatter.expression(query), sourceBadge: "Expression",
-                targetBadge: "Result", payload: .number(value.effective))
+                expression: CalcFormatter.expression(query), sourceBadge: "Expression", targetBadge: "Result",
+                payload: .number(value.effective))
         }
         if value.isBoolean {
             guard split.targetName == nil else { return nil }
             let text = value.amount == 0 ? "false" : "true"
             return CalcResult(
                 expression: expressionText(split.expressionTokens), sourceBadge: "Expression",
-                targetBadge: "Boolean", payload: .value(display: text, copyText: text))
+                targetBadge: "Boolean", payload: .text(text))
         }
 
         if parser.usedCurrency && !parser.usedCurrencyRate {
-            guard let rates else {
-                return CalcResult(
-                    expression: query,
-                    payload: .error(
-                        message: "Exchange rates unavailable — check your connection."))
-            }
+            guard let rates
+            else { return CalcResult(expression: query, payload: .error(message: CalcCurrency.unavailable)) }
             if let code = parser.currencyCodes.first(where: { rates.rate(for: $0) == nil }) {
                 return CalcResult(
-                    expression: query,
-                    payload: .error(message: "No exchange rate for \(code)."))
+                    expression: query, payload: .error(message: "No exchange rate for \(code)."))
             }
         }
 
@@ -59,7 +54,7 @@ enum CalcQuantity {
                 return CalcResult(
                     expression: expressionText(split.expressionTokens),
                     sourceBadge: parser.operationCount == 0 ? unit.name : "Expression",
-                    targetBadge: "Timespan", payload: .value(display: text, copyText: text))
+                    targetBadge: "Timespan", payload: .text(text))
             }
             guard let output = parser.converted(value, to: targetName) else {
                 guard let message = parser.issue else { return nil }
@@ -72,35 +67,29 @@ enum CalcQuantity {
         case .scalar:
             guard parser.operationCount > 0 else { return nil }
             return CalcResult(
-                expression: expressionText(split.expressionTokens),
-                sourceBadge: "Expression", targetBadge: "Result",
-                payload: .number(value.effective))
+                expression: expressionText(split.expressionTokens), sourceBadge: "Expression",
+                targetBadge: "Result", payload: .number(value.effective))
         case .unit(let unit):
             // A bare `50cm` auto-converts below; with an operator the typed units are kept.
             if !preserveStandaloneUnit, parser.operationCount == 0, parser.dimensionCount == 1,
-                case .ident(let finalName)? = split.expressionTokens.last,
-                CalcUnits.byName[finalName] != nil
+                case .ident(let finalName)? = split.expressionTokens.last, CalcUnits.byName[finalName] != nil
             {
                 return nil
             }
-            guard parser.operationCount > 0 || parser.dimensionCount > 1 || preserveStandaloneUnit else {
-                return nil
-            }
+            guard parser.operationCount > 0 || parser.dimensionCount > 1 || preserveStandaloneUnit
+            else { return nil }
             return measurementResult(
                 value.amount, unit: unit, expression: expressionText(split.expressionTokens))
         case .currency(let definition):
             guard parser.operationCount == 0 else {
                 return currencyResult(
-                    value.amount, definition: definition,
-                    expression: expressionText(split.expressionTokens))
+                    value.amount, definition: definition, expression: expressionText(split.expressionTokens))
             }
             let expression = "\(CalcFormatter.display(value.amount)) \(definition.code)"
             // A bare amount names no target, so the Mac's own currency becomes one once it's typed.
             guard !preserveStandaloneUnit, let target = regionTarget(region, from: definition),
                 let output = rates?.convert(value.amount, from: definition.code, to: target.code)
-            else {
-                return currencyResult(value.amount, definition: definition, expression: expression)
-            }
+            else { return currencyResult(value.amount, definition: definition, expression: expression) }
             return currencyResult(
                 output, definition: target, expression: expression, sourceBadge: definition.name)
         }
@@ -108,45 +97,32 @@ enum CalcQuantity {
 
     /// Converting is the only reason to type a lone amount, so it pairs with the region's own.
     private static func regionTarget(_ region: String?, from: CurrencyDef) -> CurrencyDef? {
-        guard let regional = region.flatMap({ CalcCurrency.byName[$0.lowercased()] })
-        else { return nil }
+        guard let regional = region.flatMap({ CalcCurrency.byName[$0.lowercased()] }) else { return nil }
         guard regional.code == from.code else { return regional }
         return CalcCurrency.byName[from.code == "USD" ? "eur" : "usd"]
     }
 
-    private static func convertedResult(
-        _ value: CalcValue, expression: String
-    ) -> CalcResult? {
+    private static func convertedResult(_ value: CalcValue, expression: String) -> CalcResult? {
         switch value.kind {
-        case .scalar:
-            return nil
-        case .unit(let unit):
-            return measurementResult(value.amount, unit: unit, expression: expression)
+        case .scalar: return nil
+        case .unit(let unit): return measurementResult(value.amount, unit: unit, expression: expression)
         case .currency(let definition):
             return currencyResult(value.amount, definition: definition, expression: expression)
         }
     }
 
-    private static func measurementResult(
-        _ amount: Double, unit: UnitDef, expression: String
-    ) -> CalcResult {
+    private static func measurementResult(_ amount: Double, unit: UnitDef, expression: String) -> CalcResult {
         CalcResult(
-            expression: expression,
-            sourceBadge: "Expression", targetBadge: unit.name,
+            expression: expression, sourceBadge: "Expression", targetBadge: unit.name,
             payload: .measurement(amount, unit: unit))
     }
 
     private static func currencyResult(
-        _ amount: Double, definition: CurrencyDef, expression: String,
-        sourceBadge: String = "Expression"
+        _ amount: Double, definition: CurrencyDef, expression: String, sourceBadge: String = "Expression"
     ) -> CalcResult {
-        let formatted = CalcFormatter.currency(amount)
-        return CalcResult(
-            expression: expression,
-            sourceBadge: sourceBadge, targetBadge: definition.name,
-            payload: .value(
-                display: "\(CalcFormatter.grouped(formatted)) \(definition.code)",
-                copyText: "\(formatted) \(definition.code)"))
+        CalcResult(
+            expression: expression, sourceBadge: sourceBadge, targetBadge: definition.name,
+            payload: .currency(amount, code: definition.code))
     }
 
     static func convertUnit(_ amount: Double, from: UnitDef, to: UnitDef) -> Double {
@@ -188,18 +164,11 @@ enum CalcQuantity {
 
     private static func isSimpleConversionSource(_ tokens: [CalcToken]) -> Bool {
         switch tokens.count {
-        case 1:
-            if case .ident = tokens[0] { return true }
+        case 1: if case .ident = tokens[0] { return true }
         case 2:
-            switch (tokens[0], tokens[1]) {
-            case (.number, .ident), (.compactNumber, .ident),
-                (.ident, .number), (.ident, .compactNumber):
-                return true
-            default:
-                break
-            }
-        default:
-            break
+            if case .ident = tokens[0], numberValue(tokens[1]) != nil { return true }
+            if numberValue(tokens[0]) != nil, case .ident = tokens[1] { return true }
+        default: break
         }
         return false
     }
@@ -233,35 +202,25 @@ enum CalcQuantity {
             }
 
             switch tokens[index] {
-            case .number(let value), .compactNumber(let value):
-                add(CalcFormatter.copyText(value))
-            case .intLiteral(let value, _):
-                add(String(value))
+            case .number(let value), .compactNumber(let value): add(CalcFormatter.copyText(value))
+            case .intLiteral(let value, _): add(String(value))
             case .ident(let name):
                 add(CalcUnits.byName[name]?.symbol ?? CalcCurrency.byName[name]?.code ?? name)
                 attachNext =
-                    index + 1 < tokens.count && tokens[index + 1] == .op(.open)
-                    && CalcMath.isFunction(name)
+                    index + 1 < tokens.count && tokens[index + 1] == .op(.open) && CalcMath.isFunction(name)
             case .op(.open):
                 add("(")
                 attachNext = true
-            case .op(.close):
-                add(")", attached: true)
-            case .op(.percent):
-                add("%", attached: true)
-            case .op(.factorial):
-                add("!", attached: true)
-            case .op(.multiply):
-                add("×")
-            case .op(.divide):
-                add("÷")
+            case .op(.close): add(")", attached: true)
+            case .op(.percent): add("%", attached: true)
+            case .op(.factorial): add("!", attached: true)
+            case .op(.multiply): add("×")
+            case .op(.divide): add("÷")
             case .op(let op):
                 add(op.text)
                 if op == .subtract || op == .add { attachNext = isSign(at: index, tokens) }
-            case .arrow:
-                add("→")
-            case .comma:
-                add(",", attached: true)
+            case .arrow: add("→")
+            case .comma: add(",", attached: true)
             }
             index += 1
         }
@@ -272,23 +231,19 @@ enum CalcQuantity {
     private static func isSign(at index: Int, _ tokens: [CalcToken]) -> Bool {
         guard index > 0 else { return true }
         switch tokens[index - 1] {
-        case .op(let previous):
-            return previous != .close && previous != .percent && previous != .factorial
+        case .op(let previous): return previous != .close && previous != .percent && previous != .factorial
         // A word operator (`of`, `mod`, `sqrt`) introduces an operand, so the sign belongs to it.
         case .ident(let name):
             return CalcUnits.byName[name] == nil && CalcCurrency.byName[name] == nil
                 && CalcMath.constants[name] == nil
-        default:
-            return false
+        default: return false
         }
     }
 
     static func numberValue(_ token: CalcToken) -> Double? {
         switch token {
-        case .number(let value), .compactNumber(let value):
-            return value
-        default:
-            return nil
+        case .number(let value), .compactNumber(let value): return value
+        default: return nil
         }
     }
 }

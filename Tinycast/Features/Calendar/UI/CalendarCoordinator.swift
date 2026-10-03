@@ -54,11 +54,8 @@ final class CalendarCoordinator {
     /// Live rather than clock-driven: a chord reads this with nothing ticking.
     var agenda: [MeetingEvent] { UpcomingWindow.agenda(from: store.events, now: Date()) }
 
-    /// The calendar label keeps its plain icon until today's events are exhausted, with a small
-    /// grace across midnight for a meeting that starts imminently.
-    var hasUpcomingMenuBarEvent: Bool {
-        MenuBarSummary.hasUpcomingEvent(from: store.events, now: clock.now)
-    }
+    /// Plain icon until today's events run out, with a midnight grace for one about to start.
+    var hasUpcomingMenuBarEvent: Bool { MenuBarSummary.hasUpcomingEvent(from: store.events, now: clock.now) }
 
     /// The event the menu bar carries, or nil for the plain icon.
     var menuBarEvent: MeetingEvent? {
@@ -70,8 +67,7 @@ final class CalendarCoordinator {
             hideAfterMinutes: settings.hideCurrentEvent.minutes,
             linkedOnly: settings.menuBarLinkedEventsOnly,
             hideCurrentAtStart: settings.hideCurrentEvent.hidesAtStart)
-        return summary.event(
-            from: store.events, now: clock.now, dismissed: dismissedFromMenuBar)
+        return summary.event(from: store.events, now: clock.now, dismissed: dismissedFromMenuBar)
     }
 
     /// The menu bar's day-by-day list; clock-driven, so a meeting that ends leaves on the minute.
@@ -119,7 +115,6 @@ final class CalendarCoordinator {
         }
     }
 
-    /// Publishes or withdraws everything the feature contributes to the launcher.
     func applyEnabled() {
         let enabled = settings.calendarEnabled
         appIndex.setCommandsVisible(
@@ -143,9 +138,7 @@ final class CalendarCoordinator {
     }
 
     /// Changing which days are read re-queries EventKit, so it goes through the store.
-    func applySpan() {
-        store.span = settings.calendarSpan
-    }
+    func applySpan() { store.span = settings.calendarSpan }
 
     /// The clock runs while something is watching it. With all three off an idle Mac owns no timer.
     func applyClock() {
@@ -323,9 +316,7 @@ final class CalendarCoordinator {
     }
 
     /// The camera preview doubles as the auto join confirmation, so there is one surface, not two.
-    private func joinAfterGate(
-        _ meeting: MeetingEvent, link: MeetingLink, uninvited: Bool
-    ) async {
+    private func joinAfterGate(_ meeting: MeetingEvent, link: MeetingLink, uninvited: Bool) async {
         // The preview is itself a confirmation, so it stands in for one when both are on.
         if settings.cameraPreview {
             guard await cameraPreview.present(meeting: meeting, now: Date()) else { return }
@@ -363,9 +354,7 @@ final class CalendarCoordinator {
         MeetingLauncher.showInCalendar(meeting)
     }
 
-    func showSchedule() {
-        paletteCoordinator.togglePalette(mode: .schedule)
-    }
+    func showSchedule() { paletteCoordinator.togglePalette(mode: .schedule) }
 
     /// Loaded before the push, so the page's first frame is already filled.
     func showDetails(of meeting: MeetingEvent) {

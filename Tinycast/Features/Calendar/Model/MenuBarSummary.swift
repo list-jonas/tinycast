@@ -12,13 +12,11 @@ struct MenuBarSummary: Sendable {
 
     /// Long enough to recognise a meeting, short enough to leave the menu bar usable.
     static let titleCap = 24
-    /// A midnight meeting is useful when it is about to start, but should not keep today's menu bar
-    /// occupied for hours.
+    /// A midnight meeting shows when about to start, but never holds today's menu bar for hours.
     static let nextDayGrace: TimeInterval = 30 * 60
 
     init(
-        leadMinutes: Int?, hideAfterMinutes: Int? = nil, linkedOnly: Bool,
-        hideCurrentAtStart: Bool = false,
+        leadMinutes: Int?, hideAfterMinutes: Int? = nil, linkedOnly: Bool, hideCurrentAtStart: Bool = false,
         calendar: Calendar = .current
     ) {
         self.leadMinutes = leadMinutes
@@ -33,8 +31,8 @@ struct MenuBarSummary: Sendable {
         from events: [MeetingEvent], now: Date, dismissed: Set<MeetingEvent.ID> = []
     ) -> MeetingEvent? {
         UpcomingWindow.agenda(from: events, now: now).first {
-            !dismissed.contains($0.id) && (!linkedOnly || $0.link != nil)
-                && isInsideLead(for: $0, now: now) && now < hidesAt($0)
+            !dismissed.contains($0.id) && (!linkedOnly || $0.link != nil) && isInsideLead(for: $0, now: now)
+                && now < hidesAt($0)
         }
     }
 
@@ -54,9 +52,8 @@ struct MenuBarSummary: Sendable {
     }
 
     private func isInsideLead(for event: MeetingEvent, now: Date) -> Bool {
-        guard let leadMinutes else {
-            return Self.hasUpcomingEvent(from: [event], now: now, calendar: calendar)
-        }
+        guard let leadMinutes
+        else { return Self.hasUpcomingEvent(from: [event], now: now, calendar: calendar) }
         return now >= event.start - TimeInterval(leadMinutes * 60)
     }
 

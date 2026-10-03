@@ -24,9 +24,7 @@ enum DictionaryService {
 private struct DictionaryRecords: Sendable {
     private typealias ActiveDictionaries = @convention(c) () -> Unmanaged<CFArray>?
     private typealias CopyRecords =
-        @convention(c) (
-            DCSDictionary, CFString, UnsafeRawPointer?, UnsafeRawPointer?
-        ) -> Unmanaged<CFArray>?
+        @convention(c) (DCSDictionary, CFString, UnsafeRawPointer?, UnsafeRawPointer?) -> Unmanaged<CFArray>?
     private typealias CopyData = @convention(c) (CFTypeRef, CFIndex) -> Unmanaged<CFString>?
 
     /// `DCSRecordCopyData`'s XHTML version; the plain-text one is what the public API returns.
@@ -55,12 +53,12 @@ private struct DictionaryRecords: Sendable {
         else { return nil }
         for dictionary in dictionaries {
             guard
-                let records = copyRecords(dictionary, term as CFString, nil, nil)?
-                    .takeRetainedValue() as? [CFTypeRef]
+                let records = copyRecords(dictionary, term as CFString, nil, nil)?.takeRetainedValue()
+                    as? [CFTypeRef]
             else { continue }
             let blocks = records.flatMap { record in
-                (copyData(record, Self.xhtml)?.takeRetainedValue() as String?)
-                    .map(DictionaryMarkup.blocks(fromXHTML:)) ?? []
+                (copyData(record, Self.xhtml)?.takeRetainedValue() as String?).map(
+                    DictionaryMarkup.blocks(fromXHTML:)) ?? []
             }
             if !blocks.isEmpty { return blocks }
         }

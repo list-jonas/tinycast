@@ -2,14 +2,14 @@
 
 `Features/Calculator/Model/` is a **Foundation-only** engine (no AppKit / SwiftUI imports) fronted by
 `CalcMemo`, a one-deep memo mirroring `AppIndex`'s. It must stay Foundation-only because the
-`Tests/calc-test.swift` harness compiles the real engine sources — including `CalcDateTime`. It is
+`calc-*` harnesses compile the real engine sources — including `CalcDateTime`. It is
 also **pure**: the inputs it can't compute — the FX rate table and the Mac's own currency — are passed
 in (see Currency below).
 
 ## Invariants
 
 - **`Model/` (including `CalcDateTime`) stays Foundation-only *and pure*** — no AppKit or SwiftUI, no
-  clock read, no network, **no `Locale`**. `calc-test` compiles the real engine sources. Every
+  clock read, no network, **no `Locale`**. The `calc-*` harnesses compile the real engine sources. Every
   externally-sourced input is injected: the clock via `now`/`calendar`, the FX table via `rates`,
   the Mac's own currency via `region`, which `RegionCurrency` reads and `CalcMemo` passes down, and
   the number format via `format`, which `RegionNumberFormatMonitor` reads from Language & Region.
@@ -312,7 +312,7 @@ destination keeps its meaning: `5pm in SF` still converts from the Mac's zone to
 
 The source is the Mac's own zone unless the query names one, which is what makes `5pm london in sf`
 work without either side being local. That zone comes from the **injected calendar**, so `Model/`
-performs no environment read and `calc-test` pins UTC exactly as it pins the clock. A result that
+performs no environment read and `calc-date-test` pins UTC exactly as it pins the clock. A result that
 lands on another date is suffixed `(tomorrow)` / `(yesterday)`, or `(in 2 days)` / `(2 days ago)`
 for a two-date jump across the date line. The difference compares the source and target calendar
 dates; the copyable text stays the bare time.

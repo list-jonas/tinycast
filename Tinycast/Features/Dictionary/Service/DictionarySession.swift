@@ -6,7 +6,6 @@ import Foundation
 final class DictionarySession {
     struct Lookup: Equatable {
         let term: String
-        /// Nil when no enabled dictionary knows the term.
         let entry: DictionaryEntry?
     }
 
@@ -30,9 +29,8 @@ final class DictionarySession {
         task = Task { [weak self] in
             try? await Task.sleep(for: Self.debounce)
             guard !Task.isCancelled else { return }
-            let entry = await Task.detached(priority: .userInitiated) {
-                DictionaryService.entry(for: term)
-            }.value
+            let entry = await Task.detached(priority: .userInitiated) { DictionaryService.entry(for: term) }
+                .value
             guard !Task.isCancelled else { return }
             self?.lookup = Lookup(term: term, entry: entry)
         }

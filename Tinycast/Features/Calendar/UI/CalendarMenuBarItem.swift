@@ -32,13 +32,10 @@ struct CalendarMenuBarLabel: View {
         Image(systemName: symbol).accessibilityLabel("\(appName): \(description)")
     }
 
-    private func title(_ text: String) -> some View {
-        Text(text).accessibilityLabel("\(appName): \(text)")
-    }
+    private func title(_ text: String) -> some View { Text(text).accessibilityLabel("\(appName): \(text)") }
 
     private func summary(for meeting: MeetingEvent) -> String {
-        let countdown = UpcomingWindow.menuBarCountdown(
-            for: meeting, now: AppCore.shared.meetingClock.now)
+        let countdown = UpcomingWindow.menuBarCountdown(for: meeting, now: AppCore.shared.meetingClock.now)
         return "\(MenuBarSummary.title(meeting.title)) • \(countdown)"
     }
 }

@@ -18,7 +18,6 @@ struct CurrencyRates: Codable, Equatable, Sendable {
         return code == base ? 1 : nil
     }
 
-    /// Cross-rate through the base currency.
     func convert(_ amount: Double, from: String, to: String) -> Double? {
         guard let source = rate(for: from), let target = rate(for: to) else { return nil }
         let output = amount / source * target
@@ -37,8 +36,8 @@ enum CalcCurrency {
         case unavailable
     }
 
-    /// The category label used in the mismatch message, mirroring `UnitCategory.displayName`.
     static let categoryName = "Currency"
+    static let unavailable = "Exchange rates unavailable — check your connection."
 
     /// `expr currency (to|in|->) currency`, shaped like `CalcUnits.parseConversion`, run after it.
     static func parseConversion(_ tokens: [CalcToken], rates: CurrencyRates?) -> ConversionParse? {
@@ -50,8 +49,7 @@ enum CalcCurrency {
 
         // A side that is neither currency nor unit is just a typo, and gets no card.
         switch (byName[fromName], byName[toName]) {
-        case (nil, nil):
-            return nil
+        case (nil, nil): return nil
         case (.some, nil):
             guard let to = CalcUnits.byName[toName] else { return nil }
             return .mismatch(from: categoryName, to: to.category.displayName)
@@ -60,21 +58,13 @@ enum CalcCurrency {
             return .mismatch(from: from.category.displayName, to: categoryName)
         case (let from?, let to?):
             let valueTokens = Array(tokens[0..<(tokens.count - 3)])
-            let input: Double
-            if valueTokens.isEmpty {
-                input = 1
-            } else if let value = CalcExpressionParser.scalar(valueTokens) {
-                input = value
-            } else {
-                return nil
-            }
-
+            guard let input = valueTokens.isEmpty ? 1 : CalcExpressionParser.scalar(valueTokens)
+            else { return nil }
             guard let rates else { return .unavailable }
             guard rates.rate(for: from.code) != nil else { return .noRate(code: from.code) }
             guard rates.rate(for: to.code) != nil else { return .noRate(code: to.code) }
-            guard let output = rates.convert(input, from: from.code, to: to.code) else {
-                return .noRate(code: to.code)
-            }
+            guard let output = rates.convert(input, from: from.code, to: to.code)
+            else { return .noRate(code: to.code) }
             return .value(input: input, from: from, to: to, output: output)
         }
     }
@@ -82,20 +72,11 @@ enum CalcCurrency {
     /// Money is written sign-first (`€20`), so swap it back into the `amount currency` order.
     private static func amountFirst(_ tokens: [CalcToken]) -> [CalcToken] {
         guard tokens.count >= 2, case .ident(let name) = tokens[0], byName[name] != nil,
-            numberToken(tokens[1])
+            CalcQuantity.numberValue(tokens[1]) != nil
         else { return tokens }
         var reordered = tokens
         reordered.swapAt(0, 1)
         return reordered
-    }
-
-    private static func numberToken(_ token: CalcToken) -> Bool {
-        switch token {
-        case .number, .compactNumber:
-            return true
-        default:
-            return false
-        }
     }
 
     /// Hand-written because CLDR won't assign a shared noun. docs/features/calculator.md
@@ -125,29 +106,14 @@ enum CalcCurrency {
 
     /// Hand-written because no standards body names a coin. docs/features/calculator.md
     static let crypto: [(code: String, name: String, aliases: [String])] = [
-        ("ADA", "Cardano", ["cardano"]),
-        ("AVAX", "Avalanche", ["avalanche"]),
-        ("BCH", "Bitcoin Cash", []),
-        ("BNB", "BNB", ["binance"]),
-        ("BSV", "Bitcoin SV", []),
-        ("BTC", "Bitcoin", ["bitcoin"]),
-        ("DASH", "Dash", []),
-        ("DOGE", "Dogecoin", ["dogecoin"]),
-        ("DOT", "Polkadot", ["polkadot"]),
-        ("EOS", "EOS", []),
-        ("ETC", "Ethereum Classic", []),
-        ("ETH", "Ethereum", ["ethereum", "ether"]),
-        ("LTC", "Litecoin", ["litecoin"]),
-        ("LUNA", "Terra", ["terra"]),
-        ("NEO", "Neo", []),
-        ("POL", "Polygon", ["polygon"]),
-        ("SHIB", "Shiba Inu", ["shiba"]),
-        ("SOL", "Solana", ["solana"]),
-        ("TRX", "TRON", ["tron"]),
-        ("USDT", "Tether", ["tether"]),
-        ("XLM", "Stellar", ["stellar"]),
-        ("XMR", "Monero", ["monero"]),
-        ("XRP", "XRP", ["ripple"])
+        ("ADA", "Cardano", ["cardano"]), ("AVAX", "Avalanche", ["avalanche"]), ("BCH", "Bitcoin Cash", []),
+        ("BNB", "BNB", ["binance"]), ("BSV", "Bitcoin SV", []), ("BTC", "Bitcoin", ["bitcoin"]),
+        ("DASH", "Dash", []), ("DOGE", "Dogecoin", ["dogecoin"]), ("DOT", "Polkadot", ["polkadot"]),
+        ("EOS", "EOS", []), ("ETC", "Ethereum Classic", []), ("ETH", "Ethereum", ["ethereum", "ether"]),
+        ("LTC", "Litecoin", ["litecoin"]), ("LUNA", "Terra", ["terra"]), ("NEO", "Neo", []),
+        ("POL", "Polygon", ["polygon"]), ("SHIB", "Shiba Inu", ["shiba"]), ("SOL", "Solana", ["solana"]),
+        ("TRX", "TRON", ["tron"]), ("USDT", "Tether", ["tether"]), ("XLM", "Stellar", ["stellar"]),
+        ("XMR", "Monero", ["monero"]), ("XRP", "XRP", ["ripple"])
     ]
 
     /// `CurrencyRateStore` builds its request from this, so the two lists cannot drift apart.
@@ -172,15 +138,7 @@ enum CalcCurrency {
             table[entry.code.lowercased()] = def
             for word in entry.aliases { table[word] = def }
         }
-        for (code, words) in contested {
-            guard let def = defs[code] else { continue }
-            for word in words { table[word] = def }
-        }
-        for (code, words) in isoNames {
-            guard let def = defs[code] else { continue }
-            for word in words { table[word] = def }
-        }
-        for (code, words) in signCodes {
+        for (code, words) in [contested, isoNames, signCodes].joined() {
             guard let def = defs[code] else { continue }
             for word in words { table[word] = def }
         }

@@ -15,9 +15,7 @@ private final class Reader: NSObject, XMLParserDelegate {
     private typealias Run = DictionaryEntry.Run
     private typealias Style = DictionaryEntry.Style
 
-    private enum Kind {
-        case partOfSpeech, sense(number: String?), subsense, note, phrase, paragraph
-    }
+    private enum Kind { case partOfSpeech, sense(number: String?), subsense, note, phrase, paragraph }
 
     /// What an element started, so its end knows what to close.
     private enum Role {
@@ -39,9 +37,8 @@ private final class Reader: NSObject, XMLParserDelegate {
     private static let pronunciationFrame = CharacterSet.whitespaces.union(["|"])
 
     private static let styles: [String: Style] = [
-        "eg": .example, "ex": .example,
-        "gg": .label, "lg": .label, "reg": .label, "ge": .label, "sy": .label, "pos": .label,
-        "inf": .strong, "f": .strong, "v": .strong, "l": .strong, "bold": .strong,
+        "eg": .example, "ex": .example, "gg": .label, "lg": .label, "reg": .label, "ge": .label, "sy": .label,
+        "pos": .label, "inf": .strong, "f": .strong, "v": .strong, "l": .strong, "bold": .strong,
         "ff": .italic, "tx": .italic
     ]
 
@@ -57,8 +54,8 @@ private final class Reader: NSObject, XMLParserDelegate {
     private var senseNumber: String?
 
     func parser(
-        _ parser: XMLParser, didStartElement name: String, namespaceURI: String?,
-        qualifiedName: String?, attributes: [String: String] = [:]
+        _ parser: XMLParser, didStartElement name: String, namespaceURI: String?, qualifiedName: String?,
+        attributes: [String: String] = [:]
     ) {
         let classes = Set((attributes["class"] ?? "").split(separator: " ").map(String.init))
         let role = role(for: classes)
@@ -69,22 +66,18 @@ private final class Reader: NSObject, XMLParserDelegate {
             syllables = ""
             homograph = ""
             pronunciation = nil
-        case .senseNumber:
-            senseNumber = ""
+        case .senseNumber: senseNumber = ""
         case .sectionLabel:
             close()
             sectionLabel = ""
-        case .block:
-            openBlock(kind(for: classes))
-        default:
-            break
+        case .block: openBlock(kind(for: classes))
+        default: break
         }
         stack.append(Frame(role: role, style: style))
     }
 
     func parser(
-        _ parser: XMLParser, didEndElement name: String, namespaceURI: String?,
-        qualifiedName: String?
+        _ parser: XMLParser, didEndElement name: String, namespaceURI: String?, qualifiedName: String?
     ) {
         guard let frame = stack.popLast() else { return }
         switch frame.role {
@@ -94,18 +87,12 @@ private final class Reader: NSObject, XMLParserDelegate {
             blocks.append(
                 .headword(
                     word.collapsingWhitespace, homograph: homograph.collapsingWhitespace.nilIfEmpty,
-                    pronunciation: pronunciation?.trimmingCharacters(in: Self.pronunciationFrame)
-                        .nilIfEmpty))
-        case .senseNumber:
-            senseNumber = senseNumber?.collapsingWhitespace.nilIfEmpty
-        case .sectionLabel:
-            blocks.append(.section(sectionLabel.collapsingWhitespace))
-        case .block:
-            close()
-        case .container:
-            if let open, open.depth >= stack.count { close() }
-        default:
-            break
+                    pronunciation: pronunciation?.trimmingCharacters(in: Self.pronunciationFrame).nilIfEmpty))
+        case .senseNumber: senseNumber = senseNumber?.collapsingWhitespace.nilIfEmpty
+        case .sectionLabel: blocks.append(.section(sectionLabel.collapsingWhitespace))
+        case .block: close()
+        case .container: if let open, open.depth >= stack.count { close() }
+        default: break
         }
     }
 

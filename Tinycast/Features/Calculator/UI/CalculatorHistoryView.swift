@@ -31,10 +31,7 @@ struct CalculatorHistoryList: View {
         }
     }
 
-    /// Scroll target for the current selection.
-    private var selectedRowID: String? {
-        calcSelected ? Self.calcRowID : selectedID?.uuidString
-    }
+    private var selectedRowID: String? { calcSelected ? Self.calcRowID : selectedID?.uuidString }
 
     /// Whether the selection sits on flat index 0: the calc card, else the first entry.
     private var firstRowSelected: Bool {
@@ -97,8 +94,7 @@ struct CalculatorHistoryList: View {
             .edgeDissolve()
             .thinScrollbar()
             // Snap to the origin on the first row so its section header shows too.
-            .scrollFollowsSelection(
-                scroll, row: selectedRowID, atOrigin: firstRowSelected, proxy: proxy)
+            .scrollFollowsSelection(scroll, row: selectedRowID, atOrigin: firstRowSelected, proxy: proxy)
         }
     }
 }

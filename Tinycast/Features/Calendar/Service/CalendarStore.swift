@@ -37,14 +37,10 @@ final class CalendarStore {
     /// Covers the day rolling over and a Mac that slept; edits come from EventKit.
     private static let staleAfter: TimeInterval = 10 * 60
 
-    init() {
-        hiddenCalendarIDs = Set(defaults.stringArray(forKey: hiddenKey) ?? [])
-    }
+    init() { hiddenCalendarIDs = Set(defaults.stringArray(forKey: hiddenKey) ?? []) }
 
     /// TCC sends nothing when a grant changes in Settings, so anything acting on `access` re-reads.
-    func refreshAccess() {
-        access = Permissions.calendarAccess()
-    }
+    func refreshAccess() { access = Permissions.calendarAccess() }
 
     // MARK: - Lifecycle
 
@@ -131,18 +127,12 @@ final class CalendarStore {
         lastReloadAt = Date()
 
         let sources = store.calendars(for: .event)
-        calendars =
-            sources
-            .map {
-                MeetingCalendar(
-                    id: $0.calendarIdentifier, title: $0.title, accountName: $0.source.title)
-            }
-            .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        calendars = sources.map {
+            MeetingCalendar(id: $0.calendarIdentifier, title: $0.title, accountName: $0.source.title)
+        }.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
 
         let selected = sources.filter { !hiddenCalendarIDs.contains($0.calendarIdentifier) }
-        guard !selected.isEmpty,
-            let interval = span.interval(from: Date(), calendar: .current)
-        else {
+        guard !selected.isEmpty, let interval = span.interval(from: Date(), calendar: .current) else {
             publish([])
             return
         }
@@ -165,46 +155,34 @@ final class CalendarStore {
         else { return nil }
         let me = event.attendees?.first { $0.isCurrentUser }
         return MeetingEvent(
-            id: occurrenceID(of: event, start: start),
-            title: event.title ?? "(No Title)",
-            start: start,
-            end: end,
-            isAllDay: event.isAllDay,
-            isDeclined: me?.participantStatus == .declined,
-            calendarID: calendar.calendarIdentifier,
-            calendarName: calendar.title,
-            calendarColor: color(of: calendar),
-            calendarItemID: event.calendarItemIdentifier,
+            id: occurrenceID(of: event, start: start), title: event.title ?? "(No Title)", start: start,
+            end: end, isAllDay: event.isAllDay, isDeclined: me?.participantStatus == .declined,
+            calendarID: calendar.calendarIdentifier, calendarName: calendar.title,
+            calendarColor: color(of: calendar), calendarItemID: event.calendarItemIdentifier,
             link: MeetingLink.detect(
                 fields: [event.url?.absoluteString, event.location, event.notes],
                 account: accountEmail(of: me ?? event.organizer)))
     }
 
     private static func occurrenceID(of event: EKEvent, start: Date) -> MeetingEvent.ID {
-        (event.eventIdentifier ?? event.calendarItemIdentifier)
-            + "|\(start.timeIntervalSinceReferenceDate)"
+        (event.eventIdentifier ?? event.calendarItemIdentifier) + "|\(start.timeIntervalSinceReferenceDate)"
     }
 
     private static func color(of calendar: EKCalendar) -> MeetingEvent.CalendarColor? {
         guard let space = CGColorSpace(name: CGColorSpace.sRGB),
-            let components = calendar.cgColor?.converted(
-                to: space, intent: .defaultIntent, options: nil)?.components,
-            components.count >= 3
+            let color = calendar.cgColor?.converted(to: space, intent: .defaultIntent, options: nil),
+            let components = color.components, components.count >= 3
         else { return nil }
-        return MeetingEvent.CalendarColor(
-            red: components[0], green: components[1], blue: components[2])
+        return MeetingEvent.CalendarColor(red: components[0], green: components[1], blue: components[2])
     }
 
     /// The organizer covers an event booked with no guests and so no attendee list.
     private static func accountEmail(of participant: EKParticipant?) -> String? {
         guard let participant else { return nil }
-        return MeetingLink.accountAddress(
-            of: participant.url, isCurrentUser: participant.isCurrentUser)
+        return MeetingLink.accountAddress(of: participant.url, isCurrentUser: participant.isCurrentUser)
     }
 
-    func event(id: String) -> MeetingEvent? {
-        events.first { $0.id == id }
-    }
+    func event(id: String) -> MeetingEvent? { events.first { $0.id == id } }
 
     // MARK: - Details
 
@@ -213,9 +191,7 @@ final class CalendarStore {
         if next != details { details = next }
     }
 
-    func clearDetails() {
-        if details != nil { details = nil }
-    }
+    func clearDetails() { if details != nil { details = nil } }
 
     private func refreshDetails() {
         guard let shown = details?.meetingID else { return }
@@ -242,18 +218,14 @@ final class CalendarStore {
     private static func attendees(of event: EKEvent) -> [MeetingDetails.Attendee] {
         let organizer = event.organizer?.url
         return (event.attendees ?? []).compactMap { participant in
-            guard let name = participant.name ?? MeetingLink.address(of: participant.url) else {
-                return nil
-            }
+            guard let name = participant.name ?? MeetingLink.address(of: participant.url) else { return nil }
             return MeetingDetails.Attendee(
                 name: name, response: response(to: participant.participantStatus),
                 isOrganizer: participant.url == organizer)
         }
     }
 
-    private static func response(
-        to status: EKParticipantStatus
-    ) -> MeetingDetails.Attendee.Response {
+    private static func response(to status: EKParticipantStatus) -> MeetingDetails.Attendee.Response {
         switch status {
         case .accepted: .accepted
         case .tentative: .tentative
@@ -266,9 +238,7 @@ final class CalendarStore {
     func createEvent(_ draft: EventDraft, now: Date) -> Bool {
         let store = eventStore ?? EKEventStore()
         eventStore = store
-        guard access == .granted, let calendar = store.defaultCalendarForNewEvents else {
-            return false
-        }
+        guard access == .granted, let calendar = store.defaultCalendarForNewEvents else { return false }
         let event = EKEvent(eventStore: store)
         event.calendar = calendar
         event.title = draft.trimmedTitle
@@ -281,16 +251,10 @@ final class CalendarStore {
 
     // MARK: - Per-calendar switches
 
-    func isEnabled(_ calendar: MeetingCalendar) -> Bool {
-        !hiddenCalendarIDs.contains(calendar.id)
-    }
+    func isEnabled(_ calendar: MeetingCalendar) -> Bool { !hiddenCalendarIDs.contains(calendar.id) }
 
     func setEnabled(_ enabled: Bool, for calendar: MeetingCalendar) {
-        if enabled {
-            hiddenCalendarIDs.remove(calendar.id)
-        } else {
-            hiddenCalendarIDs.insert(calendar.id)
-        }
+        if enabled { hiddenCalendarIDs.remove(calendar.id) } else { hiddenCalendarIDs.insert(calendar.id) }
         defaults.set(Array(hiddenCalendarIDs), forKey: hiddenKey)
         reload()
     }
