@@ -223,6 +223,7 @@
 		462CE7617EC4EED7E7B5A072 /* ExtensionGridLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220CECFE780E8BE18FAE0A1C /* ExtensionGridLayout.swift */; };
 		4640C7CC8DCA6E6FA49394A8 /* CommandsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D303E193CFEFE455778C150 /* CommandsSettingsView.swift */; };
 		464F93E1F16A3242396F32F9 /* SearchScopes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E4A7E45F7D1CC5FB8868715 /* SearchScopes.swift */; };
+		46C73019F7AE94D88F936FAC /* RootPaletteKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FF3B31571CCA90A8ED960B2 /* RootPaletteKeys.swift */; };
 		46F5D522E6F5470D3694A218 /* RaycastImportReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CD7591D273A6484DD48018A /* RaycastImportReader.swift */; };
 		4756BD8CEF9FC57A0C016555 /* AIConnectionEditorPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87C6479121B0371B3491FA8A /* AIConnectionEditorPanel.swift */; };
 		478500C6465327947EBD9D61 /* RaycastSnippetImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80806A442BADAC390ECD993 /* RaycastSnippetImport.swift */; };
@@ -539,6 +540,7 @@
 		A90D2DC5B401D0F7E5BD3235 /* DictionaryMarkup.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7F46DBF8D46FE35742C4D36 /* DictionaryMarkup.swift */; };
 		A91D2FD273D527F1098FB393 /* DictationMel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE6A34F46D8970090CA0489 /* DictationMel.swift */; };
 		AA52F01D3A91899CCEAF7851 /* ColorCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D763A801000029271E4CADA4 /* ColorCard.swift */; };
+		AA75F383F13EA28E2603BABE /* RootPaletteMenus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 285209D3369FA1E314234C91 /* RootPaletteMenus.swift */; };
 		AAFD2C9276D38719E85B675F /* Memo.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB76FDBFE1E306C2A5B1A29B /* Memo.swift */; };
 		AB500AC3DEBFF6EB1CE42812 /* DialogController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94507F8F095D3EBD1A9B3007 /* DialogController.swift */; };
 		AB778D7CE5D7B6B91A4B996F /* DictionaryEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65BCE97EB19D934F786DFAA0 /* DictionaryEntryView.swift */; };
@@ -790,6 +792,7 @@
 		FAD4B4B7A3B39591C73C3BAD /* MenuSearchSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C42ACB4D70CA089A6E948069 /* MenuSearchSession.swift */; };
 		FB1D83A8BE027AC4F328D601 /* QuicklinkListScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0935D49C0A0175E54E69682B /* QuicklinkListScreen.swift */; };
 		FB223F8BBD51465FD64BC1D2 /* SymbolPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9F256977D955CC53C1D914E /* SymbolPicker.swift */; };
+		FB581550ED101B6A47F90179 /* RootPaletteHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A53413A32535AE1F0239E78 /* RootPaletteHeader.swift */; };
 		FBB826DD73104A76AF114114 /* AppPickerPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F84CC7876A495616C52D5C5 /* AppPickerPopover.swift */; };
 		FC2F9731834BAD596116441A /* ExtensionStorePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C3FC7FD77C74762B72637B /* ExtensionStorePanel.swift */; };
 		FC310EE49D4CBB8F3D7E7BDD /* QuickLookSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98784BF77E97C75859888301 /* QuickLookSurface.swift */; };
@@ -965,6 +968,7 @@
 		2702F140F8DBF373D2ED11A5 /* SelectionFollowing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionFollowing.swift; sourceTree = "<group>"; };
 		273827EB5CC04F1951C40387 /* VolumeLevel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeLevel.swift; sourceTree = "<group>"; };
 		27773F8955543E8A24CC0D28 /* ClipboardSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardSettingsView.swift; sourceTree = "<group>"; };
+		285209D3369FA1E314234C91 /* RootPaletteMenus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootPaletteMenus.swift; sourceTree = "<group>"; };
 		2858A6BD41085BF9C1679259 /* ExtensionMenuBarHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionMenuBarHost.swift; sourceTree = "<group>"; };
 		289FC415E1D1776DD1C4EB9E /* ApplicationsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationsSettingsView.swift; sourceTree = "<group>"; };
 		28B398912F4FB38912BD779C /* QuicklinkArgumentsAccessory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuicklinkArgumentsAccessory.swift; sourceTree = "<group>"; };
@@ -1088,6 +1092,7 @@
 		487E7A6C4F2366E135B9A5E7 /* WindowManagementSettingsFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowManagementSettingsFile.swift; sourceTree = "<group>"; };
 		491B8A6ED9732D9B0A33026C /* WindowSwitchSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSwitchSession.swift; sourceTree = "<group>"; };
 		49E8194DC4F75C103DA35F3D /* WindowManagementFileFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowManagementFileFormat.swift; sourceTree = "<group>"; };
+		4A53413A32535AE1F0239E78 /* RootPaletteHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootPaletteHeader.swift; sourceTree = "<group>"; };
 		4A93BF11B823786E8B468B05 /* AIConnectionKeyPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIConnectionKeyPolicy.swift; sourceTree = "<group>"; };
 		4AA61A2FAF4E49E466DA8F37 /* SettingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTab.swift; sourceTree = "<group>"; };
 		4AEBAA9641BC6C279DB0123C /* CameraPreviewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreviewController.swift; sourceTree = "<group>"; };
@@ -1158,6 +1163,7 @@
 		5E9F62FD5537ABE16C1DC132 /* MathLayoutEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MathLayoutEngine.swift; sourceTree = "<group>"; };
 		5F0A68B2040582996EFBA877 /* CommandCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandCatalog.swift; sourceTree = "<group>"; };
 		5F69286C2B3F6871A479A432 /* ClaudeControlProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeControlProtocol.swift; sourceTree = "<group>"; };
+		5FF3B31571CCA90A8ED960B2 /* RootPaletteKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootPaletteKeys.swift; sourceTree = "<group>"; };
 		607E7B669817BFC39B12C12D /* SettingsEditorPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsEditorPresenter.swift; sourceTree = "<group>"; };
 		60CCB1A47E0022BAEDD1EE96 /* CalculatorHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculatorHistoryView.swift; sourceTree = "<group>"; };
 		60D4D2146CE38403B2DDB072 /* CustomQuickActionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomQuickActionStore.swift; sourceTree = "<group>"; };
@@ -3201,6 +3207,9 @@
 				188A6D3C5B6BC67716F15F83 /* PaletteState.swift */,
 				9B107F5E532C8DE74430723B /* PaletteTabAction.swift */,
 				209D951FDD587A040F1F76F3 /* PaletteWindowController.swift */,
+				4A53413A32535AE1F0239E78 /* RootPaletteHeader.swift */,
+				5FF3B31571CCA90A8ED960B2 /* RootPaletteKeys.swift */,
+				285209D3369FA1E314234C91 /* RootPaletteMenus.swift */,
 				D23A98172AA46F5C0C89C4AB /* RootPaletteView.swift */,
 				88C2657E7B3481A27821B4A5 /* WindowReader.swift */,
 			);
@@ -4429,6 +4438,9 @@
 				3FB589A2243B5C6EA118AA4F /* RoomsList.swift in Sources */,
 				F653392C8C11E64C47DF0BD4 /* RoomsScreen.swift in Sources */,
 				80E0A46F1C287491BC187322 /* RoomsSection.swift in Sources */,
+				FB581550ED101B6A47F90179 /* RootPaletteHeader.swift in Sources */,
+				46C73019F7AE94D88F936FAC /* RootPaletteKeys.swift in Sources */,
+				AA75F383F13EA28E2603BABE /* RootPaletteMenus.swift in Sources */,
 				47E13BC63F8BE11EDF25EA82 /* RootPaletteView.swift in Sources */,
 				B076DE322213FBD43C04B886 /* RowClick.swift in Sources */,
 				9A80D2997DCF835AF225A586 /* RunningAppsMonitor.swift in Sources */,

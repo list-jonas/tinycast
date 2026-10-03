@@ -32,6 +32,8 @@ struct EmojiScreen: PaletteScreen {
     /// Flat grid order across sections — what the selection indexes.
     var rows: [EmojiEntry] { sections.flatMap(\.entries) }
 
+    var rowCount: Int { sections.reduce(0) { $0 + $1.entries.count } }
+
     var primaryActionTitle: String { vm.pasteTarget?.pasteTitle ?? "Paste" }
 
     /// Indexes the owning section, so an action never flattens the whole catalog to find one cell.

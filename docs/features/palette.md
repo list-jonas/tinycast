@@ -71,6 +71,13 @@ written to Chat History, and the AI Chat window's sidebar, as soon as it has a m
 Each `PaletteMode` maps to one type conforming to `PaletteScreen`, and the protocol is what keeps the
 selection invariant honest: a screen exposes `rows` as its single source of visible order, and the
 palette indexes into it. Adding a mode means adding a conformer, not a branch in `RootPaletteView`.
+The palette itself reads only `rowCount`, which defaults to `rows.count`; a screen whose rows are
+costly to flatten — the emoji grid — answers it without building them. Resolving a screen is not free
+either (the launcher ranks in its init), so `body` resolves it once and hands it, with the header
+accessory, to the header and key handlers; only event-time paths re-resolve it.
+`RootPaletteView` is split by concern: `RootPaletteView.swift` holds state, the screen switch and the
+observers; `RootPaletteHeader.swift` the header and footer; `RootPaletteKeys.swift` the key handlers
+and focus moves; `RootPaletteMenus.swift` the one-open-menu machinery.
 A chord aimed at the selected row — ⌃X, ⇧⌘F, ⌘Y and the rest — follows the same rule:
 `PaletteShortcut` recognises the key and carries its compact-bar and open-menu guards, and the screen
 answers through `perform(_:at:)`, so a new chord never adds a cast to the shell.

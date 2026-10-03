@@ -106,6 +106,8 @@ private extension MenuPanelCorner {
     associatedtype Row: Identifiable
 
     var rows: [Row] { get }
+    /// What the palette reads per render; a screen with costly rows answers it without building them.
+    var rowCount: Int { get }
     var primaryActionTitle: String { get }
     /// True when the screen owns the keyboard, so the header's field is hidden and unfocused.
     var hidesSearchField: Bool { get }
@@ -151,6 +153,7 @@ private extension MenuPanelCorner {
 }
 
 extension PaletteScreen {
+    var rowCount: Int { rows.count }
     func hasPrimaryAction(at selection: Int) -> Bool { true }
     func hasActions(at selection: Int) -> Bool { true }
     var hidesSearchField: Bool { false }
