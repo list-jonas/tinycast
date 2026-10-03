@@ -40,10 +40,7 @@ struct ExtensionListView: View {
             EmptyResults(text: "Loading…")
         } else if let empty = screen.emptyView {
             VStack(spacing: metrics.spacing.md) {
-                ExtensionIconView(
-                    resolved: ExtensionImage.resolve(
-                        empty.props["icon"], assetsPath: assetsPath, isDark: isDark),
-                    size: 42)
+                ExtensionIconView(empty.props["icon"], assetsPath: assetsPath, isDark: isDark, size: 42)
                 Text(empty.string("title") ?? "Nothing here")
                     .font(metrics.typography.rowTitle)
                 if let description = empty.string("description") {
@@ -180,8 +177,7 @@ private struct ExtensionItemRow: View {
         HStack(spacing: metrics.spacing.lg) {
             if let icon = node.props["icon"], icon != .null {
                 ExtensionIconView(
-                    resolved: ExtensionImage.resolve(icon, assetsPath: assetsPath, isDark: isDark),
-                    size: metrics.size.resultRowIcon)
+                    icon, assetsPath: assetsPath, isDark: isDark, size: metrics.size.resultRowIcon)
             }
             Text(node.string("title") ?? "")
                 .font(metrics.typography.rowTitle)
@@ -226,8 +222,7 @@ struct ExtensionAccessoriesView: View {
     private func accessoryView(_ fields: [String: RenderValue]) -> some View {
         HStack(spacing: metrics.spacing.xs) {
             if let icon = fields["icon"] {
-                ExtensionIconView(
-                    resolved: ExtensionImage.resolve(icon, assetsPath: assetsPath, isDark: isDark), size: 13)
+                ExtensionIconView(icon, assetsPath: assetsPath, isDark: isDark, size: 13)
             }
             if let tag = fields["tag"] {
                 tagView(tag)

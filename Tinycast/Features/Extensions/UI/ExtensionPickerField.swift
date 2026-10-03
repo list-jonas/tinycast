@@ -33,9 +33,7 @@ struct ExtensionPickerField: View {
 
     /// What the control does, then whatever the extension explains about the field.
     private var hint: String {
-        let state = list.open ? "Showing choices" : "Opens a list of choices"
-        let parts = [error, info].compactMap { $0 }.filter { !$0.isEmpty }
-        return ([state] + parts).joined(separator: ". ")
+        ExtensionFieldHint.spoken(list.open ? "Showing choices" : "Opens a list of choices", error, info)
     }
 
     /// What the closed control reads as: the chosen titles, or the placeholder.

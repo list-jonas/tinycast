@@ -357,6 +357,13 @@ extension ExtensionImage {
     }
 }
 
+extension ExtensionIconView {
+    /// A raw `ImageLike` prop, resolved for the appearance the caller draws on.
+    init(_ value: RenderValue?, assetsPath: String?, isDark: Bool, size: CGFloat) {
+        self.init(resolved: ExtensionImage.resolve(value, assetsPath: assetsPath, isDark: isDark), size: size)
+    }
+}
+
 /// A resolved icon at row size; an unresolvable one draws the faint tile, so rows never jump.
 struct ExtensionIconView: View {
     private enum MenuSymbolStyle {

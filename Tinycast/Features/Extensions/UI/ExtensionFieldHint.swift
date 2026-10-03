@@ -6,12 +6,17 @@ struct ExtensionFieldHint: ViewModifier {
     var error: String?
 
     func body(content: Content) -> some View {
-        let spoken = [error, info].compactMap { $0 }.filter { !$0.isEmpty }
+        let spoken = Self.spoken(error, info)
         if spoken.isEmpty {
             content
         } else {
-            content.accessibilityHint(Text(spoken.joined(separator: ". ")))
+            content.accessibilityHint(Text(spoken))
         }
+    }
+
+    /// The non-empty parts, read in order as sentences.
+    static func spoken(_ parts: String?...) -> String {
+        parts.compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ". ")
     }
 }
 

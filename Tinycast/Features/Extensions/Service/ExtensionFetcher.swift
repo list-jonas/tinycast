@@ -113,8 +113,8 @@ enum ExtensionAsyncProcess {
             return fileManager.isExecutableFile(atPath: expanded)
                 ? URL(fileURLWithPath: expanded) : nil
         }
-        let search = (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").map(String.init)
-            + ExtensionBootConfig.loginPaths
+        let inherited = (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":")
+        let search = inherited.map(String.init) + ExtensionBootConfig.loginPaths
         for directory in search {
             let candidate = (directory as NSString).appendingPathComponent(command)
             if fileManager.isExecutableFile(atPath: candidate) {

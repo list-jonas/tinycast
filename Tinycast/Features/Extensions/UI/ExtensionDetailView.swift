@@ -89,10 +89,7 @@ struct ExtensionMetadataView: View {
                     row(title: child.string("title"), index: index) {
                         HStack(spacing: metrics.spacing.xs) {
                             if let icon = child.props["icon"] {
-                                ExtensionIconView(
-                                    resolved: ExtensionImage.resolve(
-                                        icon, assetsPath: assetsPath, isDark: isDark),
-                                    size: 14)
+                                ExtensionIconView(icon, assetsPath: assetsPath, isDark: isDark, size: 14)
                             }
                             Text(labelText(child))
                                 .font(metrics.typography.rowTitle)
@@ -177,9 +174,7 @@ private struct ExtensionTagListView: View {
                     ExtensionImage.color(tag.props["color"], isDark: isDark) ?? Theme.Colors.textSecondary
                 HStack(spacing: 3) {
                     if let icon = tag.props["icon"] {
-                        ExtensionIconView(
-                            resolved: ExtensionImage.resolve(icon, assetsPath: assetsPath, isDark: isDark),
-                            size: 12)
+                        ExtensionIconView(icon, assetsPath: assetsPath, isDark: isDark, size: 12)
                     }
                     Text(tag.string("text") ?? "")
                         .font(metrics.typography.rowTrailing)

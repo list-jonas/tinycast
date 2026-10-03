@@ -82,7 +82,8 @@ final class ExtensionOAuthSession {
             }
         }
         return ExtensionOAuthAuthorizeResult(
-            authorizationCode: params["code"] ?? "", accessToken: params["access_token"], state: params["state"])
+            authorizationCode: params["code"] ?? "", accessToken: params["access_token"],
+            state: params["state"])
     }
 
     private func receiveCallback(url: URL) {

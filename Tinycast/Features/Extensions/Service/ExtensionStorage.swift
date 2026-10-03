@@ -116,13 +116,11 @@ final class ExtensionStorage {
     /// `nil` removes the key; a `nil` key clears the namespace.
     func setCache(extension name: String, namespace: String, key: String?, value: String?) {
         mutate(name) { store in
-            guard let key else {
+            if let key {
+                store.caches[namespace, default: [:]][key] = value
+            } else {
                 store.caches[namespace] = [:]
-                return
             }
-            var bucket = store.caches[namespace] ?? [:]
-            if let value { bucket[key] = value } else { bucket.removeValue(forKey: key) }
-            store.caches[namespace] = bucket
         }
     }
 
@@ -137,13 +135,7 @@ final class ExtensionStorage {
     }
 
     func setPreference(extension name: String, key: String, value: ExtensionPreferenceValue?) {
-        mutate(name) { store in
-            if let value {
-                store.preferences[key] = StoredValue(preference: value)
-            } else {
-                store.preferences.removeValue(forKey: key)
-            }
-        }
+        mutate(name) { $0.preferences[key] = value.map(StoredValue.init(preference:)) }
     }
 
     func removeAll(extension name: String) {
