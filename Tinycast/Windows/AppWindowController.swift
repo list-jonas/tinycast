@@ -92,16 +92,12 @@ final class AppWindowController: NSObject, NSWindowDelegate {
         window.setFrame(frame, display: true, animate: false)
     }
 
-    // MARK: - NSWindowDelegate
-
     func windowWillClose(_ notification: Notification) {
         guard let window else { return }
         self.window = nil
         self.chrome = nil
         activation.windowDidClose(window)
     }
-
-    // MARK: - Private
 
     private func makeWindow(content: NSViewController, chrome: WindowChrome?) -> NSWindow {
         var style: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]

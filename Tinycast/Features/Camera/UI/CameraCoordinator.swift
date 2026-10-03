@@ -82,8 +82,6 @@ final class CameraCoordinator: NSObject, NSWindowDelegate {
         }
     }
 
-    // MARK: - NSWindowDelegate
-
     /// Click-away closes rather than leaving a camera running behind another window.
     func windowDidResignKey(_ notification: Notification) {
         guard let panel, notification.object as? NSWindow === panel else { return }

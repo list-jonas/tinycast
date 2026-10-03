@@ -88,7 +88,7 @@ struct HeaderMenuButton: View {
                 case .asset(let name):
                     Image(name)
                         .resizable()
-                        .aspectRatio(contentMode: .fit)
+                        .scaledToFit()
                         .frame(width: metrics.size.barBrandIcon, height: metrics.size.barBrandIcon)
                 case .file(let path):
                     MenuFileIcon(path: path)

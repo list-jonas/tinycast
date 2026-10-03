@@ -13,7 +13,7 @@ struct MessageHUDView: View {
 
     let message: String
     let accessory: Accessory
-    var onCancel: (() -> Void)? = nil
+    var onCancel: (() -> Void)?
     @State private var hovered = false
     @Environment(\.metrics) private var metrics
 

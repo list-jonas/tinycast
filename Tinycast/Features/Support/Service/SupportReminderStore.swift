@@ -51,8 +51,6 @@ final class SupportReminderStore {
         persist()
     }
 
-    // MARK: - Private
-
     /// The last ask, or first run when there has been none.
     private var anchor: Date { state.lastAskedAt ?? state.firstSeenAt }
 

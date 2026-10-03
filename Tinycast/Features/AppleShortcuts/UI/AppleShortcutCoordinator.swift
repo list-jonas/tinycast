@@ -45,8 +45,6 @@ final class AppleShortcutCoordinator {
         shortcuts?.first { $0.id == id }?.name
     }
 
-    // MARK: - Feature presence
-
     /// Off forgets the library but frees nothing: only a successful read may say what is gone.
     func applyPresence() {
         guard settings.appleShortcutsEnabled else {
@@ -92,8 +90,6 @@ final class AppleShortcutCoordinator {
         aliases.removeKeys(entryIDs)
         entryIDs.forEach(ranking.reset(itemKey:))
     }
-
-    // MARK: - Running
 
     /// The one funnel for a launcher row and a global shortcut, so the switch can't be bypassed.
     func run(id: UUID) {
