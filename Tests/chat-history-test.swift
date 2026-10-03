@@ -16,8 +16,8 @@ struct ChatHistoryTests {
         }
     }
 
-    static func main() {
-        historyRoundTripsAndRepairsInterruptedReplies()
+    static func main() async {
+        await historyRoundTripsAndRepairsInterruptedReplies()
         savesRewriteOnlyTheStoredTail()
         crashRepairSurvivesTailSaves()
         retentionPrunesByAgeAndCascades()
@@ -65,7 +65,7 @@ struct ChatHistoryTests {
             "a call left running belonged to a process that is gone, so it never reported back")
     }
 
-    static func historyRoundTripsAndRepairsInterruptedReplies() {
+    static func historyRoundTripsAndRepairsInterruptedReplies() async {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("tinycast-ai-chat-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -109,6 +109,8 @@ struct ChatHistoryTests {
         expect(
             loaded?.messages.last?.text == "Partial",
             "an interrupted partial answer is preserved")
+        let preview = await reopened.loadSession(id: id)
+        expect(preview != nil && preview == loaded, "the History preview reads the same transcript off-main")
 
         reopened.remove(id: id)
         expect(reopened.conversations.isEmpty, "deleting a chat removes its summary")

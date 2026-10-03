@@ -152,7 +152,8 @@ struct ChatHistoryPreview: View {
             session = nil
             guard let conversationID else { return }
             guard conversationID != chat.session.id || chat.session.messages.isEmpty else { return }
-            session = history.session(id: conversationID)
+            let loaded = await history.loadSession(id: conversationID)
+            if !Task.isCancelled { session = loaded }
         }
     }
 }
