@@ -37,6 +37,10 @@ final class ExtensionNodeShims: @unchecked Sendable {
         } ?? #"{"ok":false,"error":"could not encode host result","code":"EUNKNOWN"}"#
     }
 
+    private static func data(_ arguments: [Any], _ index: Int) -> Data {
+        Data(base64Encoded: arguments[safe: index] as? String ?? "") ?? Data()
+    }
+
     struct ShimError: Error {
         let message: String
         let code: String
@@ -163,7 +167,7 @@ final class ExtensionNodeShims: @unchecked Sendable {
 
         case "writeFile":
             let target = try path(0)
-            let data = Data(base64Encoded: arguments[safe: 1] as? String ?? "") ?? Data()
+            let data = Self.data(arguments, 1)
             let append = arguments[safe: 2] as? Bool ?? false
             if append, let handle = FileHandle(forWritingAtPath: target) {
                 defer { try? handle.close() }
@@ -232,18 +236,15 @@ final class ExtensionNodeShims: @unchecked Sendable {
             try fileManager.removeItem(atPath: target)
             return nil
 
-        case "rename":
+        case "rename", "copyFile":
             let from = try path(0)
             let to = try path(1)
             if fileManager.fileExists(atPath: to) { try fileManager.removeItem(atPath: to) }
-            try fileManager.moveItem(atPath: from, toPath: to)
-            return nil
-
-        case "copyFile":
-            let from = try path(0)
-            let to = try path(1)
-            if fileManager.fileExists(atPath: to) { try fileManager.removeItem(atPath: to) }
-            try fileManager.copyItem(atPath: from, toPath: to)
+            if method == "rename" {
+                try fileManager.moveItem(atPath: from, toPath: to)
+            } else {
+                try fileManager.copyItem(atPath: from, toPath: to)
+            }
             return nil
 
         case "realpath":
@@ -300,7 +301,7 @@ final class ExtensionNodeShims: @unchecked Sendable {
             guard read >= 0 else { throw fileError("read") }
             return data.prefix(read).base64EncodedString()
         default:
-            let data = Data(base64Encoded: arguments[safe: 1] as? String ?? "") ?? Data()
+            let data = Self.data(arguments, 1)
             let position = (arguments[safe: 2] as? NSNumber)?.int64Value
             var written = 0
             // fs-minipass drops the remainder it is handed, so a short write truncates in silence.
@@ -472,25 +473,23 @@ final class ExtensionNodeShims: @unchecked Sendable {
 
         case "random":
             let count = max(0, (arguments.first as? NSNumber)?.intValue ?? 0)
-            var bytes = [UInt8](repeating: 0, count: count)
-            for index in 0..<count { bytes[index] = UInt8.random(in: 0...255) }
-            return Data(bytes).base64EncodedString()
+            return Data((0..<count).map { _ in UInt8.random(in: 0...255) }).base64EncodedString()
 
         case "hash":
             let algorithm = arguments[safe: 0] as? String ?? "sha256"
-            let data = Data(base64Encoded: arguments[safe: 1] as? String ?? "") ?? Data()
+            let data = Self.data(arguments, 1)
             return try digest(algorithm: algorithm, data: data).base64EncodedString()
 
         case "hmac":
             let algorithm = arguments[safe: 0] as? String ?? "sha256"
-            let data = Data(base64Encoded: arguments[safe: 1] as? String ?? "") ?? Data()
-            let key = Data(base64Encoded: arguments[safe: 2] as? String ?? "") ?? Data()
+            let data = Self.data(arguments, 1)
+            let key = Self.data(arguments, 2)
             return try authenticate(algorithm: algorithm, data: data, key: key).base64EncodedString()
 
         case "pbkdf2":
             let algorithm = arguments[safe: 0] as? String ?? ""
-            let password = Data(base64Encoded: arguments[safe: 1] as? String ?? "") ?? Data()
-            let salt = Data(base64Encoded: arguments[safe: 2] as? String ?? "") ?? Data()
+            let password = Self.data(arguments, 1)
+            let salt = Self.data(arguments, 2)
             let iterations = (arguments[safe: 3] as? NSNumber)?.intValue ?? 0
             let length = (arguments[safe: 4] as? NSNumber)?.intValue ?? -1
             return try deriveKey(
@@ -501,9 +500,9 @@ final class ExtensionNodeShims: @unchecked Sendable {
         case "cipher":
             let mode = arguments[safe: 0] as? String ?? ""
             let decrypt = arguments[safe: 1] as? Bool ?? false
-            let key = Data(base64Encoded: arguments[safe: 2] as? String ?? "") ?? Data()
-            let iv = Data(base64Encoded: arguments[safe: 3] as? String ?? "") ?? Data()
-            let data = Data(base64Encoded: arguments[safe: 4] as? String ?? "") ?? Data()
+            let key = Self.data(arguments, 2)
+            let iv = Self.data(arguments, 3)
+            let data = Self.data(arguments, 4)
             let padding = arguments[safe: 5] as? Bool ?? true
             return try crypt(
                 mode: mode, decrypt: decrypt, key: key, iv: iv, data: data, padding: padding
@@ -638,7 +637,7 @@ final class ExtensionNodeShims: @unchecked Sendable {
     // MARK: - zlib
 
     private func compression(method: String, arguments: [Any]) throws -> Any? {
-        let data = Data(base64Encoded: arguments.first as? String ?? "") ?? Data()
+        let data = Self.data(arguments, 0)
         let result: Data
         switch method {
         case "gunzip": result = try Zlib.gunzip(data)

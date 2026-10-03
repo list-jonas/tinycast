@@ -132,7 +132,9 @@ Two host-call flavours:
 | `Service/ExtensionCommandMetadataStore.swift` | every command's subtitle override, refresh bookkeeping and menu-bar state, in one small file |
 | `Service/ExtensionCatalog.swift` | discovery on disk, install, uninstall, import-from-Raycast |
 | `Service/ExtensionCleanup.swift` | the build workspace's name, the launch sweep, and reclaiming orphans |
-| `Service/ExtensionManager.swift` | the single owner: installed set, foreground session, no-view refreshes, menu-bar manager, launcher entries |
+| `Service/ExtensionManager.swift` | the single owner: installed set, foreground session, menu-bar manager, launcher entries |
+| `Service/ExtensionManager+BackgroundRefresh.swift` | the no-view refresh loop, sharing the foreground runtime |
+| `Service/ExtensionManager+HostContext.swift` | what a running command's API calls reach through the bridge |
 | `Service/ExtensionMenuBarManager.swift` | serialized refreshes, short-lived menu sessions and their deadlines |
 | `Service/ExtensionMenuBarHost.swift` | immutable per-session namespace and menu-specific host behavior |
 | `UI/ExtensionMenuBarController.swift` | native `NSStatusItem` and `NSMenu` rendering and dispatch |
@@ -363,7 +365,8 @@ screens hold (see [palette.md](palette.md)).
   `ExtensionDateField` is the same shape over `ExtensionDateExpression`, which parses what Raycast's
   date field parses — "tomorrow at 10am", "in 3 days", "next friday", "25 dec" — and offers the same
   presets. It is pure and takes its clock and calendar as parameters, so `ext-form-test` drives it
-  and the popover's flip-up rule directly.
+  and the popover's flip-up rule directly. Both controls get their keys, focus, list panel and
+  teardown from one `ExtensionControlListBehavior`, so the two cannot drift apart.
 
   A picker opens downward, or upward when the form's bottom edge would cut the list off, which is
   `ExtensionFormMetrics.placement` applied by `ExtensionListPlacement` against the palette's own
@@ -594,7 +597,7 @@ command always takes over the palette, so it launches as `userInitiated`. The ow
 scoped install matches by `owner/extension` first and falls back to the bare slug, so short links
 keep working. Anything else on a claimed scheme just reopens the palette, and an unknown command says
 so rather than failing silently. `ExtensionDeepLink` owns the claimed schemes and the parsing,
-covered by `Tests/ext-test.swift`; an extension's own `open("raycast://…")` resolves through the same
+covered by `Tests/ext-render-test.swift`; an extension's own `open("raycast://…")` resolves through the same
 `ExtensionManager.resolve(_:)` instead of launching Raycast.
 
 For view commands, nonempty `fallbackText` also prefills the search field: lists and grids filter

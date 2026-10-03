@@ -571,6 +571,8 @@ run ext-accessory-test     $E/Model/RenderNode.swift \
                            $E/Model/ExtensionSearchAccessory.swift \
                            $E/Service/ExtensionStorage.swift
 run slow ext-test          -parse-as-library \
+                           Tests/ext-render-test.swift \
+                           Tests/ext-runtime-test.swift \
                            Tests/ext-menu-bar-test.swift \
                            Tests/ext-fetch-test.swift \
                            $E/Model/ExtensionLaunchError.swift \

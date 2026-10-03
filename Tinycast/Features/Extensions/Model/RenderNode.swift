@@ -81,7 +81,7 @@ enum RenderValue: Sendable, Hashable {
         case .string(let value): return value
         case .number(let value): return value
         case .bool(let value): return value
-        case .date(let value): return ["$date": ISO8601DateFormatter().string(from: value)]
+        case .date(let value): return ["$date": Self.plainISO.format(value)]
         case .handler(let id): return ["$fn": id]
         case .array(let values): return values.map(\.jsonValue)
         case .object(let values): return values.mapValues(\.jsonValue)
@@ -184,11 +184,6 @@ struct RenderNode: Sendable, Hashable, Identifiable {
     func nodes(_ key: String) -> [RenderNode] { props[key]?.nodesValue ?? [] }
     func array(_ key: String) -> [RenderValue] { props[key]?.arrayValue ?? [] }
     func object(_ key: String) -> [String: RenderValue]? { props[key]?.objectValue }
-
-    /// How `Form.Description`-style content and stray JSX strings arrive.
-    var textContent: String {
-        children.compactMap { $0.isText ? $0.text : nil }.joined()
-    }
 
     /// Depth-first search for the first descendant of `type`, following hoisted slot props too.
     func firstDescendant(ofType type: String) -> RenderNode? {

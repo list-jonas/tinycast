@@ -31,6 +31,10 @@ struct InstalledExtension: Sendable, Hashable, Identifiable {
     func command(named name: String) -> ExtensionCommand? {
         manifest.commands.first { $0.name == name }
     }
+
+    func reference(for command: ExtensionCommand) -> ExtensionCommandRef {
+        ExtensionCommandRef(extensionName: manifest.name, commandName: command.name)
+    }
 }
 
 /// A specific command of a specific extension — what the launcher activates.
@@ -266,12 +270,9 @@ enum ExtensionCatalog {
                 return InstalledExtension(manifest: manifest, directory: directory)
             }
             // Both channels can hold one extension; the earlier root wins, so it is offered once.
-            .reduce(into: [InstalledExtension]()) { unique, candidate in
-                guard !unique.contains(where: { $0.manifest.name == candidate.manifest.name }) else {
-                    return
-                }
-                unique.append(candidate)
-            }
+            .reduce(into: (seen: Set<String>(), unique: [InstalledExtension]())) { result, candidate in
+                if result.seen.insert(candidate.manifest.name).inserted { result.unique.append(candidate) }
+            }.unique
             .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
     }
 }

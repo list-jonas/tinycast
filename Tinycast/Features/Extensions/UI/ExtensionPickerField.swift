@@ -21,30 +21,19 @@ struct ExtensionPickerField: View {
     let onChange: ([String]) -> Void
     let onSubmit: () -> Void
 
-    @State private var open = false
-    @State private var query = ""
-    /// When the query last changed, which is where the caret's blink restarts from.
-    @State private var typedAt = Date()
-    @State private var highlighted = 0
-    @State private var hovered = false
-    /// Reported by the panel once it has placed itself, for the chevron that points its way.
-    @State private var flipped = false
+    @State private var list = ExtensionControlList()
     /// Read from the view, so a resolved icon repaints when the surface flips appearance.
     @Environment(\.isDarkAppearance) private var isDark
-    /// Told while the list is up, so the palette leaves every navigation key to it.
-    @Environment(PaletteState.self) private var palette
-
-    private var isFocused: Bool { focus == index }
 
     /// What a screen reader hears: the query while searching, else the value held.
     private var announcedValue: String {
-        guard open, !query.isEmpty else { return chosen.isEmpty ? placeholder : label }
-        return chosen.isEmpty ? query : "\(label), searching \(query)"
+        guard list.open, !list.query.isEmpty else { return chosen.isEmpty ? placeholder : label }
+        return chosen.isEmpty ? list.query : "\(label), searching \(list.query)"
     }
 
     /// What the control does, then whatever the extension explains about the field.
     private var hint: String {
-        let state = open ? "Showing choices" : "Opens a list of choices"
+        let state = list.open ? "Showing choices" : "Opens a list of choices"
         let parts = [error, info].compactMap { $0 }.filter { !$0.isEmpty }
         return ([state] + parts).joined(separator: ". ")
     }
@@ -62,89 +51,53 @@ struct ExtensionPickerField: View {
     }
 
     private var matches: [ExtensionPickerItem] {
-        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        let trimmed = list.query.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return items }
         let needle = FuzzyMatch.Query(trimmed)
         return items.filter { FuzzyMatch.score(needle, candidate: $0.title) != nil }
     }
 
     /// Headings the open list draws, which its height and its flip decision both count.
-    private var sectionCount: Int {
-        let matches = matches
-        return matches.indices.reduce(into: 0) { total, index in
+    private static func sectionCount(_ matches: [ExtensionPickerItem]) -> Int {
+        matches.indices.reduce(into: 0) { total, index in
             guard let section = matches[index].section else { return }
             if index == 0 || matches[index - 1].section != section { total += 1 }
         }
     }
 
+    private var chosenRow: Int { items.firstIndex { chosen.contains($0.value) } ?? 0 }
+
     var body: some View {
-        control
-            .focusable()
-            .focused($focus, equals: index)
-            // The chrome draws the focused edge, so AppKit's blue ring would be a second one.
-            .focusEffectDisabled()
-            .extensionListPanel(
-                open: open, height: listHeight, revision: revision, flipped: $flipped
+        // Filtered once per render: a fuzzy pass over hundreds of items is not free.
+        let matches = matches
+        control.modifier(
+            ExtensionControlListBehavior(
+                list: $list, index: index, focus: $focus,
+                field: allowsMultipleSelection ? .tagPicker : .dropdown,
+                // The panel's own height, which the placement rule then seats above or below.
+                height: form.popoverHeight(
+                    rows: matches.count, hasSearchField: false, headers: Self.sectionCount(matches)),
+                revision: Revision(
+                    query: list.query, highlighted: list.highlighted, isDark: isDark,
+                    chosen: chosen, items: matches, assetsPath: assetsPath),
+                rows: matches.count, initialRow: { chosenRow },
+                commit: { choose(matches, at: list.highlighted) }, step: step,
+                onSubmit: onSubmit
             ) {
                 ExtensionPickerList(
-                    items: matches, selection: highlighted, chosen: Set(chosen),
-                    assetsPath: assetsPath, onSelect: { choose(at: $0) },
-                    onHighlight: { highlighted = $0 })
-            }
-            .onKeyPress(phases: [.down, .repeat]) { press in
-                guard !palette.menuOpen, !ExtensionFormKey.enterKeys.contains(press.key)
-                else { return .ignored }
-                switch ExtensionListKey(press: press, listOpen: open) {
-                case .openList: return openList()
-                case .moveUp: return move(-1)
-                case .moveDown: return move(1)
-                case .commit:
-                    choose(at: highlighted)
-                    return .handled
-                case .dismiss:
-                    close()
-                    return .handled
-                case .append(let characters):
-                    query += characters
-                    highlighted = 0
-                    return .handled
-                case .deleteBackward:
-                    guard !query.isEmpty else { return .handled }
-                    query.removeLast()
-                    highlighted = 0
-                    return .handled
-                case .stepValue(let delta): return step(delta)
-                case .ignored: return .ignored
-                }
-            }
-            .modifier(
-                ExtensionFormKeys(
-                    field: allowsMultipleSelection ? .tagPicker : .dropdown,
-                    onActivate: {
-                        if open { choose(at: highlighted) } else { _ = openList() }
-                    },
-                    onSubmit: {
-                        close(); onSubmit()
-                    })
-            )
-            .onChange(of: open) { palette.noteControlListOpen(open) }
-            .onChange(of: query) { typedAt = Date() }
-            .onScrollVisibilityChange { if !$0 { close() } }
-            .onChange(of: palette.controlListDismissToken) { close() }
-            .onDisappear { if open { palette.noteControlListOpen(false) } }
-            .onChange(of: focus) { _, focus in
-                // Focus leaving the field takes its list with it.
-                if focus != index { close() }
-            }
+                    items: matches, selection: list.highlighted, chosen: Set(chosen),
+                    assetsPath: assetsPath, onSelect: { choose(matches, at: $0) },
+                    onHighlight: { list.highlighted = $0 })
+            })
     }
 
     private var control: some View {
         HStack(spacing: metrics.spacing.sm) {
-            if let leadingIcon, query.isEmpty {
+            if let leadingIcon, list.query.isEmpty {
                 ExtensionIconView(resolved: leadingIcon, size: 14)
             }
             // While the list is open the control is the search field, caret and all.
-            if open {
+            if list.open {
                 // A multi-select keeps its chosen values in view while the query is typed.
                 if allowsMultipleSelection, !chosen.isEmpty {
                     Text(label)
@@ -156,19 +109,17 @@ struct ExtensionPickerField: View {
                         .font(metrics.typography.rowTitle)
                         .foregroundStyle(Theme.Colors.textTertiary)
                 }
-                ExtensionQueryText(query: query, prompt: "Search…", phase: typedAt)
+                ExtensionQueryText(query: list.query, prompt: "Search…", phase: list.typedAt)
             } else {
                 Text(label)
                     .font(metrics.typography.rowTitle)
-                    .foregroundStyle(
-                        chosen.isEmpty ? Theme.Colors.textTertiary : Theme.Colors.textPrimary
-                    )
+                    .foregroundStyle(chosen.isEmpty ? Theme.Colors.textTertiary : Theme.Colors.textPrimary)
                     .lineLimit(1)
             }
             Spacer(minLength: metrics.spacing.sm)
-            ExtensionDisclosureChevron(open: open, flipped: flipped)
+            ExtensionDisclosureChevron(open: list.open, flipped: list.flipped)
         }
-        .extensionFieldChrome(focused: isFocused, open: open, hovered: hovered)
+        .extensionFieldChrome(focused: focus == index, open: list.open, hovered: list.hovered)
         .contentShape(Rectangle())
         // Without this the control reads as its chevron: no name, no value, no role.
         .accessibilityElement(children: .ignore)
@@ -177,17 +128,6 @@ struct ExtensionPickerField: View {
         .accessibilityValue(Text(announcedValue))
         .accessibilityHint(Text(hint))
         .accessibilityAddTraits(.isButton)
-        .onHover { hovered = $0 }
-        .onTapGesture {
-            focus = index
-            if open { close() } else { _ = openList() }
-        }
-    }
-
-    /// The panel's own height, which the placement rule then seats above or below the control.
-    private var listHeight: CGFloat {
-        form.popoverHeight(
-            rows: matches.count, hasSearchField: false, headers: sectionCount)
     }
 
     /// What the hosted list draws; a change to any of it re-pushes the panel's tree.
@@ -200,50 +140,22 @@ struct ExtensionPickerField: View {
         let assetsPath: String?
     }
 
-    private var revision: Revision {
-        Revision(
-            query: query, highlighted: highlighted, isDark: isDark,
-            chosen: chosen, items: matches, assetsPath: assetsPath)
-    }
-
-    private func openList() -> KeyPress.Result {
-        guard !open else { return .handled }
-        query = ""
-        highlighted = items.firstIndex { chosen.contains($0.value) } ?? 0
-        open = true
-        return .handled
-    }
-
-    private func close() {
-        guard open else { return }
-        open = false
-        query = ""
-    }
-
-    private func move(_ delta: Int) -> KeyPress.Result {
-        let count = matches.count
-        guard count > 0 else { return .handled }
-        highlighted = min(max(highlighted + delta, 0), count - 1)
-        return .handled
-    }
-
     /// Clamped rather than wrapping, so holding an arrow settles at an end like every other list.
     private func step(_ delta: Int) -> KeyPress.Result {
         guard !allowsMultipleSelection, !items.isEmpty else { return .ignored }
-        let current = items.firstIndex { chosen.contains($0.value) } ?? 0
+        let current = chosenRow
         let next = min(max(current + delta, 0), items.count - 1)
         guard next != current else { return .handled }
         onChange([items[next].value])
         return .handled
     }
 
-    private func choose(at index: Int) {
-        let matches = matches
+    private func choose(_ matches: [ExtensionPickerItem], at index: Int) {
         guard matches.indices.contains(index) else { return }
         let value = matches[index].value
         guard allowsMultipleSelection else {
             onChange([value])
-            close()
+            list.close()
             focus = self.index
             return
         }
