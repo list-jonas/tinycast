@@ -53,12 +53,8 @@ final class AISettingsStore {
     }
     var enabledInstalledProviders: Set<InstalledAIKind> {
         didSet {
-            guard
-                let data = try? JSONEncoder().encode(
-                    enabledInstalledProviders.sorted(by: {
-                        $0.rawValue < $1.rawValue
-                    }))
-            else { return }
+            let sorted = enabledInstalledProviders.sorted { $0.rawValue < $1.rawValue }
+            guard let data = try? JSONEncoder().encode(sorted) else { return }
             defaults.set(data, forKey: AppSettingsKey.aiInstalledProviders.rawValue)
         }
     }
@@ -81,12 +77,17 @@ final class AISettingsStore {
         self.defaults = defaults
         self.environmentStore = environmentStore
         self.isAppleIntelligenceAvailable = isAppleIntelligenceAvailable
-        installedOverrides = Self.decodeInstalledOverrides(
-            defaults.data(forKey: AppSettingsKey.aiInstalledOverrides.rawValue))
-        connections = Self.decodeConnections(
-            defaults.data(forKey: AppSettingsKey.aiConnections.rawValue))
-        defaultModel = Self.decodeDefaultModel(
-            defaults.data(forKey: AppSettingsKey.aiDefaultModel.rawValue))
+        func decoded<T: Decodable>(_ key: AppSettingsKey) -> T? {
+            defaults.data(forKey: key.rawValue)
+                .flatMap { try? JSONDecoder().decode(T.self, from: $0) }
+        }
+        let overrides: [String: InstalledAIOverride] = decoded(.aiInstalledOverrides) ?? [:]
+        installedOverrides = Dictionary(
+            uniqueKeysWithValues: overrides.compactMap { key, value in
+                InstalledAIKind(rawValue: key).map { ($0, value) }
+            })
+        connections = decoded(.aiConnections) ?? []
+        defaultModel = decoded(.aiDefaultModel)
         webSearchEnabled =
             defaults.object(forKey: AppSettingsKey.aiWebSearch.rawValue) as? Bool ?? false
         systemPrompt = defaults.string(forKey: AppSettingsKey.aiSystemPrompt.rawValue) ?? ""
@@ -111,8 +112,7 @@ final class AISettingsStore {
             ?? [:]
         disabledRoutes = Set(
             defaults.stringArray(forKey: AppSettingsKey.aiDisabledRoutes.rawValue) ?? [])
-        enabledInstalledProviders = Self.decodeEnabledInstalledProviders(
-            defaults.data(forKey: AppSettingsKey.aiInstalledProviders.rawValue))
+        enabledInstalledProviders = Set(decoded(.aiInstalledProviders) as [InstalledAIKind]? ?? [])
         if case .api(let connection, let model, _) = defaultModel,
             !connections.contains(where: { $0.id == connection && $0.models.contains(model) })
         {
@@ -145,23 +145,11 @@ final class AISettingsStore {
             connections.append(connection)
         }
         if case .api(connection.id, let model, let effort) = defaultModel {
-            if connection.models.contains(model) {
-                defaultModel = .api(
-                    connection: connection.id, model: model,
-                    effort: connection.reasoningOptions(for: model)?.resolvedEffort(effort))
-            } else {
-                defaultModel = connection.models.first.map {
-                    .api(
-                        connection: connection.id, model: $0,
-                        effort: connection.reasoningOptions(for: $0)?.resolvedEffort(nil))
-                }
-            }
+            defaultModel =
+                connection.models.contains(model)
+                ? connection.selection(model, effort: effort) : connection.firstSelection
         }
-        if defaultModel == nil, let model = connection.models.first {
-            defaultModel = .api(
-                connection: connection.id, model: model,
-                effort: connection.reasoningOptions(for: model)?.resolvedEffort(nil))
-        }
+        if defaultModel == nil { defaultModel = connection.firstSelection }
     }
 
     func removeConnection(id: UUID) {
@@ -192,14 +180,9 @@ final class AISettingsStore {
     func reconcile(
         installed kind: InstalledAIKind, models: [InstalledAIModel], isUnavailable: Bool
     ) {
-        let selectedModel: String
-        switch (kind, defaultModel) {
-        case (.claude, .claude(let model, _)), (.grok, .grok(let model, _)),
-            (.openCode, .openCode(let model, _)), (.cursor, .cursor(let model, _)):
-            selectedModel = model
-        default:
-            return
-        }
+        guard kind != .codex, let selected = defaultModel, selected.source == kind.source
+        else { return }
+        let selectedModel = selected.model
         if isUnavailable {
             defaultModel = firstAvailableSelection()
             return
@@ -211,21 +194,8 @@ final class AISettingsStore {
             return
         }
         guard let replacement = models.first else { return }
-        switch kind {
-        case .claude:
-            defaultModel = .claude(
-                model: replacement.id, effort: replacement.resolvedEffort(nil))
-        case .grok:
-            defaultModel = .grok(
-                model: replacement.id, effort: replacement.resolvedEffort(nil))
-        case .openCode:
-            defaultModel = .openCode(
-                model: replacement.id, effort: replacement.resolvedEffort(nil))
-        case .cursor:
-            defaultModel = .cursor(
-                model: replacement.id, effort: replacement.resolvedEffort(nil))
-        case .codex: break
-        }
+        defaultModel = .installed(
+            kind, model: replacement.id, effort: replacement.resolvedEffort(nil))
     }
 
     /// Nothing chosen yet takes the route that needs no account, leaving a real stored selection.
@@ -282,13 +252,11 @@ final class AISettingsStore {
     }
 
     func setInstalledProviderEnabled(_ enabled: Bool, for kind: InstalledAIKind) {
-        var providers = enabledInstalledProviders
         if enabled {
-            providers.insert(kind)
+            enabledInstalledProviders.insert(kind)
         } else {
-            providers.remove(kind)
+            enabledInstalledProviders.remove(kind)
         }
-        enabledInstalledProviders = providers
     }
 
     func override(for kind: InstalledAIKind) -> InstalledAIOverride {
@@ -338,32 +306,13 @@ final class AISettingsStore {
             environment: values.filter { names.contains($0.key) })
     }
 
-    func disableInstalledModelSelection(for kind: InstalledAIKind) {
-        guard let source = defaultModel?.source else { return }
-        let matches =
-            switch (kind, source) {
-            case (.codex, .codex), (.claude, .claude), (.grok, .grok), (.openCode, .openCode),
-                (.cursor, .cursor):
-                true
-            default: false
-            }
-        guard matches else { return }
-        defaultModel = firstAvailableSelection()
-    }
-
     /// The on-device model leads: free, private, always configured, so never a surprising landing.
     private func firstAvailableSelection() -> AIModelSelection? {
         if isAppleIntelligenceAvailable(), isRouteEnabled(.appleIntelligence) {
             return .appleIntelligence
         }
-        for connection in connections where isRouteEnabled(.api(connection.id)) {
-            if let model = connection.models.first {
-                return .api(
-                    connection: connection.id, model: model,
-                    effort: connection.reasoningOptions(for: model)?.resolvedEffort(nil))
-            }
-        }
-        return nil
+        return connections.lazy.filter { self.isRouteEnabled(.api($0.id)) }
+            .compactMap(\.firstSelection).first
     }
 
     private func persistConnections() {
@@ -379,18 +328,6 @@ final class AISettingsStore {
             return
         }
         defaults.set(data, forKey: AppSettingsKey.aiInstalledOverrides.rawValue)
-    }
-
-    private static func decodeInstalledOverrides(
-        _ data: Data?
-    ) -> [InstalledAIKind: InstalledAIOverride] {
-        guard let data,
-            let keyed = try? JSONDecoder().decode([String: InstalledAIOverride].self, from: data)
-        else { return [:] }
-        return Dictionary(
-            uniqueKeysWithValues: keyed.compactMap { key, value in
-                InstalledAIKind(rawValue: key).map { ($0, value) }
-            })
     }
 
     private func persistDefaultModel() {
@@ -417,24 +354,5 @@ final class AISettingsStore {
         }
         if connection.reasoningOptions?.isEmpty == true { connection.reasoningOptions = nil }
         return connection
-    }
-
-    private static func decodeConnections(_ data: Data?) -> [AIConnection] {
-        guard let data,
-            let connections = try? JSONDecoder().decode([AIConnection].self, from: data)
-        else { return [] }
-        return connections
-    }
-
-    private static func decodeDefaultModel(_ data: Data?) -> AIModelSelection? {
-        guard let data else { return nil }
-        return try? JSONDecoder().decode(AIModelSelection.self, from: data)
-    }
-
-    private static func decodeEnabledInstalledProviders(_ data: Data?) -> Set<InstalledAIKind> {
-        guard let data,
-            let providers = try? JSONDecoder().decode([InstalledAIKind].self, from: data)
-        else { return [] }
-        return Set(providers)
     }
 }

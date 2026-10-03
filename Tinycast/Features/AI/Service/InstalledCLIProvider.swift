@@ -32,14 +32,10 @@ private final class InstalledCLITurnRunner {
         resources, or modify anything else.
         """
 
-    private static var maximumPartialLineBytes: Int {
-        if let raw = ProcessInfo.processInfo.environment["TC_INSTALLED_MAX_LINE_BYTES"],
-            let value = Int(raw), value > 0
-        {
-            return value
-        }
-        return 8 * 1_048_576
-    }
+    /// Read once per runner, never per line: every environment read copies the whole table.
+    private let maximumPartialLineBytes =
+        ProcessInfo.processInfo.environment["TC_INSTALLED_MAX_LINE_BYTES"].flatMap(Int.init)
+        .flatMap { $0 > 0 ? $0 : nil } ?? 8 * 1_048_576
 
     private final class TurnToken: Sendable {}
 
@@ -212,25 +208,24 @@ private final class InstalledCLITurnRunner {
             let status = process.terminationStatus
             Task { @MainActor in self.didExit(status: status, token: token) }
         }
-        if Task.isCancelled {
+        func abandon(_ error: any Error) {
             stdout.fileHandleForReading.readabilityHandler = nil
             stderr.fileHandleForReading.readabilityHandler = nil
             process.terminationHandler = nil
-            if let grokPrompt { try? FileManager.default.removeItem(at: grokPrompt) }
-            if let configURL { try? FileManager.default.removeItem(at: configURL) }
-            continuation.finish(throwing: CancellationError())
+            for url in [grokPrompt, configURL].compactMap(\.self) {
+                try? FileManager.default.removeItem(at: url)
+            }
+            continuation.finish(throwing: error)
+        }
+        if Task.isCancelled {
+            abandon(CancellationError())
             return
         }
         do {
             try process.run()
         } catch {
-            stdout.fileHandleForReading.readabilityHandler = nil
-            stderr.fileHandleForReading.readabilityHandler = nil
-            process.terminationHandler = nil
-            if let grokPrompt { try? FileManager.default.removeItem(at: grokPrompt) }
-            if let configURL { try? FileManager.default.removeItem(at: configURL) }
-            continuation.finish(
-                throwing: AIProviderError.responseFailed(
+            abandon(
+                AIProviderError.responseFailed(
                     kind.title + " could not start: " + error.localizedDescription))
             return
         }
@@ -406,19 +401,21 @@ private final class InstalledCLITurnRunner {
     private func consume(_ data: Data, token: TurnToken) {
         guard self.token === token else { return }
         outputBuffer.append(data)
-        while let newline = outputBuffer.firstIndex(of: 0x0A) {
-            let line = outputBuffer[..<newline]
-            if line.count > Self.maximumPartialLineBytes {
+        var start = outputBuffer.startIndex
+        while let newline = outputBuffer[start...].firstIndex(of: 0x0A) {
+            let line = outputBuffer[start..<newline]
+            if line.count > maximumPartialLineBytes {
                 fail(kind.title + " returned an oversized response.")
                 return
             }
-            outputBuffer.removeSubrange(...newline)
+            start = outputBuffer.index(after: newline)
             guard !line.isEmpty else { continue }
             apply(
                 InstalledAIStreamDecoder.decode(
                     Data(line), kind: kind, servers: activeServers), token: token)
         }
-        if outputBuffer.count > Self.maximumPartialLineBytes {
+        outputBuffer.removeSubrange(..<start)
+        if outputBuffer.count > maximumPartialLineBytes {
             fail(kind.title + " returned an oversized response.")
         }
     }
@@ -482,11 +479,9 @@ private final class InstalledCLITurnRunner {
     private func didExit(status: Int32, token: TurnToken) {
         guard self.token === token else { return }
         if continuation != nil {
-            let detail = (String(bytes: errorBuffer, encoding: .utf8) ?? "")
-                .replacingOccurrences(
-                    of: "\u{001B}\\[[0-9;]*[A-Za-z]", with: "", options: .regularExpression
-                )
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let detail = InstalledAIModel.stripANSI(
+                String(bytes: errorBuffer, encoding: .utf8) ?? ""
+            ).trimmingCharacters(in: .whitespacesAndNewlines)
             let fallback = kind.title + " exited with status " + String(status) + "."
             fail(detail.isEmpty ? fallback : detail)
         }
@@ -517,13 +512,10 @@ private final class InstalledCLITurnRunner {
 
     /// Both are the turn's own: a prompt nobody else may read, and a configuration full of secrets.
     private func removePrivateFiles() {
-        if let promptFileURL {
-            try? FileManager.default.removeItem(at: promptFileURL)
+        for url in [promptFileURL, mcpConfigURL].compactMap(\.self) {
+            try? FileManager.default.removeItem(at: url)
         }
         promptFileURL = nil
-        if let mcpConfigURL {
-            try? FileManager.default.removeItem(at: mcpConfigURL)
-        }
         mcpConfigURL = nil
     }
 

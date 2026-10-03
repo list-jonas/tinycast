@@ -83,6 +83,20 @@ enum InstalledAIKind: String, CaseIterable, Codable, Identifiable, Sendable {
     }
 }
 
+extension AIModelSelection {
+    static func installed(
+        _ kind: InstalledAIKind, model: String, effort: String?
+    ) -> AIModelSelection {
+        switch kind {
+        case .codex: return .codex(model: model, effort: effort)
+        case .claude: return .claude(model: model, effort: effort)
+        case .grok: return .grok(model: model, effort: effort)
+        case .openCode: return .openCode(model: model, effort: effort)
+        case .cursor: return .cursor(model: model, effort: effort)
+        }
+    }
+}
+
 extension AIModelSource {
     /// The installed command behind this source, or `nil` for the two routes Tinycast reaches itself.
     var installedKind: InstalledAIKind? {
@@ -138,62 +152,57 @@ struct InstalledAIModel: Equatable, Identifiable, Sendable {
     }
 
     static func claudeTitle(_ output: String) -> String? {
-        for line in output.split(whereSeparator: \.isNewline) {
-            guard let object = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
-                let response = object["response"] as? [String: Any],
+        jsonLines(output).lazy.compactMap { object -> String? in
+            guard let response = object["response"] as? [String: Any],
                 response["request_id"] as? String == claudeTitleRequestID,
-                let payload = response["response"] as? [String: Any],
-                let title = payload["title"] as? String
-            else { continue }
-            return title
+                let payload = response["response"] as? [String: Any]
+            else { return nil }
+            return payload["title"] as? String
+        }.first
+    }
+
+    private static func jsonLines(_ output: String) -> [[String: Any]] {
+        output.split(whereSeparator: \.isNewline).compactMap {
+            try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any]
         }
-        return nil
+    }
+
+    private static func controlResponse<T>(_ output: String, _ key: String) -> T? {
+        jsonLines(output).lazy.compactMap { object -> T? in
+            guard object["type"] as? String == "control_response",
+                let response = object["response"] as? [String: Any],
+                let payload = response["response"] as? [String: Any]
+            else { return nil }
+            return payload[key] as? T
+        }.first
     }
 
     /// The CLI's own picker, one row per resolved model: `default` only restates another entry.
     static func claudeCatalog(_ output: String) -> [InstalledAIModel] {
-        for line in output.split(whereSeparator: \.isNewline) {
-            guard let object = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
-                object["type"] as? String == "control_response",
-                let response = object["response"] as? [String: Any],
-                let payload = response["response"] as? [String: Any],
-                let entries = payload["models"] as? [[String: Any]]
+        guard let entries: [[String: Any]] = controlResponse(output, "models") else { return [] }
+        var models: [InstalledAIModel] = []
+        var resolved = Set<String>()
+        for entry in entries {
+            guard let id = entry["value"] as? String, !id.isEmpty, id != "default",
+                resolved.insert(entry["resolvedModel"] as? String ?? id).inserted
             else { continue }
-            var models: [InstalledAIModel] = []
-            var resolved = Set<String>()
-            for entry in entries {
-                guard let id = entry["value"] as? String, !id.isEmpty, id != "default" else {
-                    continue
-                }
-                let target = entry["resolvedModel"] as? String ?? id
-                guard resolved.insert(target).inserted else { continue }
-                models.append(
-                    InstalledAIModel(
-                        id: id, name: claudeName(entry, fallback: id),
-                        efforts: (entry["supportedEffortLevels"] as? [String] ?? []).map {
-                            ChatGPTSubscription.Effort(id: $0, detail: nil)
-                        }))
-            }
-            return models
+            models.append(
+                InstalledAIModel(
+                    id: id, name: claudeName(entry, fallback: id),
+                    efforts: (entry["supportedEffortLevels"] as? [String] ?? []).map {
+                        ChatGPTSubscription.Effort(id: $0, detail: nil)
+                    }))
         }
-        return []
+        return models
     }
 
     /// The same answer that lists the models names the account; nothing more is asked for it.
     static func claudeAccount(_ output: String) -> InstalledAIAccount? {
-        for line in output.split(whereSeparator: \.isNewline) {
-            guard let object = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
-                object["type"] as? String == "control_response",
-                let response = object["response"] as? [String: Any],
-                let payload = response["response"] as? [String: Any],
-                let account = payload["account"] as? [String: Any]
-            else { continue }
-            let email = account["email"] as? String
-            let plan = account["subscriptionType"] as? String
-            guard email != nil || plan != nil else { return nil }
-            return InstalledAIAccount(email: email, plan: plan)
-        }
-        return nil
+        guard let account: [String: Any] = controlResponse(output, "account") else { return nil }
+        let email = account["email"] as? String
+        let plan = account["subscriptionType"] as? String
+        guard email != nil || plan != nil else { return nil }
+        return InstalledAIAccount(email: email, plan: plan)
     }
 
     /// An older CLI leads `description` with the version, "Opus 5.5 · Best…"; a newer one names it.
@@ -211,8 +220,7 @@ struct InstalledAIModel: Equatable, Identifiable, Sendable {
     }
 
     static func grokCatalog(_ output: String) -> [InstalledAIModel] {
-        let clean = output.replacingOccurrences(
-            of: "\u{001B}\\[[0-9;]*[A-Za-z]", with: "", options: .regularExpression)
+        let clean = stripANSI(output)
         var models: [InstalledAIModel] = []
         var seen = Set<String>()
         for raw in clean.components(separatedBy: .newlines) {
@@ -230,16 +238,12 @@ struct InstalledAIModel: Equatable, Identifiable, Sendable {
 
     /// `grok models` exits 0 and still prints the catalog when the CLI is signed out.
     static func grokSignedIn(_ output: String) -> Bool {
-        let clean = output.replacingOccurrences(
-            of: "\u{001B}\\[[0-9;]*[A-Za-z]", with: "", options: .regularExpression
-        )
-        .lowercased()
+        let clean = stripANSI(output).lowercased()
         return !clean.contains("not authenticated") && !clean.contains("not signed in")
     }
 
     static func openCodeCatalog(_ output: String) -> [InstalledAIModel] {
-        let clean = output.replacingOccurrences(
-            of: "\u{001B}\\[[0-9;]*[A-Za-z]", with: "", options: .regularExpression)
+        let clean = stripANSI(output)
         var entries: [(String, [String])] = []
         var id: String?
         var objectLines: [String] = []
@@ -272,8 +276,7 @@ struct InstalledAIModel: Equatable, Identifiable, Sendable {
 
     /// `agent --list-models` lines look like `composer-2.5 - Composer 2.5`.
     static func cursorCatalog(_ output: String) -> [InstalledAIModel] {
-        let clean = output.replacingOccurrences(
-            of: "\u{001B}\\[[0-9;]*[A-Za-z]", with: "", options: .regularExpression)
+        let clean = stripANSI(output)
         var models: [InstalledAIModel] = []
         var seen = Set<String>()
         for raw in clean.components(separatedBy: .newlines) {
@@ -286,6 +289,10 @@ struct InstalledAIModel: Equatable, Identifiable, Sendable {
             models.append(InstalledAIModel(id: id, name: name))
         }
         return models
+    }
+
+    static func stripANSI(_ output: String) -> String {
+        output.replacing(/\x{1B}\[[0-9;]*[A-Za-z]/, with: "")
     }
 
     private static func effortOrder(_ lhs: String, _ rhs: String) -> Bool {

@@ -592,22 +592,8 @@ final class AIChatCoordinator {
         modelIcon(of: model(for: chat))
     }
 
-    /// From the selection, not the loaded list: the list arrives after the picker first paints.
     func modelIcon(of selected: AIModelSelection?) -> PopoverMenuIcon {
-        switch selected {
-        case .appleIntelligence?: return AIModelOption.appleIntelligenceIcon
-        case .codex?: return .asset(AIBrand.openAI.assetName)
-        case .claude?: return .asset(AIBrand.claude.assetName)
-        case .grok?: return .asset(AIBrand.grok.assetName)
-        case .cursor?: return AIModelOption.cursorIcon
-        case .openCode(let model, _)?: return AIModelOption.icon(AIBrand.resolve(model: model))
-        case .api(let connection, let model, _)?:
-            return AIModelOption.icon(
-                core.aiSettings.connection(id: connection).flatMap {
-                    AIBrand.resolve(provider: $0.provider, model: model)
-                })
-        case nil: return AIModelOption.icon(nil)
-        }
+        AIModelOption.icon(of: selected, settings: core.aiSettings)
     }
 
     /// What entering chat costs once: the model list resolved, and the servers connected.
