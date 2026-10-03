@@ -61,6 +61,12 @@ struct AIStreamDecoder: Sendable {
     private var thinkTags = AIThinkTagDecoder()
     private var usage = AIUsage()
     private var partialToolCalls: [Int: PartialToolCall] = [:]
+    /// One decoder for every chunk; both wire formats spell their keys in snake case.
+    private static let snakeCase = {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return decoder
+    }()
     private(set) var isTerminal = false
 
     init(shape: AIHTTPConfiguration.APIShape) {
@@ -110,7 +116,7 @@ struct AIStreamDecoder: Sendable {
 
     private mutating func decodeOpenAI(_ payload: String) throws -> [AIStreamEvent] {
         guard let data = payload.data(using: .utf8),
-            let chunk = try? JSONDecoder().decode(OpenAIChunk.self, from: data)
+            let chunk = try? Self.snakeCase.decode(OpenAIChunk.self, from: data)
         else {
             isTerminal = true
             throw AIProviderError.malformedResponse
@@ -153,7 +159,7 @@ struct AIStreamDecoder: Sendable {
 
     private mutating func decodeAnthropic(_ payload: String) throws -> [AIStreamEvent] {
         guard let data = payload.data(using: .utf8),
-            let event = try? JSONDecoder().decode(AnthropicEvent.self, from: data)
+            let event = try? Self.snakeCase.decode(AnthropicEvent.self, from: data)
         else {
             isTerminal = true
             throw AIProviderError.malformedResponse
@@ -171,7 +177,7 @@ struct AIStreamDecoder: Sendable {
                 return [.text(text)]
             }
             if event.delta?.type == "input_json_delta" {
-                partialToolCalls[event.index ?? 0]?.arguments += event.delta?.partialJSON ?? ""
+                partialToolCalls[event.index ?? 0]?.arguments += event.delta?.partialJson ?? ""
                 return []
             }
             guard event.delta?.type == "thinking_delta" else { return [] }
@@ -238,31 +244,15 @@ private struct OpenAIChunk: Decodable {
                     ?? reasoningDetails?.compactMap(\.text).joined()
                 return text?.isEmpty == false ? text : nil
             }
-
-            enum CodingKeys: String, CodingKey {
-                case content, reasoning
-                case reasoningContent = "reasoning_content"
-                case reasoningDetails = "reasoning_details"
-                case toolCalls = "tool_calls"
-            }
         }
 
         let delta: Delta?
         let finishReason: String?
-
-        enum CodingKeys: String, CodingKey {
-            case delta
-            case finishReason = "finish_reason"
-        }
     }
 
     struct Usage: Decodable {
         struct CompletionDetails: Decodable {
             let reasoningTokens: Int?
-
-            enum CodingKeys: String, CodingKey {
-                case reasoningTokens = "reasoning_tokens"
-            }
         }
 
         let promptTokens: Int?
@@ -270,13 +260,6 @@ private struct OpenAIChunk: Decodable {
         let completionTokensDetails: CompletionDetails?
         /// OpenRouter's own figure; a vendor API sends none.
         let cost: Double?
-
-        enum CodingKeys: String, CodingKey {
-            case promptTokens = "prompt_tokens"
-            case completionTokens = "completion_tokens"
-            case completionTokensDetails = "completion_tokens_details"
-            case cost
-        }
     }
 
     struct ErrorBody: Decodable { let message: String? }
@@ -291,14 +274,8 @@ private struct AnthropicEvent: Decodable {
         let type: String?
         let text: String?
         let thinking: String?
-        let partialJSON: String?
+        let partialJson: String?
         let stopReason: String?
-
-        enum CodingKeys: String, CodingKey {
-            case type, text, thinking
-            case partialJSON = "partial_json"
-            case stopReason = "stop_reason"
-        }
     }
 
     struct ContentBlock: Decodable {
@@ -312,13 +289,6 @@ private struct AnthropicEvent: Decodable {
         let outputTokens: Int?
         let cacheReadInputTokens: Int?
         let cacheCreationInputTokens: Int?
-
-        enum CodingKeys: String, CodingKey {
-            case inputTokens = "input_tokens"
-            case outputTokens = "output_tokens"
-            case cacheReadInputTokens = "cache_read_input_tokens"
-            case cacheCreationInputTokens = "cache_creation_input_tokens"
-        }
     }
 
     struct Message: Decodable { let usage: Usage? }
@@ -331,9 +301,4 @@ private struct AnthropicEvent: Decodable {
     let usage: Usage?
     let message: Message?
     let error: ErrorBody?
-
-    enum CodingKeys: String, CodingKey {
-        case type, index, delta, usage, message, error
-        case contentBlock = "content_block"
-    }
 }

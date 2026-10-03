@@ -72,7 +72,9 @@ enum AIModelDiscovery {
     static func decode(_ data: Data, shape: Query.ResponseShape) throws -> [Model] {
         switch shape {
         case .openAI:
-            let response = try JSONDecoder().decode(OpenAIResponse.self, from: data)
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let response = try decoder.decode(OpenAIResponse.self, from: data)
             return normalized(
                 response.data.map {
                     Model(
@@ -180,20 +182,11 @@ enum AIModelDiscovery {
     private struct OpenAIResponse: Decodable {
         struct Architecture: Decodable {
             let inputModalities: [String]?
-
-            enum CodingKeys: String, CodingKey {
-                case inputModalities = "input_modalities"
-            }
         }
 
         struct Reasoning: Decodable {
             let supportedEfforts: [String]?
             let defaultEffort: String?
-
-            enum CodingKeys: String, CodingKey {
-                case supportedEfforts = "supported_efforts"
-                case defaultEffort = "default_effort"
-            }
         }
 
         struct Model: Decodable {
@@ -202,11 +195,6 @@ enum AIModelDiscovery {
             let displayName: String?
             let architecture: Architecture?
             let reasoning: Reasoning?
-
-            enum CodingKeys: String, CodingKey {
-                case id, name, architecture, reasoning
-                case displayName = "display_name"
-            }
         }
 
         let data: [Model]
