@@ -57,14 +57,6 @@ struct ExtensionPickerField: View {
         return items.filter { FuzzyMatch.score(needle, candidate: $0.title) != nil }
     }
 
-    /// Headings the open list draws, which its height and its flip decision both count.
-    private static func sectionCount(_ matches: [ExtensionPickerItem]) -> Int {
-        matches.indices.reduce(into: 0) { total, index in
-            guard let section = matches[index].section else { return }
-            if index == 0 || matches[index - 1].section != section { total += 1 }
-        }
-    }
-
     private var chosenRow: Int { items.firstIndex { chosen.contains($0.value) } ?? 0 }
 
     var body: some View {
@@ -76,7 +68,7 @@ struct ExtensionPickerField: View {
                 field: allowsMultipleSelection ? .tagPicker : .dropdown,
                 // The panel's own height, which the placement rule then seats above or below.
                 height: form.popoverHeight(
-                    rows: matches.count, hasSearchField: false, headers: Self.sectionCount(matches)),
+                    rows: matches.count, hasSearchField: false, headers: matches.headingCount),
                 revision: Revision(
                     query: list.query, highlighted: list.highlighted, isDark: isDark,
                     chosen: chosen, items: matches, assetsPath: assetsPath),

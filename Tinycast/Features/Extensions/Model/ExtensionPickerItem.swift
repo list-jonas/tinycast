@@ -31,3 +31,13 @@ struct ExtensionPickerItem: Identifiable, Equatable {
         return items
     }
 }
+
+extension [ExtensionPickerItem] {
+    /// The section of the row before `index`, so only the first of a run draws its heading.
+    func section(before index: Int) -> String? { index > 0 ? self[index - 1].section : nil }
+
+    /// Headings a list of these draws, which its height and its flip decision both count.
+    var headingCount: Int {
+        indices.count(where: { self[$0].section != nil && self[$0].section != section(before: $0) })
+    }
+}

@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 /// Installs from the store or from GitHub source, in a workspace removed whichever way this ends.
 struct ExtensionInstaller: Sendable {
@@ -249,15 +250,13 @@ struct ExtensionInstaller: Sendable {
 }
 
 /// Lets exactly one of two racing paths resume a continuation.
-private final class ResumeGuard: @unchecked Sendable {
-    private let lock = NSLock()
-    private var claimed = false
+private final class ResumeGuard: Sendable {
+    private let claimed = Mutex(false)
 
     func claim() -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        if claimed { return false }
-        claimed = true
-        return true
+        claimed.withLock { claimed in
+            defer { claimed = true }
+            return !claimed
+        }
     }
 }

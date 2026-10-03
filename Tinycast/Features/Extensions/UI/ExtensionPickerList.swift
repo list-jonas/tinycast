@@ -58,7 +58,7 @@ struct ExtensionPickerList: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: form.popoverRowSpacing) {
                         ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                            if let section = item.section, section != sectionBefore(index) {
+                            if let section = item.section, section != items.section(before: index) {
                                 sectionHeader(section)
                             }
                             ExtensionPickerRow(
@@ -77,11 +77,11 @@ struct ExtensionPickerList: View {
                     .padding(searchPlaceholder == nil ? 0 : menuListInset)
                 }
                 .frame(
-                    height: form.popoverListHeight(rows: items.count, headers: headerCount)
+                    height: form.popoverListHeight(rows: items.count, headers: items.headingCount)
                         + (searchPlaceholder == nil ? 0 : menuListInset * 2)
                 )
                 .scrollBounceBehavior(
-                    form.popoverListContentHeight(rows: items.count, headers: headerCount)
+                    form.popoverListContentHeight(rows: items.count, headers: items.headingCount)
                         > form.popoverRowsMaxHeight
                         ? .always : .basedOnSize
                 )
@@ -100,19 +100,6 @@ struct ExtensionPickerList: View {
             .lineLimit(1)
             .padding(.horizontal, metrics.spacing.lg)
             .frame(height: form.popoverSectionHeaderHeight, alignment: .leading)
-    }
-
-    /// The section of the row before this one, so only the first of a run draws its heading.
-    private func sectionBefore(_ index: Int) -> String? {
-        index > 0 ? items[index - 1].section : nil
-    }
-
-    /// Headings the list draws, which the height maths counts as well as rows.
-    private var headerCount: Int {
-        items.indices.reduce(into: 0) { total, index in
-            guard let section = items[index].section, section != sectionBefore(index) else { return }
-            total += 1
-        }
     }
 }
 
