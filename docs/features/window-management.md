@@ -396,7 +396,7 @@ negative dimensions, off-screen results, non-determinism and, at step 0, drift o
 on each) and `WindowShortcutPresetPlan`: a fresh apply, a repeat apply, a replaced user key, a
 displaced command and an unrelated one left alone, plus when `matching` names a preset.
 
-`Tests/space-gesture-test.swift` (121 assertions) covers the other pure half: the fixed-point encoding
+`Tests/space-gesture-test.swift` (123 assertions) covers the other pure half: the fixed-point encoding
 and its ±1 floor, both field tables and the sign convention shared between them, the ended-only fling
 on the augmented path, the payload's size, record offsets and every scalar in it, and the big-endian
 framing of the field-4205 record.
