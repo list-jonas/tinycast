@@ -1,6 +1,8 @@
 // WHATWG streams, enough of the shape for a `fetch` body: `getReader`, `pipeThrough`, `pipeTo`,
 // async iteration and a `TransformStream` in between. No byte streams, no BYOB, no `tee`.
 
+import { concatBytes, utf8Encode } from "./bytes.js";
+
 const ignore = () => {};
 
 class ReadableStreamDefaultController {
@@ -266,17 +268,6 @@ export function readableStreamOfBytes(bytes, chunkSize = 65536) {
 
 export async function bytesOfReadableStream(stream) {
   const chunks = [];
-  let length = 0;
-  for await (const chunk of stream) {
-    const bytes = chunk instanceof Uint8Array ? chunk : new TextEncoder().encode(String(chunk));
-    chunks.push(bytes);
-    length += bytes.length;
-  }
-  const joined = new Uint8Array(length);
-  let offset = 0;
-  for (const chunk of chunks) {
-    joined.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return joined;
+  for await (const chunk of stream) chunks.push(chunk instanceof Uint8Array ? chunk : utf8Encode(String(chunk)));
+  return concatBytes(chunks);
 }

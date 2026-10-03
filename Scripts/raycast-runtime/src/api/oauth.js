@@ -1,4 +1,4 @@
-import { base64ToBytes, bytesToBase64, utf8Encode } from "../polyfills.js";
+import { base64ToBytes, bytesToBase64, utf8Encode } from "../bytes.js";
 import { hostCall, hostCallSync } from "../host.js";
 import { nestedEnums } from "./enums.generated.js";
 

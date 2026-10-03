@@ -1,6 +1,7 @@
 // Globals JavaScriptCore doesn't ship that extension bundles (and React's scheduler) assume.
 
 import { hostCall, hostRaw, log } from "./host.js";
+import { base64ToBytes, bytesToBase64, codeUnitsToString, concatBytes, utf8Decode, utf8Encode } from "./bytes.js";
 import {
   ReadableStream,
   TransformStream,
@@ -205,16 +206,6 @@ function blobPartToBytes(part) {
   if (part instanceof ArrayBuffer) return new Uint8Array(part);
   if (ArrayBuffer.isView(part)) return new Uint8Array(part.buffer, part.byteOffset, part.byteLength);
   return utf8Encode(String(part));
-}
-
-function concatBytes(chunks) {
-  const bytes = new Uint8Array(chunks.reduce((total, chunk) => total + chunk.length, 0));
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return bytes;
 }
 
 function normalizeBlobIndex(value, size) {
@@ -684,81 +675,7 @@ if (!g.MessageChannel) {
 
 // ─── Text encoding / base64 ─────────────────────────────────────────
 
-export function utf8Encode(text) {
-  const out = [];
-  for (let i = 0; i < text.length; i++) {
-    let code = text.codePointAt(i);
-    if (code > 0xffff) i++;
-    if (code < 0x80) out.push(code);
-    else if (code < 0x800) out.push(0xc0 | (code >> 6), 0x80 | (code & 0x3f));
-    else if (code < 0x10000)
-      out.push(0xe0 | (code >> 12), 0x80 | ((code >> 6) & 0x3f), 0x80 | (code & 0x3f));
-    else
-      out.push(
-        0xf0 | (code >> 18),
-        0x80 | ((code >> 12) & 0x3f),
-        0x80 | ((code >> 6) & 0x3f),
-        0x80 | (code & 0x3f),
-      );
-  }
-  return new Uint8Array(out);
-}
-
-export function utf8Decode(bytes) {
-  let out = "";
-  for (let i = 0; i < bytes.length; ) {
-    const byte = bytes[i++];
-    if (byte < 0x80) out += String.fromCharCode(byte);
-    else if (byte < 0xe0) out += String.fromCharCode(((byte & 0x1f) << 6) | (bytes[i++] & 0x3f));
-    else if (byte < 0xf0)
-      out += String.fromCharCode(
-        ((byte & 0x0f) << 12) | ((bytes[i++] & 0x3f) << 6) | (bytes[i++] & 0x3f),
-      );
-    else {
-      const code =
-        ((byte & 0x07) << 18) |
-        ((bytes[i++] & 0x3f) << 12) |
-        ((bytes[i++] & 0x3f) << 6) |
-        (bytes[i++] & 0x3f);
-      out += String.fromCodePoint(code);
-    }
-  }
-  return out;
-}
-
-const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-export function bytesToBase64(bytes) {
-  let out = "";
-  for (let i = 0; i < bytes.length; i += 3) {
-    const a = bytes[i];
-    const b = bytes[i + 1];
-    const c = bytes[i + 2];
-    out += B64[a >> 2];
-    out += B64[((a & 3) << 4) | ((b ?? 0) >> 4)];
-    out += b === undefined ? "=" : B64[((b & 15) << 2) | ((c ?? 0) >> 6)];
-    out += c === undefined ? "=" : B64[c & 63];
-  }
-  return out;
-}
-
-export function base64ToBytes(text) {
-  const clean = String(text).replace(/[^A-Za-z0-9+/]/g, "");
-  const out = new Uint8Array((clean.length * 3) >> 2);
-  let outIndex = 0;
-  for (let i = 0; i < clean.length; i += 4) {
-    const a = B64.indexOf(clean[i]);
-    const b = B64.indexOf(clean[i + 1]);
-    const c = B64.indexOf(clean[i + 2]);
-    const d = B64.indexOf(clean[i + 3]);
-    out[outIndex++] = (a << 2) | (b >> 4);
-    if (c >= 0) out[outIndex++] = ((b & 15) << 4) | (c >> 2);
-    if (d >= 0) out[outIndex++] = ((c & 3) << 6) | d;
-  }
-  return out.subarray(0, outIndex);
-}
-
-if (!g.atob) g.atob = (text) => String.fromCharCode(...base64ToBytes(text));
+if (!g.atob) g.atob = (text) => codeUnitsToString(base64ToBytes(text));
 if (!g.btoa) {
   g.btoa = (text) => {
     const bytes = new Uint8Array(text.length);
