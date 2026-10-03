@@ -22,21 +22,16 @@ struct NoteSwitcherView: View {
         .onChange(of: notes.visibleNotes) { _, _ in
             notes.reconcileSwitcherSelection()
         }
-        .onKeyPress(.downArrow) {
-            guard !notes.isRenamingSwitcherNote else { return .ignored }
-            notes.moveSwitcherSelection(by: 1)
-            return .handled
-        }
-        .onKeyPress(.upArrow) {
-            guard !notes.isRenamingSwitcherNote else { return .ignored }
-            notes.moveSwitcherSelection(by: -1)
-            return .handled
-        }
-        .onKeyPress(keys: [.return, KeyEquivalent("\u{3}")]) { _ in
-            guard !notes.isRenamingSwitcherNote else { return .ignored }
-            notes.selectSwitcherNote()
-            return .handled
-        }
+        .onKeyPress(.downArrow) { unlessRenaming { notes.moveSwitcherSelection(by: 1) } }
+        .onKeyPress(.upArrow) { unlessRenaming { notes.moveSwitcherSelection(by: -1) } }
+        .onKeyPress(keys: [.return, KeyEquivalent("\u{3}")]) { _ in unlessRenaming(notes.selectSwitcherNote) }
+    }
+
+    /// An inline rename owns the arrows and Return, so the list only reads them outside one.
+    private func unlessRenaming(_ action: () -> Void) -> KeyPress.Result {
+        guard !notes.isRenamingSwitcherNote else { return .ignored }
+        action()
+        return .handled
     }
 
     private var searchField: some View {
@@ -65,13 +60,11 @@ struct NoteSwitcherView: View {
 
     @ViewBuilder
     private var results: some View {
-        if notes.visibleNotes.isEmpty {
+        let visibleNotes = notes.visibleNotes
+        if visibleNotes.isEmpty {
             VStack(spacing: Theme.Spacing.md) {
-                SymbolImage(
-                    name: notes.isSearching ? "clock" : "text.page",
-                    size: Theme.Size.noteGlyph
-                )
-                .foregroundStyle(Theme.Colors.textSecondary)
+                SymbolImage(name: notes.isSearching ? "clock" : "text.page", size: Theme.Size.noteGlyph)
+                    .foregroundStyle(Theme.Colors.textSecondary)
                 Text(notes.isSearching ? "Searching notes…" : "No notes found")
                     .foregroundStyle(Theme.Colors.textSecondary)
             }
@@ -82,7 +75,7 @@ struct NoteSwitcherView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(notes.visibleNotes) { summary in
+                        ForEach(visibleNotes) { summary in
                             NoteSwitcherRow(
                                 summary: summary,
                                 selected: notes.switcherSelection == summary.id,
@@ -122,11 +115,7 @@ struct NoteSwitcherView: View {
 
 extension View {
     fileprivate func measuredHeight(_ report: @escaping (CGFloat) -> Void) -> some View {
-        onGeometryChange(for: CGFloat.self) {
-            $0.size.height
-        } action: {
-            report($0)
-        }
+        onGeometryChange(for: CGFloat.self) { $0.size.height } action: { report($0) }
     }
 }
 
@@ -175,45 +164,27 @@ private struct NoteSwitcherRow: View {
         .padding(.horizontal, Theme.Spacing.md)
         .padding(.vertical, Theme.Spacing.sm)
         .background(
-            RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous)
-                .fill(fill)
+            RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous).fill(fill)
         )
         .contentShape(Rectangle())
-        .onTapGesture {
-            guard !editing else { return }
-            onActivate()
-        }
+        .onTapGesture { if !editing { onActivate() } }
         .onHover { hovered = $0 }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(summary.displayTitle)
         .accessibilityAddTraits(selected ? .isSelected : [])
-        .accessibilityAction {
-            guard !editing else { return }
-            onActivate()
-        }
-        .accessibilityAction(named: "Rename \(summary.displayTitle)") {
-            guard !editing else { return }
-            onBeginRename()
-        }
-        .accessibilityAction(named: "Move \(summary.displayTitle) to Trash") {
-            guard !editing else { return }
-            onTrash()
-        }
+        .accessibilityAction { if !editing { onActivate() } }
+        .accessibilityAction(named: "Rename \(summary.displayTitle)") { if !editing { onBeginRename() } }
+        .accessibilityAction(named: "Move \(summary.displayTitle) to Trash") { if !editing { onTrash() } }
         .onChange(of: editing) { _, editing in
-            if editing {
-                Task { @MainActor in
-                    await Task.yield()
-                    titleFocused = true
-                }
+            guard editing else { return }
+            Task { @MainActor in
+                await Task.yield()
+                titleFocused = true
             }
         }
     }
 
-    private func rowButton(
-        title: String,
-        symbol: String,
-        action: @escaping () -> Void
-    ) -> some View {
+    private func rowButton(title: String, symbol: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .frame(width: Theme.Size.noteGlyph, height: Theme.Size.noteGlyph)

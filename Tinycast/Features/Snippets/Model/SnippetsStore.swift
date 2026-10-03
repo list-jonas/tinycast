@@ -80,13 +80,7 @@ final class SnippetsStore {
 
     @discardableResult
     func create(_ snippet: Snippet) async throws -> StoredSnippet {
-        let record = try await performMutation { try $0.create(snippet) }
-        guard isStarted else { return record }
-        var records = snippets.filter { $0.id != record.id }
-        records.append(record)
-        publishLocal(records: records)
-        scheduleReload(after: .zero)
-        return record
+        publishLocal(replacing: try await performMutation { try $0.create(snippet) })
     }
 
     @discardableResult
@@ -102,18 +96,10 @@ final class SnippetsStore {
 
     @discardableResult
     func save(_ record: StoredSnippet) async throws -> StoredSnippet {
-        let saved = try await performMutation {
-            try $0.save(
-                record.snippet,
-                fileURL: record.fileURL,
-                expectedRevision: record.sourceRevision)
-        }
-        guard isStarted else { return saved }
-        var records = snippets.filter { $0.id != saved.id }
-        records.append(saved)
-        publishLocal(records: records)
-        scheduleReload(after: .zero)
-        return saved
+        publishLocal(
+            replacing: try await performMutation {
+                try $0.save(record.snippet, fileURL: record.fileURL, expectedRevision: record.sourceRevision)
+            })
     }
 
     func delete(id: StoredSnippet.ID) async throws {
@@ -121,9 +107,7 @@ final class SnippetsStore {
             throw SnippetRepository.RepositoryError.fileNotFound(URL(fileURLWithPath: id))
         }
         try await performMutation {
-            try $0.delete(
-                fileURL: record.fileURL,
-                expectedRevision: record.sourceRevision)
+            try $0.delete(fileURL: record.fileURL, expectedRevision: record.sourceRevision)
         }
         guard isStarted else { return }
         publishLocal(records: snippets.filter { $0.id != id })
@@ -134,33 +118,13 @@ final class SnippetsStore {
         snippets.first(where: { $0.id == id })
     }
 
-    private enum RepositoryResult<Value: Sendable>: Sendable {
-        case success(Value)
-        case failure(SnippetRepository.RepositoryError)
-    }
-
     private func performMutation<Value: Sendable>(
         _ operation: @escaping @Sendable (SnippetRepository) throws -> Value
     ) async throws -> Value {
         reloadTask?.cancel()
         reloadTask = nil
         generation &+= 1
-        let repository = repository
-
-        let result = await Task.detached(priority: .utility) {
-            do {
-                return RepositoryResult.success(try operation(repository))
-            } catch let error as SnippetRepository.RepositoryError {
-                return RepositoryResult.failure(error)
-            } catch {
-                return RepositoryResult.failure(
-                    .io(
-                        fileURL: repository.snippetsDirectory,
-                        message: error.localizedDescription))
-            }
-        }.value
-
-        switch result {
+        switch await detached(operation) {
         case .success(let value):
             operationError = nil
             return value
@@ -170,26 +134,29 @@ final class SnippetsStore {
         }
     }
 
+    /// Every repository call is blocking IO, so it runs off-main and reports one typed failure.
+    private func detached<Value: Sendable>(
+        _ operation: @escaping @Sendable (SnippetRepository) throws -> Value
+    ) async -> Result<Value, SnippetRepository.RepositoryError> {
+        let repository = repository
+        return await Task.detached(priority: .utility) {
+            do {
+                return .success(try operation(repository))
+            } catch let error as SnippetRepository.RepositoryError {
+                return .failure(error)
+            } catch {
+                return .failure(
+                    .io(fileURL: repository.snippetsDirectory, message: error.localizedDescription))
+            }
+        }.value
+    }
+
     private func reload(showLoadingState: Bool) async {
         guard isStarted else { return }
         generation &+= 1
         let loadGeneration = generation
         if showLoadingState { state = .loading }
-        let repository = repository
-
-        let result = await Task.detached(priority: .utility) {
-            do {
-                return RepositoryResult.success(try repository.load())
-            } catch let error as SnippetRepository.RepositoryError {
-                return RepositoryResult.failure(error)
-            } catch {
-                return RepositoryResult.failure(
-                    .io(
-                        fileURL: repository.snippetsDirectory,
-                        message: error.localizedDescription))
-            }
-        }.value
-
+        let result = await detached { try $0.load() }
         guard isStarted, loadGeneration == generation else { return }
         switch result {
         case .success(let snapshot):
@@ -200,20 +167,21 @@ final class SnippetsStore {
         }
     }
 
+    private func publishLocal(replacing record: StoredSnippet) -> StoredSnippet {
+        guard isStarted else { return record }
+        publishLocal(records: snippets.filter { $0.id != record.id } + [record])
+        scheduleReload(after: .zero)
+        return record
+    }
+
     private func publishLocal(records: [StoredSnippet]) {
-        apply(
-            SnippetRepository.Snapshot(
-                records: records.sorted(by: recordOrder),
-                issues: issues))
+        let sorted = records.sorted(by: StoredSnippet.libraryOrder)
+        apply(SnippetRepository.Snapshot(records: sorted, issues: issues))
     }
 
     private func apply(_ snapshot: SnippetRepository.Snapshot) {
         guard isStarted else { return }
-        let isUnchanged =
-            state == .ready
-            && snippets == snapshot.records
-            && issues == snapshot.issues
-        if !isUnchanged {
+        if state != .ready || snippets != snapshot.records || issues != snapshot.issues {
             snippets = snapshot.records
             issues = snapshot.issues
             state = .ready
@@ -228,13 +196,7 @@ final class SnippetsStore {
         guard isStarted else { return }
         reloadTask?.cancel()
         reloadTask = Task { [weak self] in
-            if delay != .zero {
-                do {
-                    try await Task.sleep(for: delay)
-                } catch {
-                    return
-                }
-            }
+            if delay != .zero, (try? await Task.sleep(for: delay)) == nil { return }
             guard let self, self.isStarted, !Task.isCancelled else { return }
             await self.reload(showLoadingState: showLoadingState)
         }
@@ -247,7 +209,14 @@ final class SnippetsStore {
 
         var changed = false
         if directoryWatcher == nil {
-            changed = armDirectoryWatcher() || changed
+            let installed = watcherGeneration &+ 1
+            directoryWatcher = makeWatcher(path: snippetsDirectory.path) { [weak self] in
+                self?.handleDirectoryEvent(generation: installed)
+            }
+            if directoryWatcher != nil {
+                watcherGeneration = installed
+                changed = true
+            }
         }
 
         let desiredPaths = Set(
@@ -258,7 +227,11 @@ final class SnippetsStore {
             changed = true
         }
         for path in desiredPaths where fileWatchers[path] == nil {
-            changed = armFileWatcher(path: path) || changed
+            let installed = watcherGeneration
+            fileWatchers[path] = makeWatcher(path: path) { [weak self] in
+                self?.handleFileEvent(path: path, generation: installed)
+            }
+            changed = changed || fileWatchers[path] != nil
         }
 
         // Retry while anything is unwatched; a failed file watcher blinds us like a missing one.
@@ -268,47 +241,18 @@ final class SnippetsStore {
         return changed
     }
 
-    @discardableResult
-    private func armDirectoryWatcher() -> Bool {
-        let descriptor = Darwin.open(snippetsDirectory.path, O_EVTONLY)
-        guard descriptor >= 0 else { return false }
-
-        watcherGeneration &+= 1
-        let installedGeneration = watcherGeneration
-        let source = DispatchSource.makeFileSystemObjectSource(
-            fileDescriptor: descriptor,
-            eventMask: [.write, .extend, .attrib, .delete, .rename, .revoke],
-            queue: .main)
-        source.setEventHandler { [weak self] in
-            MainActor.assumeIsolated {
-                self?.handleDirectoryEvent(generation: installedGeneration)
-            }
-        }
-        source.setCancelHandler { Darwin.close(descriptor) }
-        directoryWatcher = source
-        source.resume()
-        return true
-    }
-
-    @discardableResult
-    private func armFileWatcher(path: String) -> Bool {
+    private func makeWatcher(
+        path: String, onEvent: @escaping @MainActor () -> Void
+    ) -> DispatchSourceFileSystemObject? {
         let descriptor = Darwin.open(path, O_EVTONLY)
-        guard descriptor >= 0 else { return false }
-
-        let installedGeneration = watcherGeneration
+        guard descriptor >= 0 else { return nil }
         let source = DispatchSource.makeFileSystemObjectSource(
-            fileDescriptor: descriptor,
-            eventMask: [.write, .extend, .attrib, .delete, .rename, .revoke],
+            fileDescriptor: descriptor, eventMask: [.write, .extend, .attrib, .delete, .rename, .revoke],
             queue: .main)
-        source.setEventHandler { [weak self] in
-            MainActor.assumeIsolated {
-                self?.handleFileEvent(path: path, generation: installedGeneration)
-            }
-        }
+        source.setEventHandler { MainActor.assumeIsolated { onEvent() } }
         source.setCancelHandler { Darwin.close(descriptor) }
-        fileWatchers[path] = source
         source.resume()
-        return true
+        return source
     }
 
     private func handleDirectoryEvent(generation installedGeneration: Int) {
@@ -349,20 +293,11 @@ final class SnippetsStore {
     private func scheduleWatcherRetry() {
         guard isStarted, watcherRetryTask == nil else { return }
         watcherRetryTask = Task { [weak self] in
-            do {
-                try await Task.sleep(for: .seconds(1))
-            } catch {
-                return
-            }
-            guard let self, self.isStarted, !Task.isCancelled else { return }
+            guard (try? await Task.sleep(for: .seconds(1))) != nil, let self, self.isStarted,
+                !Task.isCancelled
+            else { return }
             self.watcherRetryTask = nil
             await self.reload(showLoadingState: false)
         }
-    }
-
-    private func recordOrder(_ lhs: StoredSnippet, _ rhs: StoredSnippet) -> Bool {
-        let comparison = lhs.snippet.name.localizedCaseInsensitiveCompare(rhs.snippet.name)
-        if comparison != .orderedSame { return comparison == .orderedAscending }
-        return lhs.id < rhs.id
     }
 }

@@ -132,18 +132,14 @@ final class NotesStore {
         guard await flush() else { return false }
         cancelSearch()
         let repository = repository
-        let result = await detached {
-            let document = try repository.create()
-            return (document, try repository.list())
-        } recover: {
-            repository.notesDirectory
-        }
+        let result = await detached(
+            { (try repository.create(), try repository.list()) }, recover: { repository.notesDirectory })
         switch result {
         case .success(let payload):
             apply(payload.0, summaries: payload.1)
             return true
         case .failure(let failure):
-            publish(.operation(failure))
+            onIssue?(.operation(failure))
             return false
         }
     }
@@ -152,43 +148,34 @@ final class NotesStore {
     func importNotes(_ notes: [NotesRepository.Incoming]) async -> Int {
         guard !notes.isEmpty else { return 0 }
         let repository = repository
-        let result = await detached {
-            (try repository.importNotes(notes), try repository.list())
-        } recover: {
-            repository.notesDirectory
-        }
+        let result = await detached(
+            { (try repository.importNotes(notes), try repository.list()) },
+            recover: { repository.notesDirectory })
         switch result {
         case .success(let payload):
             summaries = payload.1
             return payload.0
         case .failure(let failure):
-            publish(.operation(failure))
+            onIssue?(.operation(failure))
             return 0
         }
     }
 
     @discardableResult
-    func select(
-        _ id: NoteID,
-        permitsApply: @MainActor () -> Bool = { true }
-    ) async -> Bool {
+    func select(_ id: NoteID, permitsApply: @MainActor () -> Bool = { true }) async -> Bool {
         guard id != activeID else { return true }
         guard await flush() else { return false }
         guard permitsApply() else { return false }
         cancelSearch()
         let repository = repository
-        let result = await detached {
-            try repository.load(id)
-        } recover: {
-            repository.fileURL(for: id)
-        }
+        let result = await detached({ try repository.load(id) }, recover: { repository.fileURL(for: id) })
         guard permitsApply(), !Task.isCancelled else { return false }
         switch result {
         case .success(let document):
             apply(document, summaries: summaries)
             return true
         case .failure(let failure):
-            publish(.load(failure))
+            onIssue?(.load(failure))
             return false
         }
     }
@@ -198,12 +185,9 @@ final class NotesStore {
         guard await flush() else { return nil }
         cancelSearch()
         let repository = repository
-        let result = await detached {
-            let renamed = try repository.rename(id: id, title: title)
-            return (renamed, try repository.list())
-        } recover: {
-            repository.fileURL(for: id)
-        }
+        let result = await detached(
+            { (try repository.rename(id: id, title: title), try repository.list()) },
+            recover: { repository.fileURL(for: id) })
         switch result {
         case .success(let payload):
             summaries = payload.1
@@ -213,7 +197,7 @@ final class NotesStore {
             }
             return payload.0
         case .failure(let failure):
-            publish(.operation(failure))
+            onIssue?(.operation(failure))
             return nil
         }
     }
@@ -242,7 +226,7 @@ final class NotesStore {
             }
             return true
         case .failure(let failure):
-            publish(.operation(failure))
+            onIssue?(.operation(failure))
             return false
         }
     }
@@ -254,29 +238,22 @@ final class NotesStore {
         searchGeneration &+= 1
         let generation = searchGeneration
         let query = NoteSearch.Query(updated)
+        // The previous query's rows must not linger under the new query text.
+        searchResults = []
         guard !query.isEmpty else {
-            searchResults = []
             isSearching = false
             searchTask = nil
             searchWorker = nil
             return
         }
         isSearching = true
-        // The previous query's rows must not linger under the new query text.
-        searchResults = []
         let repository = repository
         let summaries = summaries
         searchTask = Task { [weak self] in
-            do {
-                try await Task.sleep(for: .milliseconds(120))
-            } catch {
-                return
-            }
-            guard let self, !Task.isCancelled else { return }
+            guard (try? await Task.sleep(for: .milliseconds(120))) != nil, let self, !Task.isCancelled
+            else { return }
             let worker = Task.detached(priority: .userInitiated) {
-                Signposts.interval("Notes.search") {
-                    repository.search(query, summaries: summaries)
-                }
+                Signposts.interval("Notes.search") { repository.search(query, summaries: summaries) }
             }
             self.searchWorker = worker
             let results = await worker.value
@@ -308,11 +285,8 @@ final class NotesStore {
 
     private func reload(preferredID: NoteID?) async -> Bool {
         let repository = repository
-        let result = await detached {
-            try repository.load(preferredID: preferredID)
-        } recover: {
-            repository.notesDirectory
-        }
+        let result = await detached(
+            { try repository.load(preferredID: preferredID) }, recover: { repository.notesDirectory })
         // A relocation while this ran owns the editor now, and loads it itself.
         guard repository.notesDirectory == notesDirectory else { return true }
         switch result {
@@ -320,7 +294,7 @@ final class NotesStore {
             apply(payload.1, summaries: payload.0)
             return true
         case .failure(let failure):
-            publish(.load(failure))
+            onIssue?(.load(failure))
             return false
         }
     }
@@ -338,12 +312,10 @@ final class NotesStore {
         guard isDirty, let activeID else { return }
         let savedSource = source
         let repository = repository
-        let result = await detached {
+        let result = await detached({
             try repository.save(id: activeID, source: savedSource)
             return try repository.list()
-        } recover: {
-            repository.fileURL(for: activeID)
-        }
+        }, recover: { repository.fileURL(for: activeID) })
         switch result {
         case .success(let summaries):
             self.summaries = summaries
@@ -353,7 +325,7 @@ final class NotesStore {
             }
         case .failure(let failure):
             saveFailed = true
-            publish(.save(failure))
+            onIssue?(.save(failure))
         }
     }
 
@@ -366,10 +338,6 @@ final class NotesStore {
         saveFailed = false
         isLoaded = true
         saveSelection(document?.id)
-    }
-
-    private func publish(_ issue: Issue) {
-        onIssue?(issue)
     }
 
     /// Every repository call is blocking IO, so it runs off-main and reports one typed failure.

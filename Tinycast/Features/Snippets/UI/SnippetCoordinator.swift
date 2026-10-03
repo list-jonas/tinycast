@@ -147,10 +147,7 @@ final class SnippetCoordinator {
                     let generation = self.injector.beginAutomaticExpansion(target: target)
                 else { return }
                 self.expandSnippet(
-                    id: id,
-                    target: target,
-                    expectedKeyword: keyword,
-                    keywordLength: keywordLength,
+                    id: id, target: target, expectedKeyword: keyword, keywordLength: keywordLength,
                     automaticGeneration: generation)
             })
     }
@@ -178,9 +175,7 @@ final class SnippetCoordinator {
 
     /// A shortcut lands where the caret is; over the palette, that's what the palette covered.
     func expandSnippetFromHotKey(id: StoredSnippet.ID) {
-        guard settings.snippetsEnabled, store.record(id: id)?.snippet.isEnabled == true else {
-            return
-        }
+        guard settings.snippetsEnabled, store.record(id: id)?.snippet.isEnabled == true else { return }
         if windowController.isVisible {
             expandSnippetFromPalette(id: id)
         } else {
@@ -195,110 +190,38 @@ final class SnippetCoordinator {
         keywordLength: Int = 0,
         automaticGeneration: UInt? = nil
     ) {
-        let records = store.snippets
-        guard let record = records.first(where: { $0.id == id }) else {
-            injector.cancelArgumentPrompt(
-                automaticGeneration: automaticGeneration,
-                target: target)
-            return
+        let cancel = { [injector] in
+            injector.cancelArgumentPrompt(automaticGeneration: automaticGeneration, target: target)
         }
+        let records = store.snippets
+        guard let record = records.first(where: { $0.id == id }) else { return cancel() }
         // Only the interactive path needs this: it must fail before the prompt, not after.
         if automaticGeneration == nil {
             guard injector.prepareInteractiveExpansion(target: target) else { return }
         }
         let confirmation = record.snippet.showsConfirmation ? "Inserted \(record.snippet.name)" : nil
+        let deliver = { [injector, showMessage] (result: SnippetTemplateEngine.ExpansionResult) in
+            injector.deliver(
+                InjectedText(result.text, cursorOffsetFromEnd: result.cursorOffsetFromEnd),
+                target: target, expectedKeyword: expectedKeyword, keywordLength: keywordLength,
+                automaticGeneration: automaticGeneration,
+                onDelivered: { if let confirmation { showMessage(confirmation) } })
+        }
         let context = injector.captureExpansionContext(
-            target: target,
-            clipboardHistory: clipboardHistoryForExpansion())
-        let result = SnippetTemplateEngine.expand(
-            record,
-            snippets: records,
-            context: context)
-        if !result.missingArguments.isEmpty {
-            promptSnippetArguments(
-                record: record,
-                records: records,
-                context: context,
-                missingArgs: result.missingArguments,
-                target: target,
-                expectedKeyword: expectedKeyword,
-                keywordLength: keywordLength,
-                automaticGeneration: automaticGeneration,
-                confirmation: confirmation)
-            return
-        }
-        completeSnippetExpansion(
-            result,
-            target: target,
-            expectedKeyword: expectedKeyword,
-            keywordLength: keywordLength,
-            automaticGeneration: automaticGeneration,
-            confirmation: confirmation)
-    }
-
-    private func promptSnippetArguments(
-        record: StoredSnippet,
-        records: [StoredSnippet],
-        context: SnippetTemplateEngine.ExpansionContext,
-        missingArgs: [SnippetTemplateEngine.MissingArgument],
-        target: InjectionTarget?,
-        expectedKeyword: String?,
-        keywordLength: Int,
-        automaticGeneration: UInt?,
-        confirmation: String?
-    ) {
+            target: target, clipboardHistory: clipboardHistoryForExpansion())
+        let result = SnippetTemplateEngine.expand(record, snippets: records, context: context)
+        guard !result.missingArguments.isEmpty else { return deliver(result) }
         // The open dialog would refuse this prompt, and its end must not clear the flag under it.
-        guard !core.isShowingDialog else {
-            injector.cancelArgumentPrompt(
-                automaticGeneration: automaticGeneration,
-                target: target)
-            return
-        }
+        guard !core.isShowingDialog else { return cancel() }
         listener.isPromptingForArguments = true
         Task {
             let arguments = await core.fillSnippetArguments(
-                snippetName: record.snippet.name,
-                arguments: missingArgs)
+                snippetName: record.snippet.name, arguments: result.missingArguments)
             listener.isPromptingForArguments = false
-            guard let arguments else {
-                injector.cancelArgumentPrompt(
-                    automaticGeneration: automaticGeneration,
-                    target: target)
-                return
-            }
-
-            let result = SnippetTemplateEngine.expand(
-                record,
-                snippets: records,
-                context: context,
-                userArguments: arguments)
-            completeSnippetExpansion(
-                result,
-                target: target,
-                expectedKeyword: expectedKeyword,
-                keywordLength: keywordLength,
-                automaticGeneration: automaticGeneration,
-                confirmation: confirmation)
+            guard let arguments else { return cancel() }
+            deliver(
+                SnippetTemplateEngine.expand(
+                    record, snippets: records, context: context, userArguments: arguments))
         }
-    }
-
-    private func completeSnippetExpansion(
-        _ result: SnippetTemplateEngine.ExpansionResult,
-        target: InjectionTarget?,
-        expectedKeyword: String?,
-        keywordLength: Int,
-        automaticGeneration: UInt?,
-        confirmation: String?
-    ) {
-        injector.deliver(
-            InjectedText(result.text, cursorOffsetFromEnd: result.cursorOffsetFromEnd),
-            target: target,
-            expectedKeyword: expectedKeyword,
-            keywordLength: keywordLength,
-            automaticGeneration: automaticGeneration,
-            onDelivered: { [weak self] in
-                guard let self, let confirmation else { return }
-                self.showMessage(confirmation)
-            })
     }
 }

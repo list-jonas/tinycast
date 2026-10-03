@@ -4,22 +4,8 @@ struct Snippet: Sendable, Hashable {
     var name: String
     var text: String
     var keyword: String?
-    var isEnabled: Bool
-    var showsConfirmation: Bool
-
-    init(
-        name: String,
-        text: String,
-        keyword: String? = nil,
-        isEnabled: Bool = true,
-        showsConfirmation: Bool = false
-    ) {
-        self.name = name
-        self.text = text
-        self.keyword = keyword
-        self.isEnabled = isEnabled
-        self.showsConfirmation = showsConfirmation
-    }
+    var isEnabled = true
+    var showsConfirmation = false
 }
 
 /// Fingerprint of a snippet file's bytes, detecting an external edit before a save or delete.
@@ -52,5 +38,18 @@ struct StoredSnippet: Identifiable, Sendable, Hashable {
     static func id(fromEntryID entryID: String) -> ID? {
         guard entryID.hasPrefix(entryIDPrefix) else { return nil }
         return String(entryID.dropFirst(entryIDPrefix.count))
+    }
+}
+
+extension StoredSnippet {
+    init(fileURL: URL, snippet: Snippet, content: String) {
+        self.init(fileURL: fileURL, snippet: snippet, sourceRevision: SnippetSourceRevision(content: content))
+    }
+
+    /// Name first, then path, so duplicate names still list in one stable order.
+    static func libraryOrder(_ lhs: StoredSnippet, _ rhs: StoredSnippet) -> Bool {
+        let comparison = lhs.snippet.name.localizedCaseInsensitiveCompare(rhs.snippet.name)
+        if comparison != .orderedSame { return comparison == .orderedAscending }
+        return lhs.id < rhs.id
     }
 }

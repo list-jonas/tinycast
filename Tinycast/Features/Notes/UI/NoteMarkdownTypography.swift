@@ -21,11 +21,23 @@ enum NoteMarkdownTypography {
         }
     }
 
+    /// Every emphasis span of a restyle asks again, and only a handful of fonts ever answer.
     static func adding(_ traits: NSFontDescriptor.SymbolicTraits, to font: NSFont) -> NSFont {
+        let key = TraitKey(font: font, traits: traits.rawValue)
+        if let cached = traitFonts[key] { return cached }
         let current = font.fontDescriptor.symbolicTraits
         let descriptor = font.fontDescriptor.withSymbolicTraits(current.union(traits))
-        return NSFont(descriptor: descriptor, size: font.pointSize) ?? font
+        let styled = NSFont(descriptor: descriptor, size: font.pointSize) ?? font
+        traitFonts[key] = styled
+        return styled
     }
+
+    private struct TraitKey: Hashable {
+        let font: NSFont
+        let traits: UInt32
+    }
+
+    private static var traitFonts: [TraitKey: NSFont] = [:]
 
     private static func size(_ style: NSFont.TextStyle) -> CGFloat {
         NSFont.preferredFont(forTextStyle: style).pointSize

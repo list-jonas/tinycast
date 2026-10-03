@@ -26,22 +26,13 @@ struct SnippetKeywordLifecyclePolicy: Sendable {
     }
 
     static func decide(
-        isRequested: Bool,
-        isSessionActive: Bool,
-        hasAccessibility: Bool,
-        tapState: TapState
+        isRequested: Bool, isSessionActive: Bool, hasAccessibility: Bool, tapState: TapState
     ) -> Decision {
-        guard isRequested else {
-            return Decision(
-                status: .off,
-                tapAction: tapState == .absent ? .none : .tearDown)
-        }
+        let release: TapAction = tapState == .absent ? .none : .tearDown
+        guard isRequested else { return Decision(status: .off, tapAction: release) }
         guard isSessionActive, hasAccessibility else {
-            return Decision(
-                status: .needsAccessibility,
-                tapAction: tapState == .absent ? .none : .tearDown)
+            return Decision(status: .needsAccessibility, tapAction: release)
         }
-
         switch tapState {
         case .absent:
             return Decision(status: .needsAccessibility, tapAction: .install)
@@ -132,9 +123,7 @@ struct SnippetKeywordPolicy: Sendable {
         }
         reset()
         return Match(
-            snippetID: keyword.snippetID,
-            keyword: keyword.value,
-            deletionCount: keyword.deletionCount)
+            snippetID: keyword.snippetID, keyword: keyword.value, deletionCount: keyword.deletionCount)
     }
 
     mutating func reset() {

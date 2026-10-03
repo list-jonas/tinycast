@@ -49,7 +49,7 @@ struct SnippetsScreen: PaletteScreen {
         if rows.isEmpty {
             EmptyResults(text: emptyMessage)
         } else {
-            let selected = record(at: selection)
+            let selected = rows.indices.contains(selection) ? rows[selection] : nil
             HStack(spacing: 0) {
                 SnippetsList(
                     results: rows, selectedID: selected?.id, scroll: scroll,

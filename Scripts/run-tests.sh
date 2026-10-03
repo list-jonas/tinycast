@@ -430,10 +430,20 @@ run slow snippets-test     Tinycast/Platform/NotificationToken.swift \
                            Tinycast/Features/Snippets/Model/*.swift \
                            Tinycast/Features/Snippets/Service/*.swift \
                            Tinycast/Features/TextInjection/Service/*.swift
+run snippets-delivery-test Tinycast/Platform/NotificationToken.swift \
+                           Tinycast/Platform/HealthTicker.swift \
+                           Tinycast/Platform/AccessibilityText.swift \
+                           Tinycast/Features/Snippets/Model/*.swift \
+                           Tinycast/Features/Snippets/Service/*.swift \
+                           Tinycast/Features/TextInjection/Service/*.swift
+run snippets-template-test Tinycast/Features/Snippets/Model/*.swift
 run notes-test             Tinycast/Platform/Signposts.swift \
                            $L/SearchRelevance.swift \
                            Tinycast/Features/Notes/Model/*.swift \
                            Tinycast/Features/Notes/Service/*.swift
+run notes-markdown-test    Tinycast/Platform/Signposts.swift \
+                           $L/SearchRelevance.swift \
+                           Tinycast/Features/Notes/Model/*.swift
 run notes-editor-test      Tinycast/Platform/Signposts.swift \
                            Tinycast/Platform/Appearance.swift \
                            Tinycast/DesignSystem/Theme.swift \

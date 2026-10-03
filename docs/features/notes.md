@@ -306,8 +306,8 @@ the window re-lists the folder before it presents anything.
 
 `Tests/notes-test.swift` compiles the shipped Notes model and service sources with the real fuzzy
 matcher. It covers repository safety, unique-name claiming, derived titles, search, selection,
-autosave, empty collections, switcher interaction, and cancellation, plus the Markdown parser, every
-edit plan, the formatting each selection reports and the reveal policy.
+autosave, empty collections, switcher interaction, and cancellation. `Tests/notes-markdown-test.swift`
+covers the Markdown parser, every edit plan, the formatting each selection reports and the reveal policy.
 
 `Tests/notes-editor-test.swift` uses real TextKit 2 and AppKit undo objects. It runs the native
 Cut/Copy/Paste, the native find bar, Unicode and marked-text cases with rendering off and on, and covers undo isolation, an

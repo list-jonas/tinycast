@@ -7,7 +7,7 @@ struct SnippetMarkdownSerializer {
         var errorDescription: String? {
             switch self {
             case .invalidFrontmatter(let fileURL, let line, let reason):
-                return "\(fileURL.path):\(line): \(reason)"
+                "\(fileURL.path):\(line): \(reason)"
             }
         }
     }
@@ -64,36 +64,23 @@ struct SnippetMarkdownSerializer {
 
         let bodyStart = lines[closingIndex].endIncludingTerminator
         return Snippet(
-            name: name ?? defaultName(for: fileURL),
-            text: String(content[bodyStart...]),
-            keyword: keyword,
-            isEnabled: isEnabled,
-            showsConfirmation: showsConfirmation
-        )
+            name: name ?? defaultName(for: fileURL), text: String(content[bodyStart...]), keyword: keyword,
+            isEnabled: isEnabled, showsConfirmation: showsConfirmation)
     }
 
     static func serialize(_ snippet: Snippet) -> String {
-        var lines = [
-            "---",
-            "name: \(encodeScalar(snippet.name))"
-        ]
+        var lines = ["---", "name: \(encodeScalar(snippet.name))"]
         if let keyword = snippet.keyword {
             lines.append("keyword: \(encodeScalar(keyword))")
         }
-        lines.append("enabled: \(snippet.isEnabled)")
-        lines.append("show_confirmation: \(snippet.showsConfirmation)")
-        lines.append("---")
+        lines += ["enabled: \(snippet.isEnabled)", "show_confirmation: \(snippet.showsConfirmation)", "---"]
         return lines.joined(separator: "\n") + "\n" + snippet.text
     }
 
     static func slug(for name: String) -> String {
-        let allowed = CharacterSet.alphanumerics
-        var slug = name.lowercased()
-            .components(separatedBy: allowed.inverted)
-            .filter { !$0.isEmpty }
-            .joined(separator: "-")
-        if slug.isEmpty { slug = "snippet" }
-        return slug
+        let slug = name.lowercased().components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }.joined(separator: "-")
+        return slug.isEmpty ? "snippet" : slug
     }
 
     private struct SourceLine {
@@ -130,12 +117,7 @@ struct SnippetMarkdownSerializer {
 
     private static func canonicalKey(for rawKey: String) -> String? {
         let key = rawKey.lowercased()
-        switch key {
-        case "name", "keyword", "enabled", "show_confirmation":
-            return key
-        default:
-            return nil
-        }
+        return ["name", "keyword", "enabled", "show_confirmation"].contains(key) ? key : nil
     }
 
     private static func decodeScalar(_ value: String, fileURL: URL, line: Int) throws -> String {

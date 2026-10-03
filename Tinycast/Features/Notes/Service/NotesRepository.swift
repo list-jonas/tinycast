@@ -12,13 +12,13 @@ struct NotesRepository: Sendable {
         var errorDescription: String? {
             switch self {
             case .invalidTitle(let title):
-                return "“\(title)” can't be used as a note title."
+                "“\(title)” can't be used as a note title."
             case .unreadable(let fileURL):
-                return "The note isn't valid UTF-8. (\(fileURL.lastPathComponent))"
+                "The note isn't valid UTF-8. (\(fileURL.lastPathComponent))"
             case .invalidLocation(let fileURL):
-                return "The note file is outside the notes folder. (\(fileURL.path))"
+                "The note file is outside the notes folder. (\(fileURL.path))"
             case .io(let fileURL, let message):
-                return "Could not access \(fileURL.path): \(message)"
+                "Could not access \(fileURL.path): \(message)"
             }
         }
     }
@@ -28,8 +28,8 @@ struct NotesRepository: Sendable {
 
     init(
         notesDirectory: URL,
-        trashOperation: @escaping TrashOperation = { url in
-            try FileManager.default.trashItem(at: url, resultingItemURL: nil)
+        trashOperation: @escaping TrashOperation = {
+            try FileManager.default.trashItem(at: $0, resultingItemURL: nil)
         }
     ) {
         self.notesDirectory = notesDirectory
@@ -38,15 +38,13 @@ struct NotesRepository: Sendable {
 
     func list() throws(Failure) -> [NoteSummary] {
         try mappedError(at: notesDirectory) {
-            try ensureDirectory()
+            try FileManager.default.createDirectory(at: notesDirectory, withIntermediateDirectories: true)
             let keys: Set<URLResourceKey> = [
-                .contentModificationDateKey, .isHiddenKey, .isRegularFileKey,
-                .isSymbolicLinkKey
+                .contentModificationDateKey, .isHiddenKey, .isRegularFileKey, .isSymbolicLinkKey
             ]
+            let parentPath = resolvedDirectoryPath
             return try FileManager.default.contentsOfDirectory(
-                at: notesDirectory,
-                includingPropertiesForKeys: Array(keys),
-                options: [.skipsHiddenFiles]
+                at: notesDirectory, includingPropertiesForKeys: Array(keys), options: [.skipsHiddenFiles]
             )
             // An unreadable entry is skipped: one bad file must not hide the rest.
             .compactMap { candidate -> NoteSummary? in
@@ -54,7 +52,7 @@ struct NotesRepository: Sendable {
                     let values = try? candidate.resourceValues(forKeys: keys),
                     values.isRegularFile == true, values.isSymbolicLink != true,
                     values.isHidden != true,
-                    let url = try? validatedFileURL(candidate)
+                    let url = try? validatedFileURL(candidate, parentPath: parentPath)
                 else { return nil }
                 let title = url.deletingPathExtension().lastPathComponent
                 return NoteSummary(
@@ -70,19 +68,16 @@ struct NotesRepository: Sendable {
     /// A `nil` document is an empty collection, not a failure: creating is always the user's move.
     func load(preferredID: NoteID?) throws(Failure) -> ([NoteSummary], NoteDocument?) {
         let summaries = try list()
-        if let preferredID, summaries.contains(where: { $0.id == preferredID }) {
-            return (summaries, try load(preferredID))
-        }
-        guard let first = summaries.first else { return (summaries, nil) }
-        return (summaries, try load(first.id))
+        let id = summaries.first { $0.id == preferredID }?.id ?? summaries.first?.id
+        guard let id else { return (summaries, nil) }
+        return (summaries, try load(id))
     }
 
     func load(_ id: NoteID) throws(Failure) -> NoteDocument {
         let candidate = fileURL(for: id)
         return try mappedError(at: candidate) {
             let url = try validatedFileURL(candidate)
-            let data = try Data(contentsOf: url)
-            guard let source = String(data: data, encoding: .utf8) else {
+            guard let source = String(bytes: try Data(contentsOf: url), encoding: .utf8) else {
                 throw Failure.unreadable(url)
             }
             return NoteDocument(id: NoteID(rawValue: url.lastPathComponent), source: source)
@@ -157,11 +152,7 @@ struct NotesRepository: Sendable {
         }
     }
 
-    func search(
-        _ query: NoteSearch.Query,
-        summaries: [NoteSummary],
-        limit: Int = 200
-    ) -> [NoteSearchResult] {
+    func search(_ query: NoteSearch.Query, summaries: [NoteSummary], limit: Int = 200) -> [NoteSearchResult] {
         guard !query.isEmpty, limit > 0 else { return [] }
         var results: [NoteSearchResult] = []
         for summary in summaries {
@@ -193,11 +184,6 @@ struct NotesRepository: Sendable {
         return nil
     }
 
-    private func ensureDirectory() throws {
-        try FileManager.default.createDirectory(
-            at: notesDirectory, withIntermediateDirectories: true)
-    }
-
     /// Claims the first free `<base>.md`, `<base> 2.md`, …; a lost race only advances the suffix.
     private func claimUniqueURL(
         base: String,
@@ -207,7 +193,8 @@ struct NotesRepository: Sendable {
         let occupied = Set(try list().lazy.filter { $0.id != id }.map { folded($0.id.rawValue) })
         var suffix = 1
         while true {
-            let candidate = uniqueCandidate(base: base, suffix: suffix)
+            let candidate = notesDirectory.appendingPathComponent(
+                suffix == 1 ? "\(base).md" : "\(base) \(suffix).md")
             let name = folded(candidate.lastPathComponent)
             // A case-only rename collides with its own file, which the move then replaces in place.
             let isSelf = id.map { name == folded($0.rawValue) } ?? false
@@ -229,11 +216,16 @@ struct NotesRepository: Sendable {
         }
     }
 
-    private func validatedFileURL(_ candidate: URL) throws -> URL {
+    /// Resolving touches the filesystem, so a listing resolves the folder once for every entry.
+    private var resolvedDirectoryPath: String {
+        notesDirectory.standardizedFileURL.resolvingSymlinksInPath().path
+    }
+
+    private func validatedFileURL(_ candidate: URL, parentPath: String? = nil) throws -> URL {
         let standardized = candidate.standardizedFileURL
-        let resolved = standardized.resolvingSymlinksInPath()
-        let expectedParent = notesDirectory.standardizedFileURL.resolvingSymlinksInPath()
-        guard resolved.deletingLastPathComponent().path == expectedParent.path,
+        guard
+            standardized.resolvingSymlinksInPath().deletingLastPathComponent().path
+                == parentPath ?? resolvedDirectoryPath,
             standardized.lastPathComponent == candidate.lastPathComponent,
             standardized.pathExtension.caseInsensitiveCompare("md") == .orderedSame
         else { throw Failure.invalidLocation(candidate) }
@@ -250,21 +242,16 @@ struct NotesRepository: Sendable {
         return title
     }
 
-    private func uniqueCandidate(base: String, suffix: Int) -> URL {
-        let suffixText = suffix == 1 ? "" : " \(suffix)"
-        return notesDirectory.appendingPathComponent("\(base)\(suffixText).md")
-    }
-
     private func summaryPrecedes(_ lhs: NoteSummary, _ rhs: NoteSummary) -> Bool {
         if lhs.modifiedAt != rhs.modifiedAt { return lhs.modifiedAt > rhs.modifiedAt }
         return lhs.displayTitle.localizedCaseInsensitiveCompare(rhs.displayTitle) == .orderedAscending
     }
 
     private func folded(_ value: String) -> String {
-        value.folding(
-            options: [.caseInsensitive, .diacriticInsensitive],
-            locale: Locale(identifier: "en_US_POSIX"))
+        value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Self.foldingLocale)
     }
+
+    private static let foldingLocale = Locale(identifier: "en_US_POSIX")
 
     private func writeNewFileAtomically(_ data: Data, to destination: URL) throws {
         let temporary = destination.deletingLastPathComponent().appendingPathComponent(
@@ -286,12 +273,8 @@ struct NotesRepository: Sendable {
         let coordinator = NSFileCoordinator(filePresenter: nil)
         var coordinationError: NSError?
         var result: Result<Value, Swift.Error>?
-        coordinator.coordinate(
-            writingItemAt: fileURL,
-            options: options,
-            error: &coordinationError
-        ) { coordinatedURL in
-            result = Result { try mutation(coordinatedURL) }
+        coordinator.coordinate(writingItemAt: fileURL, options: options, error: &coordinationError) { url in
+            result = Result { try mutation(url) }
         }
         if let result { return try result.get() }
         if let coordinationError { throw coordinationError }
