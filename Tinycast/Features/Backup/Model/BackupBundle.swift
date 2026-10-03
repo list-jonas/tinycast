@@ -63,9 +63,7 @@ struct BackupBundle: Sendable {
     @discardableResult
     func writeDocument(
         title: String, extension ext: String, contents: String, in directory: URL
-    )
-        throws -> String
-    {
+    ) throws -> String {
         let name = uniqueName(base: Self.sanitized(title), extension: ext, in: directory)
         try write(Data(contents.utf8), to: directory.appendingPathComponent(name))
         return name
@@ -103,9 +101,17 @@ struct BackupBundle: Sendable {
     /// Mapped and decoded lazily, so a gigabyte of history costs one clip of resident memory.
     func clipboardItems() -> some Sequence<BackupClipboardItem> {
         let data = (try? Data(contentsOf: clipboardItemsURL, options: .mappedIfSafe)) ?? Data()
-        return data.split(separator: 0x0A, omittingEmptySubsequences: true)
-            .lazy
-            .compactMap { try? Self.decoder.decode(BackupClipboardItem.self, from: Data($0)) }
+        // Unfolded rather than `split`, which would hold a slice of every line at once.
+        let lines = sequence(state: data.startIndex) { (start: inout Data.Index) -> Data? in
+            while start < data.endIndex {
+                let end = data[start...].firstIndex(of: 0x0A) ?? data.endIndex
+                let line = data[start..<end]
+                start = end < data.endIndex ? end + 1 : end
+                if !line.isEmpty { return line }
+            }
+            return nil
+        }
+        return lines.lazy.compactMap { try? Self.decoder.decode(BackupClipboardItem.self, from: Data($0)) }
     }
 
     // MARK: - Reading
