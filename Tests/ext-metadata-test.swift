@@ -3,17 +3,6 @@ import Foundation
 @main
 @MainActor
 struct ExtensionCommandMetadataTests {
-    static var failures = 0
-
-    static func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
-        if !condition() {
-            failures += 1
-            print("FAIL: \(message)")
-        } else {
-            print("PASS  \(message)")
-        }
-    }
-
     /// Scratch state of its own, never the machine's extension files.
     static func makeFile() -> URL {
         FileManager.default.temporaryDirectory
@@ -113,7 +102,6 @@ struct ExtensionCommandMetadataTests {
         removeAllDropsOneExtension()
         garbageStaysSafe()
 
-        print(failures == 0 ? "Extension command metadata tests passed" : "\(failures) tests failed")
-        exit(failures == 0 ? 0 : 1)
+        finish()
     }
 }

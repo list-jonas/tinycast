@@ -1,7 +1,6 @@
 import Foundation
 
-/// One choice offered by a picker's list, from a `Form.Dropdown`/`Form.TagPicker` or from the
-/// search-bar dropdown an extension handed the screen in `searchBarAccessory`.
+/// One choice in a picker's list: a `Form.Dropdown`/`Form.TagPicker` or the search-bar dropdown.
 struct ExtensionPickerItem: Identifiable, Equatable {
     let value: String
     let title: String
@@ -30,5 +29,15 @@ struct ExtensionPickerItem: Identifiable, Equatable {
         }
         walk(node, section: nil)
         return items
+    }
+}
+
+extension [ExtensionPickerItem] {
+    /// The section of the row before `index`, so only the first of a run draws its heading.
+    func section(before index: Int) -> String? { index > 0 ? self[index - 1].section : nil }
+
+    /// Headings a list of these draws, which its height and its flip decision both count.
+    var headingCount: Int {
+        indices.count(where: { self[$0].section != nil && self[$0].section != section(before: $0) })
     }
 }

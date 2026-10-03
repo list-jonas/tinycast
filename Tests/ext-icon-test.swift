@@ -5,15 +5,6 @@ import SwiftUI
 @main
 @MainActor
 struct ExtensionIconTests {
-    static var failures = 0
-
-    static func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
-        if !condition() {
-            failures += 1
-            print("FAIL: \(message)")
-        }
-    }
-
     /// Artwork is normalized, so a source's transparent margin cannot change its size.
     static func artworkIsNormalized() {
         guard let bleed = writePNG("bleed", inset: 0), let padded = writePNG("padded", inset: 96)
@@ -229,7 +220,6 @@ struct ExtensionIconTests {
         await inlineDataURLsDecode()
         await paletteColorsInSVGResolve()
 
-        print(failures == 0 ? "Extension icon tests passed" : "\(failures) tests failed")
-        exit(failures == 0 ? 0 : 1)
+        finish()
     }
 }

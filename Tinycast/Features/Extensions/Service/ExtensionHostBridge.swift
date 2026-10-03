@@ -34,9 +34,8 @@ protocol ExtensionHostContext: AnyObject {
     ) throws
     func launch(_ link: ExtensionDeepLink) throws
     func authorizeOAuth(options: ExtensionOAuthAuthorizeOptions) async throws -> ExtensionOAuthAuthorizeResult
-    func getOAuthTokens(providerId: String) -> String?
-    func setOAuthTokens(providerId: String, tokens: String)
-    func removeOAuthTokens(providerId: String)
+    /// Whose Keychain tokens `OAuth.PKCEClient` reads and writes; nil leaves them untouched.
+    var oauthExtensionName: String? { get }
 }
 
 /// A toast as the palette shows it.
@@ -75,9 +74,7 @@ extension ExtensionToast {
     }
 
     private static func action(from value: RenderValue?) -> Action? {
-        guard let fields = value?.objectValue, let token = fields["token"]?.stringValue else {
-            return nil
-        }
+        guard let fields = value?.objectValue, let token = fields["token"]?.stringValue else { return nil }
         return Action(title: fields["title"]?.stringValue ?? "", token: token)
     }
 }
@@ -174,8 +171,7 @@ final class ExtensionHostBridge: ExtensionHostAPI {
         case "copy", "paste":
             let content = arguments.first?.objectValue ?? [:]
             let options = arguments[safe: 1]?.objectValue ?? [:]
-            let concealed =
-                options["concealed"]?.boolValue == true
+            let concealed = options["concealed"]?.boolValue == true
                 || options["transient"]?.boolValue == true
             // A file goes on the pasteboard as a file, so it pastes as the picture it is.
             if let path = content["file"]?.stringValue, !path.isEmpty {
@@ -191,9 +187,7 @@ final class ExtensionHostBridge: ExtensionHostAPI {
                 }
                 return nil
             }
-            guard let text = content["text"]?.stringValue ?? content["html"]?.stringValue else {
-                return nil
-            }
+            guard let text = content["text"]?.stringValue ?? content["html"]?.stringValue else { return nil }
             if method == "copy" {
                 // History records unmarked copies; ConcealedType is how secrets stay out.
                 if concealed {
@@ -226,7 +220,7 @@ final class ExtensionHostBridge: ExtensionHostAPI {
 
     /// The file, its picture and its path: receivers choose the representation they support.
     private func writeFileToPasteboard(_ path: String, concealed: Bool) {
-        let url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
+        let url = fileURL(path)
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         var items: [NSPasteboardWriting] = [url as NSURL]
@@ -246,8 +240,7 @@ final class ExtensionHostBridge: ExtensionHostAPI {
         pasteboard.setData(Data(), forType: Self.concealedPasteboardType)
     }
 
-    private static let concealedPasteboardType = NSPasteboard.PasteboardType(
-        "org.nspasteboard.ConcealedType")
+    private static let concealedPasteboardType = NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")
 
     // MARK: - LocalStorage
 
@@ -371,15 +364,13 @@ final class ExtensionHostBridge: ExtensionHostAPI {
 
         case "showInFinder":
             guard let path = arguments.first?.stringValue else { return nil }
-            AppLauncher.showInFinder(URL(fileURLWithPath: (path as NSString).expandingTildeInPath))
+            AppLauncher.showInFinder(fileURL(path))
             return nil
 
         case "trash":
             let paths = (arguments.first?.arrayValue ?? []).compactMap(\.stringValue)
             for path in paths {
-                try? FileManager.default.trashItem(
-                    at: URL(fileURLWithPath: (path as NSString).expandingTildeInPath),
-                    resultingItemURL: nil)
+                try? FileManager.default.trashItem(at: fileURL(path), resultingItemURL: nil)
             }
             return nil
 
@@ -388,8 +379,7 @@ final class ExtensionHostBridge: ExtensionHostAPI {
 
         case "defaultApplication":
             guard let path = arguments.first?.stringValue,
-                let url = NSWorkspace.shared.urlForApplication(
-                    toOpen: URL(fileURLWithPath: (path as NSString).expandingTildeInPath))
+                let url = NSWorkspace.shared.urlForApplication(toOpen: fileURL(path))
             else { throw ExtensionHostError.unsupported("getDefaultApplication") }
             return describe(application: url)
 
@@ -432,9 +422,7 @@ final class ExtensionHostBridge: ExtensionHostAPI {
     }
 
     private func open(target: String, application: String?) {
-        let url =
-            URL(string: target).flatMap { $0.scheme == nil ? nil : $0 }
-            ?? URL(fileURLWithPath: (target as NSString).expandingTildeInPath)
+        let url = URL(string: target).flatMap { $0.scheme == nil ? nil : $0 } ?? fileURL(target)
         // Extensions address Raycast by scheme; handing that to the workspace would launch Raycast.
         if ExtensionDeepLink.claims(url) {
             openRaycastURL(url)
@@ -444,8 +432,7 @@ final class ExtensionHostBridge: ExtensionHostAPI {
             NSWorkspace.shared.open(url)
             return
         }
-        let appURL =
-            appIdentifier.hasPrefix("/")
+        let appURL = appIdentifier.hasPrefix("/")
             ? URL(fileURLWithPath: appIdentifier)
             : NSWorkspace.shared.urlForApplication(withBundleIdentifier: appIdentifier)
         guard let appURL else {
@@ -468,12 +455,15 @@ final class ExtensionHostBridge: ExtensionHostAPI {
     private func applications(forPath path: String?) -> [[String: Any]] {
         let urls: [URL]
         if let path, !path.isEmpty {
-            let target = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
-            urls = NSWorkspace.shared.urlsForApplications(toOpen: target)
+            urls = NSWorkspace.shared.urlsForApplications(toOpen: fileURL(path))
         } else {
             urls = context?.applicationURLs ?? []
         }
         return urls.map(describe(application:))
+    }
+
+    private func fileURL(_ path: String) -> URL {
+        URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
     }
 
     private func describe(application url: URL) -> [String: Any] {
@@ -524,13 +514,13 @@ final class ExtensionHostBridge: ExtensionHostAPI {
 
     private func oauth(method: String, arguments: [RenderValue]) async throws -> Any? {
         guard let context else { throw ExtensionHostError.noActiveExtension }
+        let provider = arguments.first?.stringValue ?? ""
         switch method {
         case "authorize":
             guard let urlString = arguments.first?.stringValue, let url = URL(string: urlString) else {
                 throw ExtensionHostError.unsupported("authorize requires url")
             }
-            let options = ExtensionOAuthAuthorizeOptions(
-                url: url, state: arguments[safe: 1]?.stringValue)
+            let options = ExtensionOAuthAuthorizeOptions(url: url, state: arguments[safe: 1]?.stringValue)
             let result = try await context.authorizeOAuth(options: options)
             var dict: [String: Any] = ["authorizationCode": result.authorizationCode]
             if let token = result.accessToken { dict["accessToken"] = token }
@@ -538,16 +528,18 @@ final class ExtensionHostBridge: ExtensionHostAPI {
             return dict
 
         case "getTokens":
-            return context.getOAuthTokens(providerId: arguments.first?.stringValue ?? "")
+            guard let name = context.oauthExtensionName else { return nil }
+            return ExtensionOAuthKeychain.getTokens(extensionName: name, providerId: provider)
 
         case "setTokens":
-            context.setOAuthTokens(
-                providerId: arguments.first?.stringValue ?? "",
-                tokens: arguments[safe: 1]?.stringValue ?? "")
+            guard let name = context.oauthExtensionName else { return nil }
+            ExtensionOAuthKeychain.setTokens(
+                arguments[safe: 1]?.stringValue ?? "", extensionName: name, providerId: provider)
             return nil
 
         case "removeTokens":
-            context.removeOAuthTokens(providerId: arguments.first?.stringValue ?? "")
+            guard let name = context.oauthExtensionName else { return nil }
+            ExtensionOAuthKeychain.removeTokens(extensionName: name, providerId: provider)
             return nil
 
         default:

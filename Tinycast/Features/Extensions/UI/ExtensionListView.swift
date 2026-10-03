@@ -40,10 +40,7 @@ struct ExtensionListView: View {
             EmptyResults(text: "Loading…")
         } else if let empty = screen.emptyView {
             VStack(spacing: metrics.spacing.md) {
-                ExtensionIconView(
-                    resolved: ExtensionImage.resolve(
-                        empty.props["icon"], assetsPath: assetsPath, isDark: isDark),
-                    size: 42)
+                ExtensionIconView(empty.props["icon"], assetsPath: assetsPath, isDark: isDark, size: 42)
                 Text(empty.string("title") ?? "Nothing here")
                     .font(metrics.typography.rowTitle)
                 if let description = empty.string("description") {
@@ -82,9 +79,7 @@ struct ExtensionListView: View {
         }
     }
 
-    private func scrolling<Content: View>(
-        atOrigin: Bool, @ViewBuilder content: () -> Content
-    ) -> some View {
+    private func scrolling<Content: View>(atOrigin: Bool, @ViewBuilder content: () -> Content) -> some View {
         let content = content()
         return ScrollViewReader { proxy in
             ScrollView {
@@ -101,9 +96,7 @@ struct ExtensionListView: View {
         }
     }
 
-    private func interactive<Content: View>(
-        _ index: Int, @ViewBuilder content: () -> Content
-    ) -> some View {
+    private func interactive<Content: View>(_ index: Int, @ViewBuilder content: () -> Content) -> some View {
         content()
             .contentShape(Rectangle())
             .onTapGesture {
@@ -184,8 +177,7 @@ private struct ExtensionItemRow: View {
         HStack(spacing: metrics.spacing.lg) {
             if let icon = node.props["icon"], icon != .null {
                 ExtensionIconView(
-                    resolved: ExtensionImage.resolve(icon, assetsPath: assetsPath, isDark: isDark),
-                    size: metrics.size.resultRowIcon)
+                    icon, assetsPath: assetsPath, isDark: isDark, size: metrics.size.resultRowIcon)
             }
             Text(node.string("title") ?? "")
                 .font(metrics.typography.rowTitle)
@@ -200,14 +192,11 @@ private struct ExtensionItemRow: View {
             }
             Spacer(minLength: metrics.spacing.sm)
             // Raycast draws the accessories it is given, and a quota row's signal is all in them.
-            ExtensionAccessoriesView(
-                accessories: node.array("accessories"), assetsPath: assetsPath)
+            ExtensionAccessoriesView(accessories: node.array("accessories"), assetsPath: assetsPath)
         }
         .padding(.horizontal, metrics.spacing.md)
         .padding(.vertical, metrics.spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous).fill(fill)
-        )
+        .background(RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous).fill(fill))
         .armedHover($hovered)
     }
 }
@@ -233,8 +222,7 @@ struct ExtensionAccessoriesView: View {
     private func accessoryView(_ fields: [String: RenderValue]) -> some View {
         HStack(spacing: metrics.spacing.xs) {
             if let icon = fields["icon"] {
-                ExtensionIconView(
-                    resolved: ExtensionImage.resolve(icon, assetsPath: assetsPath, isDark: isDark), size: 13)
+                ExtensionIconView(icon, assetsPath: assetsPath, isDark: isDark, size: 13)
             }
             if let tag = fields["tag"] {
                 tagView(tag)
@@ -262,8 +250,7 @@ struct ExtensionAccessoriesView: View {
     @ViewBuilder
     private func tagView(_ tag: RenderValue) -> some View {
         let fields = tag.objectValue
-        let text =
-            ExtensionAccessoriesView.label(fields?["value"] ?? tag)
+        let text = ExtensionAccessoriesView.label(fields?["value"] ?? tag)
             ?? ExtensionAccessoriesView.date(fields?["value"] ?? tag).map {
                 $0.formatted(date: .abbreviated, time: .omitted)
             }
@@ -274,10 +261,7 @@ struct ExtensionAccessoriesView: View {
                 .foregroundStyle(color)
                 .padding(.horizontal, metrics.spacing.xs)
                 .padding(.vertical, 1)
-                .background(
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(color.opacity(0.16))
-                )
+                .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(color.opacity(0.16)))
                 .lineLimit(1)
         }
     }

@@ -2,10 +2,6 @@ import Foundation
 
 /// Background refresh: headless `no-view` runs on the manifest's `interval`, sharing the one runtime.
 extension ExtensionManager {
-    func backgroundInfo(extension name: String, command: String) -> ExtensionCommandMetadata {
-        commandMetadata.metadata(extension: name, command: command)
-    }
-
     func setBackgroundEnabled(_ enabled: Bool, extension name: String, command: String) {
         commandMetadata.setBackgroundEnabled(enabled, extension: name, command: command)
         if !enabled { commandMetadata.clearBackgroundError(extension: name, command: command) }
@@ -159,13 +155,10 @@ extension ExtensionManager {
             backgroundFailure = ExtensionLaunchError.notBuilt(command.title).localizedDescription
             return
         }
-        let context = makeLaunchContext(
-            owner: owner, command: command, arguments: [:], supportPath: supportPath,
-            launchType: .background)
-        await runtime.start(
-            session: session, code: code, file: bundle, mode: command.mode, context: context)
-        succeeded = await waitForBackgroundResult(
-            timeout: ExtensionRefreshPolicy.timeout(interval: interval))
+        let context = storage.launchContext(
+            owner: owner, command: command, arguments: [:], supportPath: supportPath, launchType: .background)
+        await runtime.start(session: session, code: code, file: bundle, mode: command.mode, context: context)
+        succeeded = await waitForBackgroundResult(timeout: ExtensionRefreshPolicy.timeout(interval: interval))
         // An abort already tore the session down; stopping here would kill the manual run's context.
         guard backgroundSessionID == session else { return }
         await runtime.stop(session: session)

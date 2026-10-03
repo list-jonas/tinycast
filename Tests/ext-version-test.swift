@@ -4,17 +4,12 @@ import Foundation
 @main
 @MainActor
 struct ExtensionVersionStoreTests {
-    static var failures = 0
-    static var passes = 0
-
     static func main() {
         reconciling()
         forgetting()
         persisting()
 
-        print(failures == 0 ? "\nALL PASSED" : "\n\(failures) FAILED")
-        print("\(passes) passed, \(failures) failed")
-        exit(failures == 0 ? 0 : 1)
+        finish()
     }
 
     static func reconciling() {
@@ -85,15 +80,5 @@ struct ExtensionVersionStoreTests {
             id: name, name: name, title: name, summary: "", author: "", lightIconURL: nil,
             darkIconURL: nil, commandCount: 1, downloadCount: nil,
             downloadURL: URL(fileURLWithPath: "/dev/null"), commitSHA: commit)
-    }
-
-    static func check(_ description: String, _ condition: Bool) {
-        if condition {
-            passes += 1
-            print("PASS  \(description)")
-        } else {
-            failures += 1
-            print("FAIL  \(description)")
-        }
     }
 }

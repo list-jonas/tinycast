@@ -1,7 +1,6 @@
 import Foundation
 
-/// Raycast's background refresh, reduced to decisions. No state, no clock reads: every moment arrives
-/// as a parameter, so the harness drives it.
+/// Raycast's background refresh as pure decisions: every moment arrives as a parameter.
 enum ExtensionRefreshPolicy {
     /// What a manifest may ask for; tighter would burn battery re-rendering a subtitle.
     static let minimumInterval: TimeInterval = 60
@@ -65,8 +64,7 @@ enum ExtensionRefreshPolicy {
         min(max(interval, 15), 120)
     }
 
-    /// Launcher dot for a scheduled command: an active refresh, its dimmed twin when switched
-    /// off, or the last background error. Anything unschedulable shows nothing at all.
+    /// Active, dimmed when switched off, or the last error; an unschedulable command shows none.
     static func indicator(
         schedulable: Bool, backgroundEnabled: Bool, lastError: String?
     ) -> ExtensionRefreshState? {
@@ -80,8 +78,7 @@ enum ExtensionRefreshPolicy {
         String(message.split(separator: "\n").first ?? "Background refresh failed.")
     }
 
-    /// `subtitle: null` clears back to the manifest; the stored override otherwise wins. A subtitle
-    /// restating the owning extension is dropped — the row already carries it on the right.
+    /// `null` clears to the manifest; a subtitle restating the owner is dropped, the row shows it.
     static func displaySubtitle(manifest: String?, override: String?, ownerTitle: String) -> String? {
         let resolved = (override ?? manifest)?.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let resolved, !resolved.isEmpty else { return nil }

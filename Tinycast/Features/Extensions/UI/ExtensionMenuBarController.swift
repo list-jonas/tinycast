@@ -88,8 +88,7 @@ final class ExtensionMenuBarController: NSObject, NSMenuDelegate {
             guard !Task.isCancelled, let self else { return }
             self.iconTask = nil
             self.iconFailed = snapshot.icon != nil && image == nil
-            self.status.button?.image =
-                image
+            self.status.button?.image = image
                 ?? ((snapshot.title ?? "").isEmpty
                     ? NSImage(systemSymbolName: "puzzlepiece.extension", accessibilityDescription: nil) : nil)
         }
@@ -186,8 +185,7 @@ final class ExtensionMenuBarController: NSObject, NSMenuDelegate {
         flatten(nodes, path: path)
         for (index, entry) in entries.enumerated() {
             let identifier = NSUserInterfaceItemIdentifier("\(entry.node.id)-\(entry.role)")
-            let item =
-                menu.items.first { $0.identifier == identifier }
+            let item = menu.items.first { $0.identifier == identifier }
                 ?? {
                     switch entry.role {
                     case "separator": return NSMenuItem.separator()

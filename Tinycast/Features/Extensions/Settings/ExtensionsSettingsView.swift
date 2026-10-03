@@ -160,9 +160,7 @@ struct ExtensionsSettingsView: View {
             }
         } header: {
             SettingsSectionHeader(anchor: .extensionsInstalled) {
-                Text(
-                    extensions.installed.isEmpty
-                        ? "Installed" : "Installed (\(extensions.installed.count))")
+                Text(extensions.installed.isEmpty ? "Installed" : "Installed (\(extensions.installed.count))")
             }
         } footer: {
             warning(updateError)
@@ -206,9 +204,7 @@ struct ExtensionsSettingsView: View {
                 Button("Install…") { installingFromGitHub = true }
             }
             // A state of this row, not a card: the same job as the button beside it.
-            SettingsRow(
-                title: "Import from Raycast", subtitle: importSubtitle, anchor: .extensionsInstall
-            ) {
+            SettingsRow(title: "Import from Raycast", subtitle: importSubtitle, anchor: .extensionsInstall) {
                 icon("arrow.down.doc")
             } trailing: {
                 if importProgress != nil {
@@ -240,9 +236,7 @@ struct ExtensionsSettingsView: View {
     /// An install cleans up after itself, so in normal use this row has nothing to offer.
     private var storage: some View {
         Section {
-            SettingsRow(
-                title: "Leftover files", subtitle: reclaimableSubtitle, anchor: .extensionsStorage
-            ) {
+            SettingsRow(title: "Leftover files", subtitle: reclaimableSubtitle, anchor: .extensionsStorage) {
                 icon("internaldrive")
             } trailing: {
                 Button("Clean Up…") {

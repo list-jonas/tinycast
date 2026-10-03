@@ -1,7 +1,6 @@
 import Foundation
 
-/// Every command's row metadata in one small file, deliberately not in `extension-data`: drawing a
-/// launcher row must never fault in an extension's whole `LocalStorage` and `Cache`.
+/// Kept apart from `extension-data`, so drawing a row never faults in a whole `LocalStorage`.
 @MainActor
 @Observable
 final class ExtensionCommandMetadataStore {
@@ -15,11 +14,9 @@ final class ExtensionCommandMetadataStore {
         self.fileURL = fileURL
         try? FileManager.default.createDirectory(
             at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        records =
-            (try? Data(contentsOf: fileURL))
+        records = (try? Data(contentsOf: fileURL))
             .flatMap {
-                try? JSONDecoder().decode(
-                    [String: [String: ExtensionCommandMetadata]].self, from: $0)
+                try? JSONDecoder().decode([String: [String: ExtensionCommandMetadata]].self, from: $0)
             } ?? [:]
     }
 
@@ -49,9 +46,7 @@ final class ExtensionCommandMetadataStore {
         }
     }
 
-    func setMenuBarSnapshot(
-        _ snapshot: ExtensionMenuBarSnapshot?, extension name: String, command: String
-    ) {
+    func setMenuBarSnapshot(_ snapshot: ExtensionMenuBarSnapshot?, extension name: String, command: String) {
         mutate(name, command) { $0.menuBarSnapshot = snapshot }
     }
 
@@ -102,9 +97,7 @@ final class ExtensionCommandMetadataStore {
         try? data.write(to: fileURL, options: .atomic)
     }
 
-    private func mutate(
-        _ name: String, _ command: String, _ body: (inout ExtensionCommandMetadata) -> Void
-    ) {
+    private func mutate(_ name: String, _ command: String, _ body: (inout ExtensionCommandMetadata) -> Void) {
         var record = records[name]?[command] ?? ExtensionCommandMetadata()
         body(&record)
         // A menu redraws its rows on every commit; an unchanged one must not cost a write.

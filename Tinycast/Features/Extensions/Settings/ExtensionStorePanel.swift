@@ -27,9 +27,7 @@ struct ExtensionStorePanel: View {
             Divider()
             footer
         }
-        .padding(Theme.Spacing.dialogInset)
-        .frame(width: 620, height: 560)
-        .extensionSettingsEditorPanelSurface()
+        .extensionSettingsEditorPanelSurface(width: 620, height: 560)
         .onChange(of: query) { _, value in scheduleSearch(value) }
         .onDisappear { searchTask?.cancel() }
     }
@@ -95,9 +93,7 @@ struct ExtensionStorePanel: View {
             Spacer()
             // Escape, not Return: Return belongs to the search field while typing.
             Button("Done", action: onClose)
-                .buttonStyle(
-                    ExtensionSettingsEditorButtonStyle(role: .cancel, fillsWidth: false)
-                )
+                .buttonStyle(ExtensionSettingsEditorButtonStyle(role: .cancel, fillsWidth: false))
                 .keyboardShortcut(.cancelAction)
         }
     }

@@ -41,9 +41,7 @@ struct CommandArgumentsRow: View {
         return fields + gaps + (hasIcon ? height(metrics) : 0)
     }
 
-    static func fieldWidth(
-        for argument: ExtensionCommandArgument, metrics: InterfaceMetrics
-    )
+    static func fieldWidth(for argument: ExtensionCommandArgument, metrics: InterfaceMetrics)
         -> CGFloat
     {
         let placeholder = CGFloat(argument.placeholder.count) * metrics.scaled(7)
@@ -82,9 +80,7 @@ private struct ArgumentField: View {
         .frame(width: CommandArgumentsRow.fieldWidth(for: argument, metrics: metrics))
         .padding(.horizontal, metrics.spacing.sm)
         .frame(height: CommandArgumentsRow.height(metrics))
-        .background(
-            RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous).fill(fill)
-        )
+        .background(RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous).fill(fill))
         .overlay(
             RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous)
                 .strokeBorder(stroke, lineWidth: 1)

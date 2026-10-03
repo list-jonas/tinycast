@@ -30,9 +30,7 @@ final class ExtensionFetcher: Sendable {
     func request(_ spec: RenderValue?) async throws -> [String: Any] {
         let fields = spec?.objectValue ?? [:]
         let urlString = fields["url"]?.stringValue ?? ""
-        guard let url = URL(string: urlString), url.scheme != nil else {
-            throw FetchError.badURL(urlString)
-        }
+        guard let url = URL(string: urlString), url.scheme != nil else { throw FetchError.badURL(urlString) }
 
         var request = URLRequest(url: url)
         request.httpMethod = fields["method"]?.stringValue ?? "GET"
@@ -115,12 +113,8 @@ enum ExtensionAsyncProcess {
             return fileManager.isExecutableFile(atPath: expanded)
                 ? URL(fileURLWithPath: expanded) : nil
         }
-        let search =
-            (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").map(String.init)
-            + [
-                "/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin",
-                "/sbin"
-            ]
+        let inherited = (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":")
+        let search = inherited.map(String.init) + ExtensionBootConfig.loginPaths
         for directory in search {
             let candidate = (directory as NSString).appendingPathComponent(command)
             if fileManager.isExecutableFile(atPath: candidate) {

@@ -10,13 +10,8 @@ final class ExtensionAppearanceStore {
     private(set) var overrides: [String: ExtensionAppearance]
 
     init() {
-        if let data = defaults.data(forKey: key),
-            let decoded = try? JSONDecoder().decode([String: ExtensionAppearance].self, from: data)
-        {
-            overrides = decoded
-        } else {
-            overrides = [:]
-        }
+        overrides = defaults.data(forKey: key)
+            .flatMap { try? JSONDecoder().decode([String: ExtensionAppearance].self, from: $0) } ?? [:]
     }
 
     func appearance(for extensionName: String) -> ExtensionAppearance? {
@@ -25,15 +20,7 @@ final class ExtensionAppearanceStore {
 
     /// `nil` restores the extension's own icon.
     func set(_ appearance: ExtensionAppearance?, for extensionName: String) {
-        if let appearance {
-            overrides[extensionName] = appearance
-        } else {
-            overrides.removeValue(forKey: extensionName)
-        }
-        persist()
-    }
-
-    private func persist() {
+        overrides[extensionName] = appearance
         guard let data = try? JSONEncoder().encode(overrides) else { return }
         defaults.set(data, forKey: key)
     }

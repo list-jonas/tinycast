@@ -4,9 +4,6 @@ import Foundation
 @main
 @MainActor
 struct ExtensionStoreTests {
-    static var failures = 0
-    static var passes = 0
-
     static func main() {
         gitHubSourceParsing()
         gitHubURLs()
@@ -15,9 +12,7 @@ struct ExtensionStoreTests {
         packageManagers()
         abbreviation()
 
-        print(failures == 0 ? "\nALL PASSED" : "\n\(failures) FAILED")
-        print("\(passes) passed, \(failures) failed")
-        exit(failures == 0 ? 0 : 1)
+        finish()
     }
 
     // MARK: - A GitHub source
@@ -268,17 +263,5 @@ struct ExtensionStoreTests {
         check("millions keep a decimal", ExtensionListing.abbreviate(1_240_000) == "1.2M")
         check("big millions don't", ExtensionListing.abbreviate(24_000_000) == "24M")
         check("zero is zero", ExtensionListing.abbreviate(0) == "0")
-    }
-
-    // MARK: - Helpers
-
-    static func check(_ description: String, _ condition: Bool) {
-        if condition {
-            passes += 1
-            print("PASS  \(description)")
-        } else {
-            failures += 1
-            print("FAIL  \(description)")
-        }
     }
 }

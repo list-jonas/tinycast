@@ -115,8 +115,7 @@ enum ExtensionPreferenceValue: Sendable, Hashable {
         case let value as String:
             self = .string(value)
         case let value as NSNumber:
-            self =
-                CFGetTypeID(value) == CFBooleanGetTypeID()
+            self = CFGetTypeID(value) == CFBooleanGetTypeID()
                 ? .bool(value.boolValue) : .number(value.doubleValue)
         case let value as [String: Any]:
             // Platform-keyed default; Tinycast is macOS-only.
@@ -232,9 +231,7 @@ struct ExtensionManifest: Sendable, Hashable {
 
     static func load(directory: URL) throws -> ExtensionManifest {
         let manifestURL = directory.appendingPathComponent("package.json")
-        guard let data = try? Data(contentsOf: manifestURL) else {
-            throw ParseError.unreadable(manifestURL)
-        }
+        guard let data = try? Data(contentsOf: manifestURL) else { throw ParseError.unreadable(manifestURL) }
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
             let manifest = ExtensionManifest(json: json)
         else { throw ParseError.notAnExtension(directory) }

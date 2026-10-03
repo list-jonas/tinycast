@@ -1,7 +1,6 @@
 import Foundation
 
-/// The `List.Dropdown`/`Grid.Dropdown` an extension put in the search bar. The runtime keeps the
-/// component hook-free, so Swift holds the selection and reports every change through `onChange`.
+/// The search bar's `List.Dropdown`/`Grid.Dropdown`; Swift holds the pick, JS hears `onChange`.
 struct ExtensionSearchAccessory: Equatable {
     /// The render node's id, which is what the session keys the held selection by.
     let nodeID: Int
@@ -16,23 +15,19 @@ struct ExtensionSearchAccessory: Equatable {
     let tooltip: String?
 
     init?(node: RenderNode?) {
-        guard let node, node.type == "List.Dropdown" || node.type == "Grid.Dropdown" else {
-            return nil
-        }
+        guard let node, node.type == "List.Dropdown" || node.type == "Grid.Dropdown" else { return nil }
         nodeID = node.id
         items = ExtensionPickerItem.items(in: node)
         onChange = node.handler("onChange")
         controlledValue = node.string("value")
         defaultValue = node.string("defaultValue")
         // Raycast keys the stored pick by the dropdown's own id; one per command needs no id.
-        storageKey =
-            node.bool("storeValue") == true ? (node.string("id") ?? "searchBarAccessory") : nil
+        storageKey = node.bool("storeValue") == true ? (node.string("id") ?? "searchBarAccessory") : nil
         placeholder = node.string("placeholder")
         tooltip = node.string("tooltip")
     }
 
-    /// Raycast's order: the stored pick while it still names a choice, else `defaultValue`, else
-    /// the first choice — a dropdown always shows one.
+    /// Raycast's order: a still-valid stored pick, else `defaultValue`, else the first choice.
     func initialValue(stored: String?) -> String? {
         if let stored, items.contains(where: { $0.value == stored }) { return stored }
         return defaultValue ?? items.first?.value

@@ -3,17 +3,6 @@ import Foundation
 @main
 @MainActor
 struct ExtensionCleanupTests {
-    static var failures = 0
-
-    static func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
-        if !condition() {
-            failures += 1
-            print("FAIL: \(message)")
-        } else {
-            print("PASS  \(message)")
-        }
-    }
-
     // MARK: - Fixtures
 
     /// `Roots` is injected, so `Bundle.main` — the real install — is never consulted.
@@ -192,7 +181,6 @@ struct ExtensionCleanupTests {
         workspaceIsSweptByItsOwnPrefix()
         executableAssetsAreRestored()
 
-        print(failures == 0 ? "Extension cleanup tests passed" : "\(failures) tests failed")
-        exit(failures == 0 ? 0 : 1)
+        finish()
     }
 }

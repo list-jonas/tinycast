@@ -37,28 +37,28 @@ struct ExtensionScreen: Equatable {
         }
     }
 
-    let kind: Kind
-    let root: RenderNode?
-    let rows: [Row]
+    private(set) var kind = Kind.unsupported("")
+    private(set) var root: RenderNode?
+    private(set) var rows: [Row] = []
     /// Selectable rows in visible order — what `selection` indexes.
-    let items: [Item]
+    private(set) var items: [Item] = []
     /// Fields of a Form, in order.
-    let fields: [RenderNode]
-    let isLoading: Bool
-    let navigationTitle: String?
-    let searchPlaceholder: String?
+    private(set) var fields: [RenderNode] = []
+    private(set) var isLoading = false
+    private(set) var navigationTitle: String?
+    private(set) var searchPlaceholder: String?
     /// True when the palette filters rows itself; false when the extension owns the search text.
-    let filtersLocally: Bool
-    let searchTextHandler: String?
-    let selectionHandler: String?
-    let selectedItemID: String?
-    let searchBarAccessory: RenderNode?
+    private(set) var filtersLocally = false
+    private(set) var searchTextHandler: String?
+    private(set) var selectionHandler: String?
+    private(set) var selectedItemID: String?
+    private(set) var searchBarAccessory: RenderNode?
     /// The `List`-level `isShowingDetail`; when set, rows get a detail pane beside them.
-    let showsDetail: Bool
+    private(set) var showsDetail = false
     /// Actions attached to the screen itself (`Detail`/`Form`/`List` level).
-    let screenActions: RenderNode?
+    private(set) var screenActions: RenderNode?
     /// An `EmptyView` to show when there are no rows.
-    let emptyView: RenderNode?
+    private(set) var emptyView: RenderNode?
 
     /// Selectable rows per section: what grid navigation needs to keep a column across a heading.
     var sectionCounts: [Int] {
@@ -76,11 +76,9 @@ struct ExtensionScreen: Equatable {
         return counts.filter { $0 > 0 }
     }
 
-    static let empty = ExtensionScreen(
-        kind: .unsupported(""), root: nil, rows: [], items: [], fields: [], isLoading: false,
-        navigationTitle: nil, searchPlaceholder: nil, filtersLocally: false, searchTextHandler: nil,
-        selectionHandler: nil, selectedItemID: nil, searchBarAccessory: nil, showsDetail: false,
-        screenActions: nil, emptyView: nil)
+    static let empty = ExtensionScreen()
+
+    private init() {}
 
     /// Filters rows by `query` only when the extension hasn't taken the search text over.
     init(tree: RenderTree, query: String) {
@@ -102,16 +100,11 @@ struct ExtensionScreen: Equatable {
             root.bool("filtering") ?? (root.object("filtering") != nil || searchTextHandler == nil)
 
         switch root.type {
-        case "List":
-            kind = .list
-        case "Grid":
-            kind = .grid(ExtensionGridLayout(root))
-        case "Detail":
-            kind = .detail
-        case "Form":
-            kind = .form
-        default:
-            kind = .unsupported(root.type)
+        case "List": kind = .list
+        case "Grid": kind = .grid(ExtensionGridLayout(root))
+        case "Detail": kind = .detail
+        case "Form": kind = .form
+        default: kind = .unsupported(root.type)
         }
 
         switch kind {
@@ -120,8 +113,7 @@ struct ExtensionScreen: Equatable {
             let sectionType = root.type == "Grid" ? "Grid.Section" : "List.Section"
             let emptyType = root.type == "Grid" ? "Grid.EmptyView" : "List.EmptyView"
             emptyView = root.children.first { $0.type == emptyType }
-            let needle = FuzzyMatch.Query(
-                filtersLocally ? query.trimmingCharacters(in: .whitespaces) : "")
+            let needle = FuzzyMatch.Query(filtersLocally ? query.trimmingCharacters(in: .whitespaces) : "")
             var rows: [Row] = []
             var items: [Item] = []
             // Numbering as rows are built keeps `selection` and the drawn order in step.
@@ -147,50 +139,19 @@ struct ExtensionScreen: Equatable {
             }
             self.rows = rows
             self.items = items
-            fields = []
 
         case .form:
             fields = root.children.filter { $0.type.hasPrefix("Form.") }
-            rows = []
             // A form's focusable fields are its selectable rows, so ↑/↓ and ⇥ walk one order.
             var fieldItems: [Item] = []
             for field in fields where ExtensionFormField(type: field.type).isFocusable {
                 fieldItems.append(Item(node: field, index: fieldItems.count))
             }
             items = fieldItems
-            emptyView = nil
 
         case .detail, .unsupported:
-            rows = []
-            items = []
-            fields = []
-            emptyView = nil
+            break
         }
-    }
-
-    private init(
-        kind: Kind, root: RenderNode?, rows: [Row], items: [Item], fields: [RenderNode],
-        isLoading: Bool, navigationTitle: String?, searchPlaceholder: String?, filtersLocally: Bool,
-        searchTextHandler: String?, selectionHandler: String?, selectedItemID: String?,
-        searchBarAccessory: RenderNode?, showsDetail: Bool, screenActions: RenderNode?,
-        emptyView: RenderNode?
-    ) {
-        self.kind = kind
-        self.root = root
-        self.rows = rows
-        self.items = items
-        self.fields = fields
-        self.isLoading = isLoading
-        self.navigationTitle = navigationTitle
-        self.searchPlaceholder = searchPlaceholder
-        self.filtersLocally = filtersLocally
-        self.searchTextHandler = searchTextHandler
-        self.selectionHandler = selectionHandler
-        self.selectedItemID = selectedItemID
-        self.searchBarAccessory = searchBarAccessory
-        self.showsDetail = showsDetail
-        self.screenActions = screenActions
-        self.emptyView = emptyView
     }
 
     var selectedItemIndex: Int? {
@@ -277,89 +238,49 @@ struct ExtensionAction: Equatable, Identifiable {
     var isDestructive: Bool { node.string("style") == "destructive" }
     var iconValue: RenderValue? { node.props["icon"] }
 
+    /// A cross-platform shortcut nests the real one under `macOS`.
+    private var shortcut: (key: String, modifiers: [String])? {
+        guard let raw = node.object("shortcut") else { return nil }
+        let resolved = raw["macOS"]?.objectValue ?? raw
+        guard let key = resolved["key"]?.stringValue else { return nil }
+        return (key, (resolved["modifiers"]?.arrayValue ?? []).compactMap(\.stringValue))
+    }
+
     /// `{modifiers: ["cmd","shift"], key: "c"}` rendered as the palette's keycap glyphs.
     var shortcutCaps: [String]? {
-        guard let shortcut = node.object("shortcut") else { return nil }
-        // A cross-platform shortcut nests the real one under `macOS`.
-        let resolved = shortcut["macOS"]?.objectValue ?? shortcut
-        guard let key = resolved["key"]?.stringValue else { return nil }
-        let modifiers = (resolved["modifiers"]?.arrayValue ?? []).compactMap(\.stringValue)
-        var caps = modifiers.compactMap { modifier -> String? in
-            switch modifier {
-            case "cmd": return "⌘"
-            case "ctrl": return "⌃"
-            case "opt", "alt": return "⌥"
-            case "shift": return "⇧"
-            default: return nil
-            }
-        }
-        caps.append(ExtensionAction.keyCap(key))
-        return caps
+        guard let shortcut else { return nil }
+        return shortcut.modifiers.compactMap { Self.modifiers[$0]?.cap } + [Self.keyCap(shortcut.key)]
     }
 
     /// Modifiers must match exactly, so ⌘⇧C never fires a plain ⌘C action.
     func matches(key: KeyEquivalent, modifiers: EventModifiers) -> Bool {
-        guard let shortcut = node.object("shortcut") else { return false }
-        let resolved = shortcut["macOS"]?.objectValue ?? shortcut
-        guard let declared = resolved["key"]?.stringValue else { return false }
-        let declaredModifiers = (resolved["modifiers"]?.arrayValue ?? []).compactMap(\.stringValue)
-
-        var expected: EventModifiers = []
-        for modifier in declaredModifiers {
-            switch modifier {
-            case "cmd": expected.insert(.command)
-            case "ctrl": expected.insert(.control)
-            case "opt", "alt": expected.insert(.option)
-            case "shift": expected.insert(.shift)
-            default: break
-            }
+        guard let shortcut else { return false }
+        let expected = shortcut.modifiers.reduce(into: EventModifiers()) { flags, name in
+            if let flag = Self.modifiers[name]?.flag { flags.insert(flag) }
         }
-        let pressed: EventModifiers = [.command, .control, .option, .shift].filter {
-            modifiers.contains($0)
-        }
-        .reduce(into: EventModifiers()) { $0.insert($1) }
-        guard pressed == expected else { return false }
-        return ExtensionAction.keyEquivalent(declared) == key
+        let pressed = modifiers.intersection([.command, .control, .option, .shift])
+        return pressed == expected && Self.keyEquivalent(shortcut.key) == key
     }
 
-    /// Raycast's `KeyEquivalent` names → SwiftUI's.
+    private static let modifiers: [String: (flag: EventModifiers, cap: String)] = [
+        "cmd": (.command, "⌘"), "ctrl": (.control, "⌃"), "opt": (.option, "⌥"), "alt": (.option, "⌥"),
+        "shift": (.shift, "⇧")
+    ]
+
+    /// Raycast's `KeyEquivalent` names → SwiftUI's, and the keycap each draws.
+    private static let namedKeys: [String: (key: KeyEquivalent, cap: String)] = [
+        "return": (.return, "↵"), "enter": (.return, "↵"), "delete": (.delete, "⌫"),
+        "backspace": (.delete, "⌫"), "deleteForward": (.deleteForward, "⌦"), "tab": (.tab, "⇥"),
+        "arrowUp": (.upArrow, "↑"), "arrowDown": (.downArrow, "↓"), "arrowLeft": (.leftArrow, "←"),
+        "arrowRight": (.rightArrow, "→"), "escape": (.escape, "⎋"), "space": (.space, "␣"),
+        "pageUp": (.pageUp, "⇞"), "pageDown": (.pageDown, "⇟"), "home": (.home, "↖"), "end": (.end, "↘")
+    ]
+
     private static func keyEquivalent(_ key: String) -> KeyEquivalent {
-        switch key {
-        case "return", "enter": return .return
-        case "delete", "backspace": return .delete
-        case "deleteForward": return .deleteForward
-        case "tab": return .tab
-        case "arrowUp": return .upArrow
-        case "arrowDown": return .downArrow
-        case "arrowLeft": return .leftArrow
-        case "arrowRight": return .rightArrow
-        case "escape": return .escape
-        case "space": return .space
-        case "pageUp": return .pageUp
-        case "pageDown": return .pageDown
-        case "home": return .home
-        case "end": return .end
-        default: return KeyEquivalent(Character(key.lowercased().first.map(String.init) ?? " "))
-        }
+        namedKeys[key]?.key ?? KeyEquivalent(Character(key.lowercased().first.map(String.init) ?? " "))
     }
 
     private static func keyCap(_ key: String) -> String {
-        switch key {
-        case "return", "enter": return "↵"
-        case "delete", "backspace": return "⌫"
-        case "deleteForward": return "⌦"
-        case "tab": return "⇥"
-        case "arrowUp": return "↑"
-        case "arrowDown": return "↓"
-        case "arrowLeft": return "←"
-        case "arrowRight": return "→"
-        case "escape": return "⎋"
-        case "space": return "␣"
-        case "pageUp": return "⇞"
-        case "pageDown": return "⇟"
-        case "home": return "↖"
-        case "end": return "↘"
-        default: return key.uppercased()
-        }
+        namedKeys[key]?.cap ?? key.uppercased()
     }
 }

@@ -329,7 +329,8 @@ run ext-icon-test          Tinycast/Platform/Appearance.swift \
                            Tinycast/Features/Extensions/UI/ExtensionAnimatedImage.swift \
                            Tinycast/Features/Extensions/UI/ExtensionImage.swift \
                            Tinycast/Features/Clipboard/Model/ColorValue.swift \
-                           Tinycast/Features/Clipboard/Model/ColorSpaces.swift
+                           Tinycast/Features/Clipboard/Model/ColorSpaces.swift \
+                           Tests/ext-harness-support.swift
 run system-action-test     Tinycast/Features/SystemActions/Model/SystemAction.swift
 run volume-test            Tinycast/Features/SystemActions/Model/VolumeLevel.swift
 run window-command-test    Tinycast/Features/WindowManagement/Model/WindowCommand.swift \
@@ -522,32 +523,40 @@ run ext-cleanup-test       $E/Service/ExtensionCleanup.swift \
                            $E/Model/ExtensionManifest.swift \
                            $E/Model/ExtensionLaunchType.swift \
                            $E/Model/ExtensionRefreshPolicy.swift \
-                           $E/Model/ExtensionRefreshState.swift
+                           $E/Model/ExtensionRefreshState.swift \
+                           Tests/ext-harness-support.swift
 run ext-refresh-test       $E/Model/ExtensionManifest.swift \
                            Tinycast/Platform/AppDisplayName.swift \
                            $E/Model/ExtensionLaunchType.swift \
                            $E/Model/ExtensionRefreshPolicy.swift \
-                           $E/Model/ExtensionRefreshState.swift
+                           $E/Model/ExtensionRefreshState.swift \
+                           Tests/ext-harness-support.swift
 run ext-metadata-test      $E/Model/ExtensionCommandMetadata.swift \
                            $E/Model/ExtensionMenuBarSnapshot.swift \
-                           $E/Service/ExtensionCommandMetadataStore.swift
+                           $E/Service/ExtensionCommandMetadataStore.swift \
+                           Tests/ext-harness-support.swift
 run ext-version-test       $E/Model/ExtensionListing.swift \
-                           $E/Service/ExtensionVersionStore.swift
+                           $E/Service/ExtensionVersionStore.swift \
+                           Tests/ext-harness-support.swift
 run ext-store-test         $E/Model/ExtensionGitHubSource.swift \
                            $E/Model/ExtensionListing.swift \
                            $E/Model/ExtensionPackageManager.swift \
-                           $E/Model/ExtensionStoreResponse.swift
+                           $E/Model/ExtensionStoreResponse.swift \
+                           Tests/ext-harness-support.swift
 run ext-form-test          $E/Model/ExtensionFormMetrics.swift \
                            $E/Model/ExtensionFormField.swift \
                            $E/UI/ExtensionFormKey.swift \
                            $E/Model/ExtensionDateExpression.swift \
                            $E/UI/ExtensionListKey.swift \
-                           Tests/ext-list-key-test.swift
-run ext-image-size-test   $E/Model/ExtensionImageSize.swift
+                           Tests/ext-list-key-test.swift \
+                           Tests/ext-harness-support.swift
+run ext-image-size-test   $E/Model/ExtensionImageSize.swift \
+                           Tests/ext-harness-support.swift
 run ext-accessory-test     $E/Model/RenderNode.swift \
                            $E/Model/ExtensionPickerItem.swift \
                            $E/Model/ExtensionSearchAccessory.swift \
-                           $E/Service/ExtensionStorage.swift
+                           $E/Service/ExtensionStorage.swift \
+                           Tests/ext-harness-support.swift
 run slow ext-test          -parse-as-library \
                            Tests/ext-render-test.swift \
                            Tests/ext-runtime-test.swift \
@@ -556,6 +565,7 @@ run slow ext-test          -parse-as-library \
                            $E/Model/ExtensionLaunchError.swift \
                            $E/Model/ExtensionMenuBarSnapshot.swift \
                            $E/Service/ExtensionStorage.swift \
+                           $E/Service/ExtensionStorage+Launch.swift \
                            $E/Service/ExtensionMenuBarManager.swift \
                            $E/Model/ExtensionCommandMetadata.swift \
                            $E/Service/ExtensionCommandMetadataStore.swift \

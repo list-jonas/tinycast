@@ -21,20 +21,10 @@ struct ExtensionFieldChrome: ViewModifier {
             .padding(.horizontal, form.textInset)
             // One inset either way, so a text area's first line sits where a field's does.
             .padding(.vertical, form.verticalInset)
-            .frame(
-                width: form.controlWidth, height: height,
-                alignment: multiline ? .topLeading : .leading
-            )
-            .background(
-                RoundedRectangle(
-                    cornerRadius: metrics.radius.row, style: .continuous
-                )
-                .fill(fill)
-            )
+            .frame(width: form.controlWidth, height: height, alignment: multiline ? .topLeading : .leading)
+            .background(RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous).fill(fill))
             .overlay(
-                RoundedRectangle(
-                    cornerRadius: metrics.radius.row, style: .continuous
-                )
+                RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous)
                 .strokeBorder(stroke, lineWidth: 1)
             )
             // The form draws its own focused edge, so AppKit's blue ring would be a second one.
@@ -56,9 +46,7 @@ extension View {
     func extensionFieldChrome(
         focused: Bool, open: Bool = false, hovered: Bool = false, multiline: Bool = false
     ) -> some View {
-        modifier(
-            ExtensionFieldChrome(
-                focused: focused, open: open, hovered: hovered, multiline: multiline))
+        modifier(ExtensionFieldChrome(focused: focused, open: open, hovered: hovered, multiline: multiline))
     }
 }
 
@@ -94,8 +82,7 @@ struct ExtensionPickerRow: View {
         Button(action: onActivate) {
             HStack(spacing: metrics.spacing.md) {
                 if let icon {
-                    ExtensionIconView(
-                        resolved: icon, size: metrics.size.menuIcon, usesMenuSymbolStyle: true)
+                    ExtensionIconView(resolved: icon, size: metrics.size.menuIcon, usesMenuSymbolStyle: true)
                 }
                 Text(title)
                     .font(metrics.typography.menuRow)

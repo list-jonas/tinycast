@@ -36,9 +36,7 @@ enum ExtensionImage {
         guard let value else { return nil }
         switch value {
         case .string(let text):
-            guard let source = source(from: text, assetsPath: assetsPath, isDark: isDark) else {
-                return nil
-            }
+            guard let source = source(from: text, assetsPath: assetsPath, isDark: isDark) else { return nil }
             return Resolved(source: source)
         case .object(let fields):
             // Raycast's icon-with-tooltip form; unwrap only when it looks like one.
@@ -66,8 +64,7 @@ enum ExtensionImage {
     static func actionIcon(
         _ value: RenderValue?, assetsPath: String?, isDark: Bool, isDestructive: Bool
     ) -> Resolved {
-        var icon =
-            resolve(value, assetsPath: assetsPath, isDark: isDark)
+        var icon = resolve(value, assetsPath: assetsPath, isDark: isDark)
             ?? Resolved(source: .symbol(isDestructive ? "trash" : "bolt"))
         // Symbols only: a tint masks artwork, so reddening a delete row's own PNG would erase it.
         if isDestructive, icon.tint == nil, case .symbol = icon.source { icon.tint = .red }
@@ -86,9 +83,7 @@ enum ExtensionImage {
     }
 
     /// An `Image.Source`: a string, a `{fileIcon}`, or a `{light, dark}` pair naming either.
-    private static func source(
-        from value: RenderValue, assetsPath: String?, isDark: Bool
-    ) -> Source? {
+    private static func source(from value: RenderValue, assetsPath: String?, isDark: Bool) -> Source? {
         switch value {
         case .string(let text):
             return source(from: text, assetsPath: assetsPath, isDark: isDark)
@@ -142,8 +137,7 @@ enum ExtensionImage {
         var css: String?
         NSAppearance(named: isDark ? .darkAqua : .aqua)?.performAsCurrentDrawingAppearance {
             guard let srgb = NSColor(color).usingColorSpace(.sRGB) else { return }
-            css =
-                "rgba(\(channel(srgb.redComponent)),\(channel(srgb.greenComponent)),"
+            css = "rgba(\(channel(srgb.redComponent)),\(channel(srgb.greenComponent)),"
                 + "\(channel(srgb.blueComponent)),\((srgb.alphaComponent * 1000).rounded() / 1000))"
         }
         return css
@@ -356,11 +350,17 @@ extension ExtensionImage {
         case .remote(let url):
             return await ExtensionIconCache.loadRemoteAsync(url, asIcon: !animates)
         case .inline(let url):
-            return await ExtensionIconCache.loadInlineAsync(
-                url, palette: svgPalette(isDark: isDark))
+            return await ExtensionIconCache.loadInlineAsync(url, palette: svgPalette(isDark: isDark))
         default:
             return nil
         }
+    }
+}
+
+extension ExtensionIconView {
+    /// A raw `ImageLike` prop, resolved for the appearance the caller draws on.
+    init(_ value: RenderValue?, assetsPath: String?, isDark: Bool, size: CGFloat) {
+        self.init(resolved: ExtensionImage.resolve(value, assetsPath: assetsPath, isDark: isDark), size: size)
     }
 }
 
@@ -412,9 +412,7 @@ struct ExtensionIconView: View {
                 )
                 .foregroundStyle(
                     resolved?.tint
-                        ?? (usesMenuSymbolStyle
-                            ? MenuSymbolStyle.color
-                            : Theme.Colors.textSecondary)
+                        ?? (usesMenuSymbolStyle ? MenuSymbolStyle.color : Theme.Colors.textSecondary)
                 )
                 .frame(width: side, height: side)
         case .glyph(let text):

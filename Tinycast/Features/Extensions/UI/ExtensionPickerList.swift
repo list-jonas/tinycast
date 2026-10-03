@@ -14,8 +14,7 @@ struct ExtensionPickerList: View {
     /// Values already chosen; a single-select picker passes the one it holds.
     let chosen: Set<String>
     let assetsPath: String?
-    /// Fixed, never intrinsic, so the list cannot jitter as its rows change. A form's picker
-    /// matches the field above it; a header dropdown hangs off a chip and drops narrower.
+    /// Fixed, never intrinsic, so the list cannot jitter as its rows change.
     var width: CGFloat?
     var searchPlaceholder: String?
     let onSelect: (Int) -> Void
@@ -59,7 +58,7 @@ struct ExtensionPickerList: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: form.popoverRowSpacing) {
                         ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                            if let section = item.section, section != sectionBefore(index) {
+                            if let section = item.section, section != items.section(before: index) {
                                 sectionHeader(section)
                             }
                             ExtensionPickerRow(
@@ -78,20 +77,17 @@ struct ExtensionPickerList: View {
                     .padding(searchPlaceholder == nil ? 0 : menuListInset)
                 }
                 .frame(
-                    height: form.popoverListHeight(
-                        rows: items.count, headers: headerCount)
+                    height: form.popoverListHeight(rows: items.count, headers: items.headingCount)
                         + (searchPlaceholder == nil ? 0 : menuListInset * 2)
                 )
                 .scrollBounceBehavior(
-                    form.popoverListContentHeight(rows: items.count, headers: headerCount)
+                    form.popoverListContentHeight(rows: items.count, headers: items.headingCount)
                         > form.popoverRowsMaxHeight
                         ? .always : .basedOnSize
                 )
                 // `never`, not `hidden`: hidden still lets AppKit claim the scroller's gutter.
                 .scrollIndicators(.never)
-                .overflowFade(
-                    band: form.popoverFadeBand, includingTop: searchPlaceholder == nil
-                )
+                .overflowFade(band: form.popoverFadeBand, includingTop: searchPlaceholder == nil)
                 .onChange(of: selection, initial: true) { proxy.scrollTo(selection) }
             }
         }
@@ -104,19 +100,6 @@ struct ExtensionPickerList: View {
             .lineLimit(1)
             .padding(.horizontal, metrics.spacing.lg)
             .frame(height: form.popoverSectionHeaderHeight, alignment: .leading)
-    }
-
-    /// The section of the row before this one, so only the first of a run draws its heading.
-    private func sectionBefore(_ index: Int) -> String? {
-        index > 0 ? items[index - 1].section : nil
-    }
-
-    /// Headings the list draws, which the height maths counts as well as rows.
-    private var headerCount: Int {
-        items.indices.reduce(into: 0) { total, index in
-            guard let section = items[index].section, section != sectionBefore(index) else { return }
-            total += 1
-        }
     }
 }
 

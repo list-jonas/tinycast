@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 /// Installs from the store or from GitHub source, in a workspace removed whichever way this ends.
 struct ExtensionInstaller: Sendable {
@@ -88,9 +89,7 @@ struct ExtensionInstaller: Sendable {
         let result = try await run(
             URL(fileURLWithPath: "/usr/bin/ditto"),
             arguments: ["-x", "-k", archive.path, expanded.path], in: workspace)
-        guard result.status == 0 else {
-            throw ExtensionStoreError.downloadFailed(result.trimmedOutput)
-        }
+        guard result.status == 0 else { throw ExtensionStoreError.downloadFailed(result.trimmedOutput) }
         return try locateManifestRoot(in: expanded)
     }
 
@@ -121,16 +120,12 @@ struct ExtensionInstaller: Sendable {
             throw ExtensionStoreError.noPackageManager
         }
         guard let node = ExtensionPackageManager.nodeURL(additionalSearchPaths: additionalSearchPaths)
-        else {
-            throw ExtensionStoreError.noNode
-        }
+        else { throw ExtensionStoreError.noNode }
 
         onProgress(.installingDependencies(manager: resolved.manager.title))
         let install = try await run(
             resolved.url, arguments: resolved.manager.installArguments, in: source, node: node)
-        guard install.status == 0 else {
-            throw ExtensionStoreError.buildFailed(install.trimmedOutput)
-        }
+        guard install.status == 0 else { throw ExtensionStoreError.buildFailed(install.trimmedOutput) }
 
         onProgress(.building)
         let ray = source.appendingPathComponent("node_modules/.bin/ray")
@@ -138,27 +133,20 @@ struct ExtensionInstaller: Sendable {
             // Not a Raycast build: its own script is the only contract, and it emits in place.
             let build = try await run(
                 resolved.url, arguments: resolved.manager.buildArguments, in: source, node: node)
-            guard build.status == 0 else {
-                throw ExtensionStoreError.buildFailed(build.trimmedOutput)
-            }
+            guard build.status == 0 else { throw ExtensionStoreError.buildFailed(build.trimmedOutput) }
             return try validated(source)
         }
 
         // `ray` directly, `-o` never the source: a dev install would clear it.
         let build = try await run(
             ray,
-            arguments: [
-                "build", "-e", environment(for: source), "-o", output.path, "--non-interactive"
-            ],
+            arguments: ["build", "-e", environment(for: source), "-o", output.path, "--non-interactive"],
             in: source, node: node)
-        guard build.status == 0 else {
-            throw ExtensionStoreError.buildFailed(build.trimmedOutput)
-        }
+        guard build.status == 0 else { throw ExtensionStoreError.buildFailed(build.trimmedOutput) }
         return try validated(output)
     }
 
-    /// `dist` builds a `rust:` helper for Windows, which is dead code here and needs a toolchain
-    /// nobody on macOS has; `dev` is the environment whose Rust plugin stubs it out instead.
+    /// `dev`, not `dist`: its Rust plugin stubs out the Windows helper no Mac can build.
     private func environment(for source: URL) -> String {
         let enumerator = FileManager.default.enumerator(
             at: source, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
@@ -171,8 +159,7 @@ struct ExtensionInstaller: Sendable {
 
     private func validated(_ directory: URL) throws -> URL {
         guard
-            FileManager.default.fileExists(
-                atPath: directory.appendingPathComponent("package.json").path)
+            FileManager.default.fileExists(atPath: directory.appendingPathComponent("package.json").path)
         else { throw ExtensionStoreError.notAnExtension }
         return directory
     }
@@ -263,15 +250,13 @@ struct ExtensionInstaller: Sendable {
 }
 
 /// Lets exactly one of two racing paths resume a continuation.
-private final class ResumeGuard: @unchecked Sendable {
-    private let lock = NSLock()
-    private var claimed = false
+private final class ResumeGuard: Sendable {
+    private let claimed = Mutex(false)
 
     func claim() -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        if claimed { return false }
-        claimed = true
-        return true
+        claimed.withLock { claimed in
+            defer { claimed = true }
+            return !claimed
+        }
     }
 }

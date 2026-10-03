@@ -13,8 +13,7 @@ final class ExtensionVersionStore {
 
     init(fileURL: URL) {
         self.fileURL = fileURL
-        entries =
-            (try? Data(contentsOf: fileURL))
+        entries = (try? Data(contentsOf: fileURL))
             .flatMap { try? JSONDecoder().decode([String: Entry].self, from: $0) } ?? [:]
     }
 
@@ -33,9 +32,7 @@ final class ExtensionVersionStore {
         var behind: [ExtensionListing] = []
         update { entries in
             for listing in latest {
-                guard let entry = entries[listing.name], let latestSHA = listing.commitSHA else {
-                    continue
-                }
+                guard let entry = entries[listing.name], let latestSHA = listing.commitSHA else { continue }
                 if let installedSHA = entry.commitSHA {
                     if installedSHA != latestSHA { behind.append(listing) }
                 } else {

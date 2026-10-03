@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// The extension's search-bar dropdown, drawn as a header control. Not `HeaderMenuButton`: the
-/// choice it states carries an extension's own icon, which `PopoverMenuIcon` cannot name.
+/// Not `HeaderMenuButton`: its choice carries an extension's own icon `PopoverMenuIcon` can't name.
 struct ExtensionSearchAccessoryButton: View {
     @Environment(\.metrics) private var metrics
     /// Room for a long choice beside its icon and tick, without a form field's 360pt sprawl.
@@ -21,8 +20,7 @@ struct ExtensionSearchAccessoryButton: View {
         BarButton(chrome: .rounded, action: action) {
             HStack(spacing: metrics.spacing.sm) {
                 if let icon {
-                    ExtensionIconView(
-                        resolved: icon, size: metrics.size.menuIcon, usesMenuSymbolStyle: true)
+                    ExtensionIconView(resolved: icon, size: metrics.size.menuIcon, usesMenuSymbolStyle: true)
                 }
                 Text(accessory.title(for: value) ?? "")
                     .font(metrics.typography.bar)
@@ -37,7 +35,6 @@ struct ExtensionSearchAccessoryButton: View {
     }
 
     private var icon: ExtensionImage.Resolved? {
-        ExtensionImage.resolve(
-            accessory.item(for: value)?.iconValue, assetsPath: assetsPath, isDark: isDark)
+        ExtensionImage.resolve(accessory.item(for: value)?.iconValue, assetsPath: assetsPath, isDark: isDark)
     }
 }

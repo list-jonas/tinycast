@@ -3,17 +3,6 @@ import Foundation
 @main
 @MainActor
 struct ExtensionRefreshTests {
-    static var failures = 0
-
-    static func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
-        if !condition() {
-            failures += 1
-            print("FAIL: \(message)")
-        } else {
-            print("PASS  \(message)")
-        }
-    }
-
     static func command(json: [String: Any]) -> ExtensionCommand? {
         ExtensionCommand(json: json)
     }
@@ -210,7 +199,6 @@ struct ExtensionRefreshTests {
         indicatorNamesTheState()
         launchTypesMatchTheJSContract()
 
-        print(failures == 0 ? "Extension refresh tests passed" : "\(failures) tests failed")
-        exit(failures == 0 ? 0 : 1)
+        finish()
     }
 }

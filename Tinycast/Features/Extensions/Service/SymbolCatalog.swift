@@ -76,14 +76,11 @@ struct SymbolCatalog: Sendable {
 
     /// Reads and filters the system catalog. Off the main actor: it parses ~700 KB of plists.
     nonisolated static func load() -> SymbolCatalog {
-        let base = URL(
-            fileURLWithPath:
-                "/System/Library/CoreServices/CoreGlyphs.bundle/Contents/Resources")
+        let base = URL(fileURLWithPath: "/System/Library/CoreServices/CoreGlyphs.bundle/Contents/Resources")
 
         func plist<T>(_ name: String, as type: T.Type) -> T? {
             guard let data = try? Data(contentsOf: base.appendingPathComponent(name)),
-                let value = try? PropertyListSerialization.propertyList(
-                    from: data, options: [], format: nil)
+                let value = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil)
             else { return nil }
             return value as? T
         }
@@ -92,8 +89,7 @@ struct SymbolCatalog: Sendable {
             return fallback
         }
         // Apple reserves ~600 for its own products; labelling with one misuses the mark.
-        let restricted = Set(
-            (plist("symbol_restrictions.strings", as: [String: String].self) ?? [:]).keys)
+        let restricted = Set((plist("symbol_restrictions.strings", as: [String: String].self) ?? [:]).keys)
         let categoriesBySymbol = plist("symbol_categories.plist", as: [String: [String]].self) ?? [:]
         let search = plist("symbol_search.plist", as: [String: [String]].self) ?? [:]
 
@@ -118,7 +114,9 @@ struct SymbolCatalog: Sendable {
             symbols: symbols,
             categories: [.suggested, .bundled, .all] + ordered,
             byCategory: byCategory,
-            searchTerms: search.merging(bundledTerms) { system, _ in system })
+            // Lowered once here, so a keystroke never lowers eight thousand symbols' terms again.
+            searchTerms: search.merging(bundledTerms) { system, _ in system }
+                .mapValues { $0.map { $0.lowercased() } })
     }
 
     func symbols(in category: SymbolCategory) -> [String] {
@@ -137,10 +135,9 @@ struct SymbolCatalog: Sendable {
         // A search is a search: it looks through everything unless the user narrowed to a category.
         let pool = category.id == SymbolCategory.suggested.id ? symbols : symbols(in: category)
         return pool.filter { symbol in
-            let haystack = symbol.replacingOccurrences(of: ".", with: " ")
-            return words.allSatisfy { word in
-                haystack.contains(word)
-                    || (searchTerms[symbol] ?? []).contains { $0.lowercased().contains(word) }
+            // A word holds no dot, so matching the raw name equals matching it split on its dots.
+            words.allSatisfy { word in
+                symbol.contains(word) || (searchTerms[symbol] ?? []).contains { $0.contains(word) }
             }
         }
     }

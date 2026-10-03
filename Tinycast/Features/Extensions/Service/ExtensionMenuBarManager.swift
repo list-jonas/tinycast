@@ -173,12 +173,9 @@ final class ExtensionMenuBarManager: ExtensionRuntimeDelegate {
             scheduleRefresh()
         }
 
-        let missing = storage.missingRequiredPreferences(
-            extension: owner.manifest.name,
-            schemas: owner.manifest.preferences + command.preferences)
+        let missing = storage.missingRequiredPreferences(owner: owner, command: command)
         guard missing.isEmpty, let bundle = owner.bundleURL(for: command) else {
-            let message =
-                missing.isEmpty
+            let message = missing.isEmpty
                 ? ExtensionLaunchError.notBuilt(command.title).localizedDescription
                 : ExtensionLaunchError.missingPreferences(missing).localizedDescription
             controllers[entryID]?.showError(message)
@@ -195,16 +192,9 @@ final class ExtensionMenuBarManager: ExtensionRuntimeDelegate {
         active = session
         if controllers[entryID]?.isOpen == true { session.enableInteraction() }
         let support = supportDirectory.appendingPathComponent(ExtensionCatalog.safeName(owner.manifest.name))
-        let context = ExtensionLaunchContext(
-            extensionName: owner.manifest.name, extensionTitle: owner.title, commandName: command.name,
-            commandMode: command.mode, assetsPath: owner.assetsPath, supportPath: support.path,
-            preferences: storage.resolvedPreferences(
-                extension: owner.manifest.name,
-                schemas: owner.manifest.preferences + command.preferences),
-            caches: storage.caches(extension: owner.manifest.name),
-            arguments: command.completeArguments(request.arguments),
-            fallbackText: nil, launchType: request.type,
-            isDarkAppearance: NSApp.effectiveAppearance.isDark, launchContext: request.context)
+        let context = storage.launchContext(
+            owner: owner, command: command, arguments: request.arguments, supportPath: support,
+            launchType: request.type, launchContext: request.context)
         launchTask = Task { [weak self] in
             do {
                 let code = try await Task.detached(priority: .utility) {
@@ -238,8 +228,7 @@ final class ExtensionMenuBarManager: ExtensionRuntimeDelegate {
                 return
             }
             let queued = self.requests.firstIndex { $0.reference == reference && !$0.scheduled }
-            let request =
-                queued.map { self.requests.remove(at: $0) }
+            let request = queued.map { self.requests.remove(at: $0) }
                 ?? Request(reference: reference, type: .userInitiated)
             self.requests.removeAll { $0.reference == reference && $0.scheduled }
             self.requests.insert(request, at: 0)

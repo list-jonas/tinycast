@@ -38,9 +38,7 @@ struct ExtensionDetailBody: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(
-                .horizontal, stacksMetadata ? metrics.scaled(Self.stackedInset) : metrics.spacing.lg
-            )
+            .padding(.horizontal, stacksMetadata ? metrics.scaled(Self.stackedInset) : metrics.spacing.lg)
             .padding(.vertical, metrics.spacing.md)
             .hideNativeScrollers()
         }
@@ -91,10 +89,7 @@ struct ExtensionMetadataView: View {
                     row(title: child.string("title"), index: index) {
                         HStack(spacing: metrics.spacing.xs) {
                             if let icon = child.props["icon"] {
-                                ExtensionIconView(
-                                    resolved: ExtensionImage.resolve(
-                                        icon, assetsPath: assetsPath, isDark: isDark),
-                                    size: 14)
+                                ExtensionIconView(icon, assetsPath: assetsPath, isDark: isDark, size: 14)
                             }
                             Text(labelText(child))
                                 .font(metrics.typography.rowTitle)
@@ -179,9 +174,7 @@ private struct ExtensionTagListView: View {
                     ExtensionImage.color(tag.props["color"], isDark: isDark) ?? Theme.Colors.textSecondary
                 HStack(spacing: 3) {
                     if let icon = tag.props["icon"] {
-                        ExtensionIconView(
-                            resolved: ExtensionImage.resolve(icon, assetsPath: assetsPath, isDark: isDark),
-                            size: 12)
+                        ExtensionIconView(icon, assetsPath: assetsPath, isDark: isDark, size: 12)
                     }
                     Text(tag.string("text") ?? "")
                         .font(metrics.typography.rowTrailing)
@@ -189,9 +182,7 @@ private struct ExtensionTagListView: View {
                 .foregroundStyle(color)
                 .padding(.horizontal, metrics.spacing.xs)
                 .padding(.vertical, 2)
-                .background(
-                    RoundedRectangle(cornerRadius: 4, style: .continuous).fill(color.opacity(0.16))
-                )
+                .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(color.opacity(0.16)))
             }
         }
     }
@@ -223,9 +214,7 @@ struct FlowLayout: Layout {
         return total
     }
 
-    func placeSubviews(
-        in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()
-    ) {
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         var x = bounds.minX
         var y = bounds.minY
         var rowHeight: CGFloat = 0
@@ -499,8 +488,7 @@ private struct ExtensionMarkdownImage: View {
         .task(id: ExtensionImage.LoadKey(source: source, isDark: isDark)) {
             // A slow remote load must not show the previous row's image meanwhile.
             if url.scheme != "data" { image = nil }
-            let loaded =
-                url.scheme == "data"
+            let loaded = url.scheme == "data"
                 ? await ExtensionIconCache.loadInlineAsync(
                     url, palette: ExtensionImage.svgPalette(isDark: isDark))
                 : await ExtensionIconCache.loadRemoteAsync(url, asIcon: false)

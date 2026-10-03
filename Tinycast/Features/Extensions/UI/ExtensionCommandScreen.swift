@@ -59,8 +59,7 @@ struct ExtensionCommandScreen: PaletteScreen {
         guard case .grid(let layout) = screen.kind, !rows.isEmpty else { return nil }
         switch axis {
         case .vertical:
-            let geometry = ExtensionGridGeometry(
-                counts: screen.sectionCounts, columns: layout.columns)
+            let geometry = ExtensionGridGeometry(counts: screen.sectionCounts, columns: layout.columns)
             return delta > 0 ? geometry.down(from: selection) : geometry.up(from: selection)
         case .horizontal:
             return min(max(selection + delta, 0), rows.count - 1)
@@ -131,13 +130,7 @@ struct ExtensionCommandScreen: PaletteScreen {
                 extensions.dispatch(handler: handler)
             },
             clipPath: { bounds, metrics, _ in
-                UnevenRoundedRectangle(
-                    topLeadingRadius: metrics.radius.menuPanel,
-                    bottomLeadingRadius: metrics.radius.menuPanel,
-                    bottomTrailingRadius: metrics.size.menuButton / 2,
-                    topTrailingRadius: metrics.radius.menuPanel,
-                    style: .continuous
-                ).path(in: bounds).cgPath
+                ExtensionActionsPanel.shape(metrics).path(in: bounds).cgPath
             },
             motion: ExtensionMenuMotion.panel)
     }

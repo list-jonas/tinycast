@@ -42,8 +42,7 @@ struct ExtensionFormView: View {
             }
             .edgeDissolve()
             .thinScrollbar()
-            .scrollFollowsSelection(
-                scroll, row: focusedRowID, atOrigin: selection == 0, proxy: proxy)
+            .scrollFollowsSelection(scroll, row: focusedRowID, atOrigin: selection == 0, proxy: proxy)
         }
         // A form arrives with whatever row the screen before it left behind, so it states its own.
         .onAppear { focus(screen.autoFocusedField) }
@@ -204,11 +203,7 @@ struct ExtensionFormView: View {
             }
         }
         // Leading, so content narrower than a control can't pull its label towards the centre.
-        .frame(
-            width: labelWidth + metrics.spacing.md
-                + form.controlWidth,
-            alignment: .leading
-        )
+        .frame(width: labelWidth + metrics.spacing.md + form.controlWidth, alignment: .leading)
         .frame(maxWidth: .infinity)
         .offset(x: -(labelWidth + metrics.spacing.md) / 2)
     }
@@ -371,9 +366,7 @@ private struct ExtensionCheckbox: View {
                         .foregroundStyle(.white)
                 }
             }
-            .frame(
-                width: form.checkboxSize,
-                height: form.checkboxSize)
+            .frame(width: form.checkboxSize, height: form.checkboxSize)
     }
 
     private var borderColor: Color {

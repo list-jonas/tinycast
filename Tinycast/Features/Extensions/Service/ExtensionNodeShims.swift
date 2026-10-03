@@ -92,9 +92,7 @@ final class ExtensionNodeShims: @unchecked Sendable {
             }
             return Double(statistics.free_count) * Double(getpagesize())
         }
-        guard method == "cpus" else {
-            throw ShimError.failed("os.\(method) is not supported.", "ENOSYS")
-        }
+        guard method == "cpus" else { throw ShimError.failed("os.\(method) is not supported.", "ENOSYS") }
 
         var processorCount: natural_t = 0
         var processorInfo: processor_info_array_t?
@@ -149,8 +147,7 @@ final class ExtensionNodeShims: @unchecked Sendable {
             }
             let flags = (arguments[safe: 1] as? NSNumber)?.int32Value ?? O_RDONLY
             let mode = (arguments[safe: 2] as? NSNumber)?.uint16Value ?? 0o666
-            let descriptor = Darwin.open(
-                target, (flags & Self.openableFlags) | O_CLOEXEC, mode_t(mode))
+            let descriptor = Darwin.open(target, (flags & Self.openableFlags) | O_CLOEXEC, mode_t(mode))
             guard descriptor >= 0 else { throw fileError("open", target) }
             fileHandles[descriptor] = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
             return descriptor
@@ -209,8 +206,7 @@ final class ExtensionNodeShims: @unchecked Sendable {
                 let child = (target as NSString).appendingPathComponent(name)
                 var isDirectory: ObjCBool = false
                 let exists = fileManager.fileExists(atPath: child, isDirectory: &isDirectory)
-                let isLink =
-                    (try? fileManager.destinationOfSymbolicLink(atPath: child)) != nil
+                let isLink = (try? fileManager.destinationOfSymbolicLink(atPath: child)) != nil
                 return [
                     "name": name, "parentPath": target,
                     "_isFile": exists && !isDirectory.boolValue,
@@ -222,8 +218,7 @@ final class ExtensionNodeShims: @unchecked Sendable {
         case "mkdir":
             let target = try path(0)
             let recursive = arguments[safe: 1] as? Bool ?? false
-            try fileManager.createDirectory(
-                atPath: target, withIntermediateDirectories: recursive)
+            try fileManager.createDirectory(atPath: target, withIntermediateDirectories: recursive)
             return recursive ? target : nil
 
         case "remove":
@@ -249,9 +244,7 @@ final class ExtensionNodeShims: @unchecked Sendable {
 
         case "realpath":
             let target = try path(0)
-            guard fileManager.fileExists(atPath: target) else {
-                throw ShimError.noEntry(target, "realpath")
-            }
+            guard fileManager.fileExists(atPath: target) else { throw ShimError.noEntry(target, "realpath") }
             return URL(fileURLWithPath: target).resolvingSymlinksInPath().path
 
         case "chmod":
@@ -259,9 +252,7 @@ final class ExtensionNodeShims: @unchecked Sendable {
             guard let mode = arguments[safe: 1] as? NSNumber else {
                 throw ShimError.failed("fs.chmod needs a mode.", "EINVAL")
             }
-            guard fileManager.fileExists(atPath: target) else {
-                throw ShimError.noEntry(target, "chmod")
-            }
+            guard fileManager.fileExists(atPath: target) else { throw ShimError.noEntry(target, "chmod") }
             try fileManager.setAttributes([.posixPermissions: mode], ofItemAtPath: target)
             return nil
 
@@ -335,8 +326,7 @@ final class ExtensionNodeShims: @unchecked Sendable {
         let code = errno
         let name = Self.errorNames[code] ?? "EIO"
         let target = path.map { " '\($0)'" } ?? ""
-        return ShimError.failed(
-            "\(name): \(String(cString: strerror(code))), \(syscall)\(target)", name)
+        return ShimError.failed("\(name): \(String(cString: strerror(code))), \(syscall)\(target)", name)
     }
 
     private static let errorNames: [Int32: String] = [
@@ -346,8 +336,7 @@ final class ExtensionNodeShims: @unchecked Sendable {
     ]
 
     private func stat(path: String, followLinks: Bool) throws -> [String: Any] {
-        let attributes =
-            followLinks
+        let attributes = followLinks
             ? try? fileManager.attributesOfItem(
                 atPath: URL(fileURLWithPath: path).resolvingSymlinksInPath().path)
             : try? fileManager.attributesOfItem(atPath: path)

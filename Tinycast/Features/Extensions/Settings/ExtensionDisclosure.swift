@@ -45,17 +45,13 @@ struct ExtensionDisclosure: View {
         .contentShape(.rect)
         .onTapGesture(perform: onToggle)
         .accessibilityAddTraits(.isButton)
-        .accessibilityLabel(
-            isExpanded ? "Hide \(installed.title) settings" : "Configure \(installed.title)")
+        .accessibilityLabel(isExpanded ? "Hide \(installed.title) settings" : "Configure \(installed.title)")
         .id(SettingsTarget.row(.extensionsInstalled, installed.manifest.name))
     }
 
     /// One `Grid` for every run: separate grids size columns apart, stranding controls.
     private var settings: some View {
-        Grid(
-            alignment: .leading, horizontalSpacing: Theme.Spacing.lg,
-            verticalSpacing: Theme.Spacing.md
-        ) {
+        Grid(alignment: .leading, horizontalSpacing: Theme.Spacing.lg, verticalSpacing: Theme.Spacing.md) {
             // No heading: these two are one idea, and first so 19 commands can't bury them.
             ExtensionLauncherRow(installed: installed)
             ExtensionIconRow(installed: installed)
@@ -146,8 +142,8 @@ private struct ExtensionCommandRows: View {
                 Toggle(
                     "Show in menu bar",
                     isOn: Binding(
-                        get: { core.extensionCoordinator.menuBarIsEnabled(reference) },
-                        set: { core.extensionCoordinator.setMenuBarEnabled($0, reference: reference) })
+                        get: { core.extensions.menuBarIsEnabled(reference) },
+                        set: { core.extensions.setMenuBarEnabled($0, reference: reference) })
                 )
                 .labelsHidden()
             }
@@ -161,8 +157,7 @@ private struct ExtensionCommandRows: View {
         if ExtensionRefreshPolicy.isSchedulable(mode: command.mode, interval: command.interval),
             let schedule = command.intervalRaw
         {
-            ExtensionRefreshRow(
-                extensionName: installed.manifest.name, command: command, schedule: schedule)
+            ExtensionRefreshRow(extensionName: installed.manifest.name, command: command, schedule: schedule)
         }
     }
 }
@@ -181,7 +176,7 @@ private struct ExtensionRefreshRow: View {
     }()
 
     var body: some View {
-        let info = core.extensions.backgroundInfo(extension: extensionName, command: command.name)
+        let info = core.extensions.commandMetadata.metadata(extension: extensionName, command: command.name)
         ExtensionSettingsCardRow(
             title: "Background refresh", detail: detail(for: info), indent: Theme.Spacing.lg
         ) {
@@ -250,9 +245,7 @@ private struct ExtensionIconRow: View {
     }
 
     var body: some View {
-        ExtensionSettingsCardRow(
-            title: "Launcher icon", detail: appearance == nil ? nil : "Custom icon."
-        ) {
+        ExtensionSettingsCardRow(title: "Launcher icon", detail: appearance == nil ? nil : "Custom icon.") {
             HStack(spacing: Theme.Spacing.md) {
                 if let appearance {
                     SymbolTile(symbol: appearance.symbol, tint: appearance.tint, side: Theme.Size.rowIcon)

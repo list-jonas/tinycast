@@ -10,22 +10,14 @@ final class ExtensionStorage {
         /// A search-bar dropdown's `storeValue` pick — host UI state, so not `LocalStorage`.
         var accessoryValues: [String: String] = [:]
 
-        enum CodingKeys: String, CodingKey {
-            case localStorage, caches, preferences, accessoryValues
-        }
-
         init() {}
 
-        /// Each section decodes on its own: one absent key must not take an extension's whole
-        /// store — API keys included — down with it, since a failed decode resets the file.
+        /// Per section: one absent key must not reset the whole file, API keys included.
         init(from decoder: Decoder) throws {
             let store = try decoder.container(keyedBy: CodingKeys.self)
-            localStorage =
-                try store.decodeIfPresent([String: StoredValue].self, forKey: .localStorage) ?? [:]
-            caches =
-                try store.decodeIfPresent([String: [String: String]].self, forKey: .caches) ?? [:]
-            preferences =
-                try store.decodeIfPresent([String: StoredValue].self, forKey: .preferences) ?? [:]
+            localStorage = try store.decodeIfPresent([String: StoredValue].self, forKey: .localStorage) ?? [:]
+            caches = try store.decodeIfPresent([String: [String: String]].self, forKey: .caches) ?? [:]
+            preferences = try store.decodeIfPresent([String: StoredValue].self, forKey: .preferences) ?? [:]
             accessoryValues =
                 try store.decodeIfPresent([String: String].self, forKey: .accessoryValues) ?? [:]
         }
@@ -124,13 +116,11 @@ final class ExtensionStorage {
     /// `nil` removes the key; a `nil` key clears the namespace.
     func setCache(extension name: String, namespace: String, key: String?, value: String?) {
         mutate(name) { store in
-            guard let key else {
+            if let key {
+                store.caches[namespace, default: [:]][key] = value
+            } else {
                 store.caches[namespace] = [:]
-                return
             }
-            var bucket = store.caches[namespace] ?? [:]
-            if let value { bucket[key] = value } else { bucket.removeValue(forKey: key) }
-            store.caches[namespace] = bucket
         }
     }
 
@@ -145,36 +135,7 @@ final class ExtensionStorage {
     }
 
     func setPreference(extension name: String, key: String, value: ExtensionPreferenceValue?) {
-        mutate(name) { store in
-            if let value {
-                store.preferences[key] = StoredValue(preference: value)
-            } else {
-                store.preferences.removeValue(forKey: key)
-            }
-        }
-    }
-
-    /// Manifest defaults overlaid with the user's — what `getPreferenceValues()` sees.
-    func resolvedPreferences(
-        extension name: String, schemas: [ExtensionPreferenceSchema]
-    ) -> [String: ExtensionPreferenceValue] {
-        var resolved: [String: ExtensionPreferenceValue] = [:]
-        for schema in schemas {
-            resolved[schema.name] = schema.runtimeValue(preference(extension: name, key: schema.name))
-        }
-        return resolved
-    }
-
-    /// A command with an unset required preference must not run.
-    func missingRequiredPreferences(
-        extension name: String, schemas: [ExtensionPreferenceSchema]
-    ) -> [ExtensionPreferenceSchema] {
-        schemas.filter { schema in
-            guard schema.required else { return false }
-            let value = preference(extension: name, key: schema.name) ?? schema.effectiveDefault
-            if case .string(let text) = value { return text.isEmpty }
-            return false
-        }
+        mutate(name) { $0.preferences[key] = value.map(StoredValue.init(preference:)) }
     }
 
     func removeAll(extension name: String) {
@@ -186,8 +147,7 @@ final class ExtensionStorage {
 
     private func store(for name: String) -> Store {
         if let existing = stores[name] { return existing }
-        let loaded =
-            (try? Data(contentsOf: fileURL(for: name)))
+        let loaded = (try? Data(contentsOf: fileURL(for: name)))
             .flatMap { try? JSONDecoder().decode(Store.self, from: $0) } ?? Store()
         stores[name] = loaded
         return loaded

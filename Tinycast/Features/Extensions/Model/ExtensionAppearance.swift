@@ -17,12 +17,5 @@ enum ExtensionTint: String, CaseIterable, Identifiable, Codable, Sendable {
     var id: String { rawValue }
 
     /// Shown as the swatch tooltip — "tan" alone doesn't say much.
-    var title: String {
-        switch self {
-        case .tan: return "Light Brown"
-        case .maroon: return "Maroon"
-        case .slate: return "Slate"
-        default: return rawValue.capitalized
-        }
-    }
+    var title: String { self == .tan ? "Light Brown" : rawValue.capitalized }
 }

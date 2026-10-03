@@ -41,30 +41,11 @@ enum RenderValue: Sendable, Hashable {
         }
     }
 
-    var dateValue: Date? {
-        if case .date(let date) = self { return date }
-        return nil
-    }
-
-    var handlerID: String? {
-        if case .handler(let id) = self { return id }
-        return nil
-    }
-
-    var arrayValue: [RenderValue]? {
-        if case .array(let values) = self { return values }
-        return nil
-    }
-
-    var objectValue: [String: RenderValue]? {
-        if case .object(let values) = self { return values }
-        return nil
-    }
-
-    var nodeValue: RenderNode? {
-        if case .node(let node) = self { return node }
-        return nil
-    }
+    var dateValue: Date? { if case .date(let date) = self { date } else { nil } }
+    var handlerID: String? { if case .handler(let id) = self { id } else { nil } }
+    var arrayValue: [RenderValue]? { if case .array(let values) = self { values } else { nil } }
+    var objectValue: [String: RenderValue]? { if case .object(let values) = self { values } else { nil } }
+    var nodeValue: RenderNode? { if case .node(let node) = self { node } else { nil } }
 
     /// A slot prop holding several nodes (`ActionPanel` children hoisted from a submenu) or one.
     var nodesValue: [RenderNode] {
@@ -85,8 +66,7 @@ enum RenderValue: Sendable, Hashable {
         case .handler(let id): return ["$fn": id]
         case .array(let values): return values.map(\.jsonValue)
         case .object(let values): return values.mapValues(\.jsonValue)
-        case .node: return NSNull()
-        case .null: return NSNull()
+        case .node, .null: return NSNull()
         }
     }
 
