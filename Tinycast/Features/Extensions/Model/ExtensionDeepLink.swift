@@ -1,7 +1,6 @@
 import Foundation
 
-/// An `extensions` deep link: `raycast://extensions/<owner>/<extension>/<command>?arguments={…}`.
-/// `tinycast://` mirrors it so our own links never depend on Raycast winning the scheme.
+/// A `raycast://extensions/<owner>/<extension>/<command>` link; `tinycast://` mirrors it.
 struct ExtensionDeepLink: Sendable, Equatable {
     let ownerOrAuthor: String?
     let extensionName: String

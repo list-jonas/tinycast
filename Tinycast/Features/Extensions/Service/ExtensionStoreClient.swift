@@ -39,8 +39,7 @@ struct ExtensionStoreClient: Sendable {
     /// Never needed to build, and the heaviest thing in some extension folders.
     private static let skippedDirectories: Set<String> = ["node_modules", "metadata"]
 
-    /// One recursive tree, then raw blobs: `contents` costs an API call per directory, and the
-    /// anonymous budget is 60 an hour — an extension with 17 of them used to spend a third of it.
+    /// One recursive tree, then raw blobs: `contents` spends one of 60 hourly calls per directory.
     func downloadFolder(_ source: ExtensionGitHubSource, to destination: URL) async throws {
         guard let url = source.treeURL(sha: try await treeSHA(of: source), recursive: true) else {
             throw ExtensionStoreError.malformedResponse

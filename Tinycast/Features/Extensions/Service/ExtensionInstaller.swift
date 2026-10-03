@@ -155,8 +155,7 @@ struct ExtensionInstaller: Sendable {
         return try validated(output)
     }
 
-    /// `dist` builds a `rust:` helper for Windows, which is dead code here and needs a toolchain
-    /// nobody on macOS has; `dev` is the environment whose Rust plugin stubs it out instead.
+    /// `dev`, not `dist`: its Rust plugin stubs out the Windows helper no Mac can build.
     private func environment(for source: URL) -> String {
         let enumerator = FileManager.default.enumerator(
             at: source, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])

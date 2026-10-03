@@ -14,8 +14,7 @@ struct ExtensionPickerList: View {
     /// Values already chosen; a single-select picker passes the one it holds.
     let chosen: Set<String>
     let assetsPath: String?
-    /// Fixed, never intrinsic, so the list cannot jitter as its rows change. A form's picker
-    /// matches the field above it; a header dropdown hangs off a chip and drops narrower.
+    /// Fixed, never intrinsic, so the list cannot jitter as its rows change.
     var width: CGFloat?
     var searchPlaceholder: String?
     let onSelect: (Int) -> Void

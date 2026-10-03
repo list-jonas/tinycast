@@ -1,7 +1,6 @@
 import Foundation
 
-/// Every command's row metadata in one small file, deliberately not in `extension-data`: drawing a
-/// launcher row must never fault in an extension's whole `LocalStorage` and `Cache`.
+/// Kept apart from `extension-data`, so drawing a row never faults in a whole `LocalStorage`.
 @MainActor
 @Observable
 final class ExtensionCommandMetadataStore {
