@@ -8,9 +8,7 @@ enum WindowLayoutGeometry {
 
     /// The box an entry's fractions are of. A zero gap makes this the plain visible frame.
     static func box(_ screen: WindowPlacementEngine.Screen, gap: CGFloat) -> CGRect {
-        WindowPlacementEngine.canvas(
-            screen.visibleFrame,
-            gap: WindowPlacementEngine.sanitizedGap(gap, in: screen.visibleFrame))
+        WindowPlacementEngine.canvas(screen.visibleFrame, sanitizing: gap)
     }
 
     /// The frame an entry asks for, or nil when the display has no usable visible frame.
@@ -30,7 +28,6 @@ enum WindowLayoutGeometry {
         return WindowPlacementEngine.rounded(WindowPlacementEngine.clamped(placed, into: box))
     }
 
-    /// What `resolve` needs to reproduce an observed frame.
     struct Capture: Equatable, Sendable {
         var widthFraction: CGFloat
         var heightFraction: CGFloat
@@ -57,8 +54,7 @@ enum WindowLayoutGeometry {
         let anchor = WindowLayoutAnchor.named(horizontal: horizontal, vertical: vertical)
         let origin = anchor.placement.place(size, in: box).origin
 
-        // The residual stays exact: a centred anchor on an odd free space lands on a half point,
-        // and rounding here would move the window by one. `resolve` rounds the composed frame.
+        // Unrounded: a centred anchor on an odd free space lands on a half point; `resolve` rounds.
         return Capture(
             widthFraction: size.width / box.width, heightFraction: size.height / box.height,
             anchor: anchor,
@@ -76,8 +72,6 @@ enum WindowLayoutGeometry {
             bundleID: bundleID, display: display, widthFraction: capture.widthFraction,
             heightFraction: capture.heightFraction, anchor: capture.anchor, offset: capture.offset)
     }
-
-    // MARK: - Primitives
 
     /// `place` derives each axis from its own axis alone, so the nearest of nine is 3 + 3.
     private static func nearestAxis(

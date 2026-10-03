@@ -63,6 +63,7 @@ under its MIT licence; [NOTICE.md](../../NOTICE.md) lists the adapted files.
 | `UI/RoomCoordinator.swift` | The one funnel, the preview, the picker, the library, cleanup |
 | `UI/RoomsScreen.swift`, `RoomsList.swift` | Switch Room |
 | `UI/RoomPickerScreen.swift`, `RoomPickerList.swift` | Choosing a room's windows |
+| `UI/RoomList.swift` | The list shell and row chrome both Rooms screens share |
 | `UI/RoomPreviewController.swift`, `RoomPreviewView.swift` | The gliding preview |
 | `Settings/RoomsSection.swift` | The Rooms section of Settings › Window Management |
 

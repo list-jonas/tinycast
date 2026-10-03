@@ -39,7 +39,6 @@ struct WindowActionMemory<Key: Hashable> {
     var cycleTimeout: TimeInterval?
 
     private var records: [Key: Record] = [:]
-    /// Least-recently-used first, so eviction is a `removeFirst`.
     private var order: [Key] = []
 
     init(capacity: Int = 64, cycleTimeout: TimeInterval? = nil) {

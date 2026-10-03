@@ -165,8 +165,6 @@ enum RoomLayoutEngine {
         return frames
     }
 
-    // MARK: - Arrangements
-
     private static let heroShares: [CGFloat] = [0.6, 0.5]
     private static let stackShares: [CGFloat] = [0.6, 0.4]
 

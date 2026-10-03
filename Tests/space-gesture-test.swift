@@ -4,27 +4,6 @@ import Foundation
 @main
 @MainActor
 struct SpaceGestureTests {
-    static var failures = 0
-    static var passes = 0
-
-    static func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
-        if condition() {
-            passes += 1
-        } else {
-            failures += 1
-            print("FAIL: \(message)")
-        }
-    }
-
-    static func expectEqual<T: Equatable>(_ actual: T, _ expected: T, _ message: String) {
-        if actual == expected {
-            passes += 1
-        } else {
-            failures += 1
-            print("FAIL: \(message) — got \(actual), expected \(expected)")
-        }
-    }
-
     // MARK: - Fixtures
 
     /// The payload is packed little-endian, so every read mirrors how the WindowServer parses it.
@@ -66,8 +45,7 @@ struct SpaceGestureTests {
         testPayloadValues()
         testRecordHeader()
 
-        print("\(passes) passed, \(failures) failed")
-        if failures > 0 { exit(1) }
+        Tally.finish()
     }
 
     // MARK: - Direction

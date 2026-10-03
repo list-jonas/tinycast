@@ -6,43 +6,6 @@ import Foundation
 @main
 @MainActor
 struct WindowRoomTests {
-    static var failures = 0
-    static var passes = 0
-
-    static func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
-        if condition() {
-            passes += 1
-        } else {
-            failures += 1
-            print("FAIL: \(message)")
-        }
-    }
-
-    static func expectRect(_ actual: CGRect?, _ expected: CGRect, _ message: String) {
-        if actual == expected {
-            passes += 1
-        } else {
-            failures += 1
-            print(
-                "FAIL: \(message) — got \(actual.map(String.init(describing:)) ?? "nil"), expected \(expected)"
-            )
-        }
-    }
-
-    static func expectThrows(
-        _ expected: RoomValidationError, _ message: String, _ body: () throws -> Void
-    ) {
-        do {
-            try body()
-            expect(false, message)
-        } catch let error as RoomValidationError {
-            expect(error == expected, message)
-        } catch {
-            expect(false, message)
-        }
-    }
-
-    // MARK: - Fixtures
 
     static let gap: CGFloat = 16
     /// A 1728 × 1080 visible frame under a 37-pt menu bar.
@@ -131,8 +94,7 @@ struct WindowRoomTests {
         storeCRUD()
         minimumSizeStore()
         parkingLedger()
-        print("\(passes)/\(passes + failures) passed")
-        if failures > 0 { exit(1) }
+        Tally.finish()
     }
 
     // MARK: - Tiling
@@ -810,14 +772,16 @@ struct WindowRoomTests {
         var changes = 0
         store.onChange = { _ in changes += 1 }
         expect(store.rooms.isEmpty, "a new store is empty")
-        expectThrows(.noWindows, "a room needs a window") { try store.add(Room(name: "Empty")) }
-        expectThrows(.emptyName, "a room needs a name") {
+        expectThrows(RoomValidationError.noWindows, "a room needs a window") {
+            try store.add(Room(name: "Empty"))
+        }
+        expectThrows(RoomValidationError.emptyName, "a room needs a name") {
             try store.add(Room(name: "  ", windows: [window("a")]))
         }
 
         let design = try? store.add(Room(name: " Design ", windows: [window("figma", id: 1), window(" ")]))
         expect(design?.name == "Design" && design?.windows.count == 1, "names trim and empty windows drop")
-        expectThrows(.duplicateName, "names are unique regardless of case") {
+        expectThrows(RoomValidationError.duplicateName, "names are unique regardless of case") {
             try store.add(Room(name: "design", windows: [window("a")]))
         }
         let build = try? store.add(Room(name: "Build", windows: [window("editor", id: 2)]))

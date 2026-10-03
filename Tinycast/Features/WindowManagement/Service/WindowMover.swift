@@ -119,12 +119,10 @@ final class WindowMover {
         let token = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main
         ) { [weak self] note in
-            guard
-                let app = note.userInfo?[NSWorkspace.applicationUserInfoKey]
-                    as? NSRunningApplication
+            guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
             else { return }
             let pid = app.processIdentifier
-            MainActor.assumeIsolated {
+            Task { @MainActor [weak self] in
                 self?.memory.forget { key in
                     guard case .external(let external) = key else { return false }
                     return external.pid == pid
@@ -144,13 +142,11 @@ final class WindowMover {
         windowCloseToken = NotificationToken(closeToken, center: .default)
     }
 
-    /// The window a command targets, resolved once per press.
     private struct FocusedWindow {
         let surface: Surface
         let key: WindowKey
     }
 
-    /// Turns the observed frame, the displays and the memory's verdict into a target.
     private typealias Resolver = (
         _ current: CGRect, _ screens: [WindowPlacementEngine.Screen],
         _ decision: WindowActionMemory<WindowKey>.Decision
@@ -186,7 +182,6 @@ final class WindowMover {
         }
     }
 
-    /// Applies `size` to `target`'s focused window; Restore undoes it like any command.
     @discardableResult
     func perform(_ size: CustomWindowSize, target: WindowTarget?, gap: CGFloat) -> Bool {
         guard let focused = focusedWindow(of: target) else { return false }
@@ -247,11 +242,8 @@ final class WindowMover {
         guard surface.canMove else { return false }
         let canResize = placement.resizes && surface.canResize
 
-        let destination = screens.first { $0.id == placement.screenID }
-        let canvas = destination.map {
-            WindowPlacementEngine.canvas(
-                $0.visibleFrame,
-                gap: WindowPlacementEngine.sanitizedGap(gap, in: $0.visibleFrame))
+        let canvas = screens.first { $0.id == placement.screenID }.map {
+            WindowPlacementEngine.canvas($0.visibleFrame, sanitizing: gap)
         }
         let restoreEnhancedUI = canResize ? surface.suppressEnhancedUserInterface() : {}
         defer { restoreEnhancedUI() }
@@ -270,8 +262,6 @@ final class WindowMover {
             screenID: landedOn, now: now)
         return !applied.equalTo(current)
     }
-
-    // MARK: - Fullscreen
 
     /// `AXFullScreen`, then the green button. docs/features/window-management.md
     private func toggleFullScreen(_ surface: Surface) -> Bool {

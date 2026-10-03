@@ -42,8 +42,6 @@ enum RoomRunner {
         var isBlockedOnPermission = false
     }
 
-    // MARK: - Entering
-
     static func enter(_ room: Room, context: Context) async -> Outcome {
         guard Permissions.ensureAccessibility() else { return Outcome(isBlockedOnPermission: true) }
         let apps = appsInOrder(of: room)
@@ -116,8 +114,6 @@ enum RoomRunner {
         return returned.count
     }
 
-    // MARK: - Planning
-
     private static func makePlan(
         _ room: Room, in snapshot: RoomWindowSweep.Snapshot, context: Context
     ) -> RoomPlan? {
@@ -163,8 +159,6 @@ enum RoomRunner {
         }
     }
 
-    // MARK: - Placing
-
     /// No `await` between windows, so the room lands in one visible step.
     private static func place(
         _ placements: [RoomPlan.Placement], in snapshot: RoomWindowSweep.Snapshot
@@ -185,13 +179,7 @@ enum RoomRunner {
         if AXWindowAccess.bool(window, kAXMinimizedAttribute) == true {
             _ = AXWindowAccess.unminimize(window)
         }
-        // Checked before any write, so an unpositionable window is left untouched.
-        guard AXWindowAccess.isSettable(kAXPositionAttribute, on: window),
-            let current = AXWindowAccess.frame(of: window)
-        else { return }
-        _ = AXWindowAccess.write(
-            frame, anchor: .topLeading, to: window, current: current,
-            canResize: AXWindowAccess.isSettable(kAXSizeAttribute, on: window), canvas: nil)
+        _ = AXWindowAccess.place(frame, anchor: .topLeading, canvas: nil, on: window)
     }
 
     /// AX reports no minimum size, so a refused resize teaches it; a second ask rules out a lag.
@@ -263,8 +251,6 @@ enum RoomRunner {
         return width && height && abs(actual.minX - wanted.minX) <= slack
             && abs(actual.minY - wanted.minY) <= slack
     }
-
-    // MARK: - Stepping back
 
     /// A window without an ID, or whose way back failed to write, stays put rather than risk loss.
     private static func park(

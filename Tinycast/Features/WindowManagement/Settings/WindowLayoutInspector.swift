@@ -42,8 +42,6 @@ struct WindowLayoutInspector: View {
         .scrollBounceBehavior(.basedOnSize)
     }
 
-    // MARK: - Layout-wide
-
     /// The picker lives inside the field's chrome, so name and icon read as the one control.
     private var nameField: some View {
         @Bindable var draft = draft
@@ -89,8 +87,6 @@ struct WindowLayoutInspector: View {
             detail: "Inset every window by the gap set above, as the tiling commands do.",
             isOn: $draft.usesPreferredGap)
     }
-
-    // MARK: - The entry being edited
 
     private var frontmostToggle: some View {
         @Bindable var draft = draft
@@ -140,8 +136,6 @@ struct WindowLayoutInspector: View {
             WindowLayoutPositionGrid(selection: entry.anchor, onSelect: draft.setAnchor)
         }
     }
-
-    // MARK: - Helpers
 
     private func switchRow(
         _ title: String, detail: String, isOn: Binding<Bool>

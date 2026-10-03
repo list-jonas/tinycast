@@ -13,14 +13,7 @@ struct WindowLayoutWindow: Equatable, Sendable {
     var bundleID: String
     var frame: CGRect
     /// Only ever used to make the binding order deterministic.
-    var title: String
-
-    init(handle: Int, bundleID: String, frame: CGRect, title: String = "") {
-        self.handle = handle
-        self.bundleID = bundleID
-        self.frame = frame
-        self.title = title
-    }
+    var title = ""
 }
 
 /// Everything running a layout will do, decided before a single AX write. Pure.
@@ -34,7 +27,6 @@ struct WindowLayoutPlan: Equatable, Sendable {
         case duplicateTarget
     }
 
-    /// Where the window for a placement comes from.
     enum Source: Equatable, Sendable {
         case existing(handle: Int)
         /// Open it, then take the window that appears.
@@ -67,7 +59,6 @@ struct WindowLayoutPlan: Equatable, Sendable {
     /// One open per launching placement; the plan already guarantees they are distinct.
     var opens: [Placement] { placements.filter { $0.source == .launch } }
 
-    /// The HUD's second clause, derived here so the coordinator stays declarative.
     var skippedSummary: String? {
         guard !skipped.isEmpty else { return nil }
         let displays = Set(

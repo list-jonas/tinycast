@@ -51,22 +51,25 @@ entries and a still-registered shortcut moves nothing.
 | `UI/CustomWindowSizeCoordinator.swift` | Foundation                 | Custom sizes' launcher presence, edits and a deletion's cleanup     |
 | `Model/WindowShortcutPreset.swift`   | Foundation + Carbon          | **Pure.** Rectangle / Magnet and Spectacle tables, and the apply plan |
 | `UI/WindowShortcutPresetCoordinator.swift` | Foundation             | Applies a preset, confirming first when it replaces a user's key   |
+| `Model/WindowLibraryRecord.swift`    | Foundation                   | **Pure.** Entry ID and name order shared by layouts, rooms and sizes |
+| `UI/WindowLibraryReferenceService.swift` | Foundation               | A deleted record's shortcut and launcher references, unwound once   |
+| `Settings/WindowLibraryRowControls.swift` | SwiftUI                 | The rows' glyph buttons and launcher checkbox                       |
 
 The feature also owns **[Window Layouts](window-layouts.md)** — saved multi-display arrangements
 applied in one pass — and **[Rooms](window-rooms.md)**, named sets of windows that tile on the
 display you are on while everything else steps back. Both share this feature's switch, its
 Accessibility grant and its gap setting.
 
-The first four compile into `Tests/window-command-test.swift` and `SpaceGesture.swift` compiles into
-`Tests/space-gesture-test.swift`, so none of them may gain an AppKit, SwiftUI or `NSScreen`
+The first four compile into `Tests/window-command-test.swift` and `Tests/window-display-test.swift`,
+and `SpaceGesture.swift` compiles into `Tests/space-gesture-test.swift`, so none of them may gain an AppKit, SwiftUI or `NSScreen`
 dependency, and all must stay pure — `WindowActionMemory` takes `now` as a parameter rather than
 reading a clock. CoreGraphics is needed only because `CGRect`'s `Equatable` conformance lives in that
 overlay rather than in Foundation.
 
-Adding a command is four edits in `WindowCommand.swift` (a case in `ID`, plus `name`, `symbol` and
-`group` arms), an arm in `WindowPlacementEngine.placement` or `tileFractions`, and bumping
+Adding a command is two edits in `WindowCommand.swift` (a case in `ID`, plus its `spec` arm naming
+its title, symbol and group), an arm in `WindowPlacementEngine.placement` or `tileFractions`, and bumping
 `commands.count == 35` and its group count in the harness. A command opening a new family also needs
-a `Group` case and its `title` arm; `ID.allCases` stays in group order.
+a `Group` case, titled by its capitalised raw value; `ID.allCases` stays in group order.
 
 ## Coordinate space
 
@@ -380,10 +383,11 @@ and every shortcut stays editable afterwards.
 
 ## Testing
 
-`Tests/window-command-test.swift` (500 assertions) covers the catalog, the AX-space convention lock,
+`Tests/window-command-test.swift` (298 assertions) covers the catalog, the AX-space convention lock,
 tiling on divisible and non-divisible screens, off-origin and negative-coordinate displays, gap
-arithmetic including degenerate values, sizing, the Make Larger/Smaller round trip, nudges, display
-moves and wrapping, both cycling modes including the strip walk, its wrap and a run of real presses
+arithmetic including degenerate values, sizing, the Make Larger/Smaller round trip and nudges.
+`Tests/window-display-test.swift` (202 assertions, sharing `window-command-support.swift`) covers
+display moves and wrapping, both cycling modes including the strip walk, its wrap and a run of real presses
 across displays, restore recovery, every `WindowActionMemory` rule, and a fuzz sweep over every
 command × gap × screen × cycle × step × degenerate window frame checking for non-finite output,
 negative dimensions, off-screen results, non-determinism and, at step 0, drift on repeat.
@@ -392,7 +396,7 @@ negative dimensions, off-screen results, non-determinism and, at step 0, drift o
 on each) and `WindowShortcutPresetPlan`: a fresh apply, a repeat apply, a replaced user key, a
 displaced command and an unrelated one left alone, plus when `matching` names a preset.
 
-`Tests/space-gesture-test.swift` (121 assertions) covers the other pure half: the fixed-point encoding
+`Tests/space-gesture-test.swift` (123 assertions) covers the other pure half: the fixed-point encoding
 and its ±1 floor, both field tables and the sign convention shared between them, the ended-only fling
 on the augmented path, the payload's size, record offsets and every scalar in it, and the big-endian
 framing of the field-4205 record.

@@ -11,14 +11,9 @@ final class RoomCoordinator {
     @ObservationIgnored private let session: RoomSession
     @ObservationIgnored private let settings: AppSettings
     @ObservationIgnored private let appIndex: AppIndex
-    @ObservationIgnored private let hotKeys: HotKeyManager
-    @ObservationIgnored private let favorites: FavoritesStore
-    @ObservationIgnored private let visibility: VisibilityStore
-    @ObservationIgnored private let ranking: LauncherRankingStore
-    @ObservationIgnored private let aliases: AliasStore
+    @ObservationIgnored private let references: WindowLibraryReferenceService
     @ObservationIgnored private let palette: PaletteState
     @ObservationIgnored private let paletteCoordinator: PaletteCoordinator
-    /// Dialog and message-HUD presentation. Never state this type owns.
     @ObservationIgnored private unowned let core: AppCore
     @ObservationIgnored private let preview = RoomPreviewController()
     /// Window work runs one at a time, in order: two passes at once would undo each other.
@@ -48,19 +43,15 @@ final class RoomCoordinator {
         self.session = session
         self.settings = settings
         self.appIndex = appIndex
-        self.hotKeys = hotKeys
-        self.favorites = favorites
-        self.visibility = visibility
-        self.ranking = ranking
-        self.aliases = aliases
+        references = WindowLibraryReferenceService(
+            hotKeys: hotKeys, favorites: favorites, visibility: visibility, ranking: ranking,
+            aliases: aliases)
         self.palette = palette
         self.paletteCoordinator = paletteCoordinator
         self.core = core
     }
 
     private static let commands: Set<CommandID> = [.switchRoom, .createRoom]
-
-    // MARK: - Feature presence
 
     func applyRoomsPresence() {
         let enabled = settings.windowManagementEnabled
@@ -94,14 +85,9 @@ final class RoomCoordinator {
         RoomRunner.returnParkedWindows(ledger: ledger)
     }
 
-    // MARK: - The Rooms screen
-
     func showRooms() {
         guard settings.windowManagementEnabled else { return }
-        guard Permissions.ensureAccessibility() else {
-            Task { await reportPermissionFailure() }
-            return
-        }
+        guard ensureAccessibility() else { return }
         paletteCoordinator.togglePalette(mode: .rooms)
     }
 
@@ -122,20 +108,21 @@ final class RoomCoordinator {
 
     /// Leaving both Rooms screens drops the desk and the preview, unless a room is moving in.
     func screensDidClose() {
-        pendingPreselection = nil
-        loading?.cancel()
-        loading = nil
-        session.reset()
+        dropDesk()
         if !isEntering { preview.hide() }
     }
 
     func paletteDidHide() {
         guard !isEntering else { return }
+        dropDesk()
+        preview.hide()
+    }
+
+    private func dropDesk() {
         pendingPreselection = nil
         loading?.cancel()
         loading = nil
         session.reset()
-        preview.hide()
     }
 
     private var isScreenOpen: Bool {
@@ -197,15 +184,17 @@ final class RoomCoordinator {
         let plan = RoomPlan.make(
             room, windows: snapshot.windows, on: screen, gap: gap, minimums: minimums.sizes,
             claimed: store.claimedWindowIDs(excluding: room.id))
-        let cards = plan.placements.compactMap { placement in
-            snapshot.window(placement.handle).map { card(for: $0, at: placement.frame) }
-        }
-        guard !cards.isEmpty else { return preview.hide() }
-        // Back to front, so the main window's card ends on top, as the window itself will.
-        preview.show(cards.reversed(), avoiding: paletteCoordinator.panelFrame)
+        showPreview(
+            plan.placements.compactMap { placement in
+                snapshot.window(placement.handle).map { card(for: $0, at: placement.frame) }
+            })
     }
 
-    // MARK: - Entering
+    /// Back to front, so the main window's card ends on top, as the window itself will.
+    private func showPreview(_ cards: [RoomPreviewCard]) {
+        guard !cards.isEmpty else { return preview.hide() }
+        preview.show(cards.reversed(), avoiding: paletteCoordinator.panelFrame)
+    }
 
     /// The one funnel for a Rooms row, a launcher entry, a shortcut and the pane alike.
     func enterRoom(id: UUID) {
@@ -240,8 +229,6 @@ final class RoomCoordinator {
         }
     }
 
-    // MARK: - Making and editing rooms
-
     /// The picker for a room named on the Rooms screen; with no name yet, that screen first.
     func createRoom(named name: String = "") {
         guard settings.windowManagementEnabled else { return }
@@ -249,10 +236,7 @@ final class RoomCoordinator {
             if paletteCoordinator.isShowing(.rooms) { nameIsMissing() } else { showRooms() }
             return
         }
-        guard Permissions.ensureAccessibility() else {
-            Task { await reportPermissionFailure() }
-            return
-        }
+        guard ensureAccessibility() else { return }
         openPicker(editing: nil, name: name)
     }
 
@@ -269,16 +253,11 @@ final class RoomCoordinator {
         session.beginPicking(named: name, editing: room?.id, picked: [])
         // A push opens no screen through the coordinator, so the desk is read from here.
         load()
-        preselect(room)
-    }
-
-    /// An edited room's windows start picked, in its order; a new room starts with none.
-    private func preselect(_ room: Room?) {
         pendingPreselection = room
         applyPreselection()
     }
 
-    /// Runs once the desk is read: before then there are no windows to match against.
+    /// An edited room's windows start picked once the desk is read: before then nothing matches.
     private func applyPreselection() {
         guard let room = pendingPreselection, let snapshot = session.snapshot else { return }
         pendingPreselection = nil
@@ -340,39 +319,28 @@ final class RoomCoordinator {
     func previewPicked() {
         guard let snapshot = session.snapshot, let screen = snapshot.screen(uuid: targetDisplayUUID)
         else { return }
-        let members = session.picked.compactMap { member(for: $0, in: snapshot) }
+        let members = session.picked.compactMap { pick -> (bundleID: String, card: RoomPreviewCard)? in
+            switch pick {
+            case .window(let handle):
+                snapshot.window(handle).map { ($0.bundleID, card(for: $0, at: .zero)) }
+            case .app(let app):
+                (
+                    app.bundleID,
+                    RoomPreviewCard(
+                        id: "app:" + app.bundleID, frame: .zero, appName: app.name, title: "",
+                        appURL: app.url)
+                )
+            }
+        }
         let frames = RoomLayoutEngine.frames(
             count: members.count, kind: .auto, in: screen.screen.visibleFrame, gap: gap,
             minimums: members.map { minimums.size(for: $0.bundleID) })
-        let cards = zip(members, frames).map { member, frame in
-            RoomPreviewCard(
-                id: member.id, frame: frame, appName: member.appName, title: member.title,
-                appURL: member.appURL)
-        }
-        guard !cards.isEmpty else { return preview.hide() }
-        preview.show(cards.reversed(), avoiding: paletteCoordinator.panelFrame)
-    }
-
-    private struct Member {
-        let id: String
-        let bundleID: String
-        let appName: String
-        let title: String
-        let appURL: URL?
-    }
-
-    private func member(for pick: RoomSession.Pick, in snapshot: RoomWindowSweep.Snapshot) -> Member? {
-        switch pick {
-        case .window(let handle):
-            guard let window = snapshot.window(handle) else { return nil }
-            return Member(
-                id: card(for: window, at: .zero).id, bundleID: window.bundleID,
-                appName: window.appName, title: window.title, appURL: window.appURL)
-        case .app(let app):
-            return Member(
-                id: "app:" + app.bundleID, bundleID: app.bundleID, appName: app.name, title: "",
-                appURL: app.url)
-        }
+        showPreview(
+            zip(members, frames).map { member, frame in
+                var card = member.card
+                card.frame = frame
+                return card
+            })
     }
 
     func nameIsMissing() {
@@ -409,13 +377,7 @@ final class RoomCoordinator {
             }
         }
         room.name = name
-        do {
-            if session.editingID == nil { try store.add(room) } else { try store.update(room) }
-        } catch {
-            core.showMessage(error.errorDescription ?? "Couldn't save the room", tone: .danger)
-            return
-        }
-        enterRoom(id: room.id)
+        if save(room, isNew: session.editingID == nil) { enterRoom(id: room.id) }
     }
 
     /// Remembers how the room's open windows sit now: the closest layout, or exactly as is.
@@ -438,13 +400,18 @@ final class RoomCoordinator {
             let (updated, reading) = learn(
                 room, from: windows, keeping: kept, in: snapshot, keepsOrder: false)
         else { return }
+        guard save(updated, isNew: false) else { return }
+        core.showMessage("\(room.name) — remembered as \(reading.kind.title)", tone: .success)
+    }
+
+    private func save(_ room: Room, isNew: Bool) -> Bool {
         do {
-            try store.update(updated)
+            if isNew { try store.add(room) } else { try store.update(room) }
+            return true
         } catch {
             core.showMessage(error.errorDescription ?? "Couldn't save the room", tone: .danger)
-            return
+            return false
         }
-        core.showMessage("\(room.name) — remembered as \(reading.kind.title)", tone: .success)
     }
 
     /// Read on the display most of the windows share, which is where their arrangement is.
@@ -475,32 +442,17 @@ final class RoomCoordinator {
                 symbol: Room.sfSymbol, confirmTitle: "Delete")
             guard confirmed, let removed = self.store.remove(id: room.id) else { return }
             if self.currentRoomID == removed.id { self.currentRoomID = nil }
-            self.removeReferences(ids: [removed.id], entryIDs: [removed.entryID])
+            self.references.remove([removed], action: HotKeyAction.windowRoom)
         }
     }
 
     @discardableResult
     func replaceRooms(_ incoming: [Room]) -> Int {
-        let previous = Dictionary(uniqueKeysWithValues: store.rooms.map { ($0.id, $0) })
+        let previous = store.rooms
         let count = store.replace(with: incoming)
-        let removed = Set(previous.keys).subtracting(store.rooms.map(\.id))
-        removeReferences(ids: removed, entryIDs: Set(removed.compactMap { previous[$0]?.entryID }))
+        references.removeDropped(from: previous, keeping: store.rooms, action: HotKeyAction.windowRoom)
         return count
     }
-
-    private func removeReferences(ids: Set<UUID>, entryIDs: Set<String>) {
-        for id in ids {
-            let action = HotKeyAction.windowRoom(id: id)
-            if hotKeys.recordingAction == action { hotKeys.recordingAction = nil }
-            hotKeys.setBinding(nil, for: action)
-        }
-        favorites.remove(keys: entryIDs)
-        visibility.removeItemKeys(entryIDs)
-        aliases.removeKeys(entryIDs)
-        for entryID in entryIDs { ranking.reset(itemKey: entryID) }
-    }
-
-    // MARK: - Helpers
 
     private var gap: CGFloat { CGFloat(settings.windowGap) }
 
@@ -515,8 +467,6 @@ final class RoomCoordinator {
             frame: frame, appName: window.appName, title: window.title, appURL: window.appURL)
     }
 
-    // MARK: - Reporting
-
     private func report(_ outcome: RoomRunner.Outcome, for room: Room) async {
         if outcome.isBlockedOnPermission { return await reportPermissionFailure() }
         guard outcome.placed > 0 else {
@@ -530,6 +480,14 @@ final class RoomCoordinator {
         guard !missing.isEmpty else { return }
         core.showMessage(
             "\(room.name) — \(missing.joined(separator: ", ")) not open", tone: .neutral)
+    }
+
+    private func ensureAccessibility() -> Bool {
+        guard Permissions.ensureAccessibility() else {
+            Task { await reportPermissionFailure() }
+            return false
+        }
+        return true
     }
 
     private func reportPermissionFailure() async {

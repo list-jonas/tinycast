@@ -124,18 +124,9 @@ enum WindowLayoutRunner {
         }
     }
 
-    private static func place(
-        _ placement: WindowLayoutPlan.Placement, on window: AXUIElement
-    ) -> Bool {
-        AXUIElementSetMessagingTimeout(window, AXWindowAccess.messagingTimeout)
-        // Checked before any write, so an unpositionable window is left untouched.
-        guard AXWindowAccess.isSettable(kAXPositionAttribute, on: window),
-            let current = AXWindowAccess.frame(of: window)
-        else { return false }
-        let canResize = AXWindowAccess.isSettable(kAXSizeAttribute, on: window)
-        return AXWindowAccess.write(
-            placement.frame, anchor: placement.anchor.placement, to: window, current: current,
-            canResize: canResize, canvas: placement.canvas) != nil
+    private static func place(_ placement: WindowLayoutPlan.Placement, on window: AXUIElement) -> Bool {
+        AXWindowAccess.place(
+            placement.frame, anchor: placement.anchor.placement, canvas: placement.canvas, on: window)
     }
 
     // MARK: - Opening

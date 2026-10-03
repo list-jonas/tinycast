@@ -69,8 +69,6 @@ final class WindowLayoutDraft {
         return result
     }
 
-    // MARK: - Selection
-
     /// One selection with two views of it, so the tab and the entry picker can never disagree.
     func select(entryID: UUID) {
         guard let entry = entries.first(where: { $0.id == entryID }) else { return }
@@ -84,8 +82,6 @@ final class WindowLayoutDraft {
             selectedEntryID = entries(onDisplay: displayUUID).first?.id
         }
     }
-
-    // MARK: - Editing
 
     func addEntry(bundleID: String, on display: WindowLayoutDisplay) {
         let entry = WindowLayoutEntry(bundleID: bundleID, display: display)
@@ -131,8 +127,6 @@ final class WindowLayoutDraft {
         update { $0.offset.y = CGFloat(points.clamped(to: Self.offsetRange)) }
     }
 
-    // MARK: - Output
-
     /// What the preview draws — unvalidated, so an unnamed draft still shows its windows.
     var previewLayout: WindowLayout {
         WindowLayout(
@@ -147,8 +141,6 @@ final class WindowLayoutDraft {
         value.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         return value
     }
-
-    // MARK: - Primitives
 
     static func percent(_ fraction: CGFloat) -> Int {
         guard fraction.isFinite else { return 100 }

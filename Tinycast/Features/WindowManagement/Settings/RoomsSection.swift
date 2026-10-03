@@ -33,12 +33,10 @@ struct RoomsSection: View {
     }
 }
 
-/// One room's shortcut, launcher checkbox and actions, shaped like the layout row.
 private struct RoomSettingsRow: View {
     let room: Room
 
     @Environment(RoomCoordinator.self) private var coordinator
-    @Environment(VisibilityStore.self) private var visibility
 
     private var subtitle: String {
         "\(room.summary) · \(coordinator.layout(of: room).title)"
@@ -49,46 +47,17 @@ private struct RoomSettingsRow: View {
             SymbolImage(name: Room.sfSymbol, size: 13)
         } trailing: {
             ShortcutRecorder(action: .windowRoom(id: room.id))
-
-            Button {
+            WindowLibraryRowButton(symbol: "play", help: "Enter this room", label: "Enter \(room.name)") {
                 coordinator.enterRoom(id: room.id)
-            } label: {
-                Image(systemName: "play")
             }
-            .buttonStyle(.plain)
-            .help("Enter this room")
-            .accessibilityLabel("Enter \(room.name)")
-
-            Button {
-                coordinator.editWindows(of: room)
-            } label: {
-                Image(systemName: "macwindow.badge.plus")
-            }
-            .buttonStyle(.plain)
-            .help("Choose its windows")
-            .accessibilityLabel("Choose windows for \(room.name)")
-
-            Button {
-                coordinator.deleteRoom(room)
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(Theme.Colors.destructive)
-            }
-            .buttonStyle(.plain)
-            .help("Delete")
-            .accessibilityLabel("Delete \(room.name)")
-
-            Toggle("", isOn: visibilityBinding)
-                .labelsHidden()
-                .toggleStyle(.checkbox)
-                .launcherVisibilityHelp()
-                .accessibilityLabel("Show \(room.name) in launcher")
+            WindowLibraryRowButton(
+                symbol: "macwindow.badge.plus", help: "Choose its windows",
+                label: "Choose windows for \(room.name)"
+            ) { coordinator.editWindows(of: room) }
+            WindowLibraryRowButton(
+                symbol: "trash", help: "Delete", label: "Delete \(room.name)", isDestructive: true
+            ) { coordinator.deleteRoom(room) }
+            WindowLibraryVisibilityToggle(entry: AppEntry(room), name: room.name)
         }
-    }
-
-    private var visibilityBinding: Binding<Bool> {
-        Binding(
-            get: { visibility.isItemVisible(AppEntry(room)) },
-            set: { visibility.setItemVisible($0, for: AppEntry(room)) })
     }
 }
