@@ -5,9 +5,6 @@ import SwiftUI
 @main
 @MainActor
 struct ExtensionFormTests {
-    static var failures = 0
-    static var passes = 0
-
     /// Fixed, so a suite run in December agrees with one run in June.
     static let calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
@@ -30,9 +27,7 @@ struct ExtensionFormTests {
         ExtensionListKeyTests.run(check: check)
         formActivation()
 
-        print(failures == 0 ? "\nALL PASSED" : "\n\(failures) FAILED")
-        print("\(passes) passed, \(failures) failed")
-        exit(failures == 0 ? 0 : 1)
+        finish()
     }
 
     static func formActivation() {
@@ -288,15 +283,5 @@ struct ExtensionFormTests {
 
     static func parse(_ expression: String) -> Date? {
         ExtensionDateExpression.parse(expression, now: now, calendar: calendar)
-    }
-
-    static func check(_ description: String, _ condition: Bool, _ detail: String? = nil) {
-        if condition {
-            passes += 1
-            print("PASS  \(description)")
-        } else {
-            failures += 1
-            print("FAIL  \(description)" + (detail.map { " — \($0)" } ?? ""))
-        }
     }
 }

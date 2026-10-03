@@ -151,29 +151,6 @@ final class ExtensionStorage {
         }
     }
 
-    /// Manifest defaults overlaid with the user's — what `getPreferenceValues()` sees.
-    func resolvedPreferences(
-        extension name: String, schemas: [ExtensionPreferenceSchema]
-    ) -> [String: ExtensionPreferenceValue] {
-        var resolved: [String: ExtensionPreferenceValue] = [:]
-        for schema in schemas {
-            resolved[schema.name] = schema.runtimeValue(preference(extension: name, key: schema.name))
-        }
-        return resolved
-    }
-
-    /// A command with an unset required preference must not run.
-    func missingRequiredPreferences(
-        extension name: String, schemas: [ExtensionPreferenceSchema]
-    ) -> [ExtensionPreferenceSchema] {
-        schemas.filter { schema in
-            guard schema.required else { return false }
-            let value = preference(extension: name, key: schema.name) ?? schema.effectiveDefault
-            if case .string(let text) = value { return text.isEmpty }
-            return false
-        }
-    }
-
     func removeAll(extension name: String) {
         stores.removeValue(forKey: name)
         try? FileManager.default.removeItem(at: fileURL(for: name))

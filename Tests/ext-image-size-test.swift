@@ -4,17 +4,6 @@ import Foundation
 @main
 @MainActor
 struct ExtensionImageSizeTests {
-    static var failures = 0
-
-    static func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
-        if !condition() {
-            failures += 1
-            print("FAIL: \(message)")
-        } else {
-            print("PASS  \(message)")
-        }
-    }
-
     static func hint(_ text: String) -> ExtensionImageSize? {
         ExtensionImageSize(url: URL(string: text)!)
     }
@@ -48,10 +37,6 @@ struct ExtensionImageSizeTests {
             hint("data:image/png;base64,AAAA") == nil,
             "an inline image with no query asks for no size")
 
-        if failures > 0 {
-            print("\(failures) failure(s)")
-            exit(1)
-        }
-        print("All image size checks passed")
+        finish()
     }
 }

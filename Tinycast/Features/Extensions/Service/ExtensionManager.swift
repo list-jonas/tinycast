@@ -395,8 +395,7 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
         await stop()
         guard isEnabled else { return }
         running = owner.reference(for: command)
-        let missing = storage.missingRequiredPreferences(
-            extension: owner.manifest.name, schemas: owner.manifest.preferences + command.preferences)
+        let missing = storage.missingRequiredPreferences(owner: owner, command: command)
         guard missing.isEmpty else {
             state = .failed(ExtensionLaunchError.missingPreferences(missing).localizedDescription)
             return
@@ -435,10 +434,9 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
 
         let session = UUID().uuidString
         sessionID = session
-        let context = makeLaunchContext(
+        let context = storage.launchContext(
             owner: owner, command: command, arguments: arguments, supportPath: supportPath,
-            fallbackText: fallbackText,
-            launchType: command.mode == .view ? .userInitiated : launchType,
+            fallbackText: fallbackText, launchType: command.mode == .view ? .userInitiated : launchType,
             launchContext: launchContext)
         await runtime.start(session: session, code: code, file: bundle, mode: command.mode, context: context)
     }
@@ -448,29 +446,6 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
         await Task.detached(priority: priority) {
             (try? String(contentsOf: bundle, encoding: .utf8)) ?? ""
         }.value
-    }
-
-    func makeLaunchContext(
-        owner: InstalledExtension, command: ExtensionCommand, arguments: [String: String],
-        supportPath: URL, fallbackText: String? = nil, launchType: ExtensionLaunchType,
-        launchContext: [String: RenderValue] = [:]
-    ) -> ExtensionLaunchContext {
-        ExtensionLaunchContext(
-            extensionName: owner.manifest.name,
-            extensionTitle: owner.title,
-            commandName: command.name,
-            commandMode: command.mode,
-            assetsPath: owner.assetsPath,
-            supportPath: supportPath.path,
-            preferences: storage.resolvedPreferences(
-                extension: owner.manifest.name,
-                schemas: owner.manifest.preferences + command.preferences),
-            caches: storage.caches(extension: owner.manifest.name),
-            arguments: command.completeArguments(arguments),
-            fallbackText: fallbackText,
-            launchType: launchType,
-            isDarkAppearance: NSApp.effectiveAppearance.isDark,
-            launchContext: launchContext)
     }
 
     func stop() async {

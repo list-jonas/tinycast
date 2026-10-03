@@ -16,32 +16,15 @@ enum ExtensionPreferenceValue: Equatable {
     case application(String)
 }
 
-struct ExtensionPreferenceSchema {
-    let name: String
-    let required: Bool
-    let effectiveDefault: ExtensionPreferenceValue
-
-    var displayTitle: String { name }
-
-    func runtimeValue(_ stored: ExtensionPreferenceValue?) -> ExtensionPreferenceValue? {
-        stored ?? effectiveDefault
-    }
-}
-
 /// The search-bar dropdown's pure rules: how its choices are read, and which one it starts on.
 @main
 @MainActor
 struct ExtensionSearchAccessoryTests {
-    static var failures = 0
-    static var passes = 0
-
     static func main() {
         parsing()
         seeding()
         storageIsolation()
-        print(failures == 0 ? "\nALL PASSED" : "\n\(failures) FAILED")
-        print("\(passes) passed, \(failures) failed")
-        exit(failures == 0 ? 0 : 1)
+        finish()
     }
 
     static func node(_ json: String) -> RenderNode {
@@ -200,15 +183,5 @@ struct ExtensionSearchAccessoryTests {
         check(
             "a store with no accessory section keeps its preferences",
             older.preference(extension: "older", key: "token") == .string("secret"))
-    }
-
-    static func check(_ label: String, _ condition: Bool, _ detail: String = "") {
-        if condition {
-            passes += 1
-            print("ok    \(label)")
-        } else {
-            failures += 1
-            print("FAIL  \(label)\(detail.isEmpty ? "" : " — \(detail)")")
-        }
     }
 }

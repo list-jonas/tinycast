@@ -129,6 +129,7 @@ Two host-call flavours:
 | `Service/ExtensionOAuthKeychain.swift` | secure OAuth token storage backed by macOS Keychain |
 | `Service/ExtensionOAuthSession.swift` | PKCE state tracking, browser launch, and callback redirect resolution |
 | `Service/ExtensionStorage.swift` | per-extension `LocalStorage`, `Cache` and preference values (one JSON file each) |
+| `Service/ExtensionStorage+Launch.swift` | the launch context and missing-preference check every launch path shares |
 | `Service/ExtensionCommandMetadataStore.swift` | every command's subtitle override, refresh bookkeeping and menu-bar state, in one small file |
 | `Service/ExtensionCatalog.swift` | discovery on disk, install, uninstall, import-from-Raycast |
 | `Service/ExtensionCleanup.swift` | the build workspace's name, the launch sweep, and reclaiming orphans |
