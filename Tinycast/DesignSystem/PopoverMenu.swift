@@ -21,37 +21,22 @@ enum PopoverMenuIcon: Equatable {
 struct PopoverMenuItem {
     let title: String
     let icon: PopoverMenuIcon
-    let isLoading: Bool
-    let isEnabled: Bool
+    var isLoading = false
+    var isEnabled = true
     var sectionTitle: String?
-    var startsSection: Bool
+    var startsSection = false
     var shortcut: String?
     /// A value the row states rather than a chord it runs — what a "Copy as" row copies.
     var detail: String?
     /// Destructive rows (delete) tint their icon + label red, matching the native menu convention.
-    var isDestructive: Bool = false
+    var isDestructive = false
     let action: () -> Void
 
     /// What the keyboard and pointer may land on; a loading or disabled row only states itself.
     var isSelectable: Bool { isEnabled && !isLoading }
+}
 
-    init(
-        title: String, icon: PopoverMenuIcon, isLoading: Bool = false, isEnabled: Bool = true,
-        sectionTitle: String? = nil, startsSection: Bool = false, shortcut: String? = nil,
-        detail: String? = nil, isDestructive: Bool = false, action: @escaping () -> Void
-    ) {
-        self.title = title
-        self.icon = icon
-        self.isLoading = isLoading
-        self.isEnabled = isEnabled
-        self.sectionTitle = sectionTitle
-        self.startsSection = startsSection
-        self.shortcut = shortcut
-        self.detail = detail
-        self.isDestructive = isDestructive
-        self.action = action
-    }
-
+extension PopoverMenuItem {
     init(
         title: String, systemImage: String, isLoading: Bool = false, isEnabled: Bool = true,
         sectionTitle: String? = nil, startsSection: Bool = false, shortcut: String? = nil,
