@@ -201,16 +201,17 @@ enum SystemActionRunner {
     /// What the HUD renders; without a mute control, zero level reads as muted.
     static func outputState() throws -> (level: Float32, muted: Bool) {
         let level = try currentVolume()
-        let device = try defaultOutputDevice()
+        return (level, try readMuted(on: defaultOutputDevice()) ?? (level == 0))
+    }
+
+    private static func readMuted(on device: AudioDeviceID) -> Bool? {
         var address = muteAddress
         var muted: UInt32 = 0
         var size = UInt32(MemoryLayout<UInt32>.size)
         guard AudioObjectHasProperty(device, &address),
             AudioObjectGetPropertyData(device, &address, 0, nil, &size, &muted) == noErr
-        else {
-            return (level, level == 0)
-        }
-        return (level, muted != 0)
+        else { return nil }
+        return muted != 0
     }
 
     static func setVolume(_ requested: Float32) throws {
@@ -261,11 +262,7 @@ enum SystemActionRunner {
         return elements
     }
 
-    private static func volumeAddress(
-        element: AudioObjectPropertyElement
-    )
-        -> AudioObjectPropertyAddress
-    {
+    private static func volumeAddress(element: AudioObjectPropertyElement) -> AudioObjectPropertyAddress {
         AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyVolumeScalar,
             mScope: kAudioDevicePropertyScopeOutput,
@@ -300,13 +297,8 @@ enum SystemActionRunner {
 
     private static func toggleMute() throws {
         let device = try defaultOutputDevice()
-        var address = muteAddress
-        var muted: UInt32 = 0
-        var size = UInt32(MemoryLayout<UInt32>.size)
-        if AudioObjectHasProperty(device, &address),
-            AudioObjectGetPropertyData(device, &address, 0, nil, &size, &muted) == noErr
-        {
-            try setMuted(muted == 0, on: device)
+        if let muted = readMuted(on: device) {
+            try setMuted(!muted, on: device)
             return
         }
         // No mute control: park the volume at zero and restore it afterwards.
@@ -339,12 +331,16 @@ enum SystemActionRunner {
         }
     }
 
-    private static func postKey(keyCode: CGKeyCode, flags: CGEventFlags) throws {
+    private static func requireAccessibility() throws {
         guard Permissions.ensureAccessibility() else {
             throw SystemActionFailure(
                 "Allow Tinycast to control your Mac in Accessibility settings, then try again.",
                 settings: .accessibility)
         }
+    }
+
+    private static func postKey(keyCode: CGKeyCode, flags: CGEventFlags) throws {
+        try requireAccessibility()
         let source = CGEventSource(stateID: .combinedSessionState)
         guard let down = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true),
             let up = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)
@@ -356,11 +352,7 @@ enum SystemActionRunner {
     }
 
     private static func postMediaKey(_ key: Int32) throws {
-        guard Permissions.ensureAccessibility() else {
-            throw SystemActionFailure(
-                "Allow Tinycast to control your Mac in Accessibility settings, then try again.",
-                settings: .accessibility)
-        }
+        try requireAccessibility()
         // The same route as the keyboard's media keys; 0xA/0xB are down and up.
         for state in [0xA, 0xB] {
             let data1 = Int((key << 16) | (Int32(state) << 8))
@@ -385,7 +377,6 @@ enum SystemActionRunner {
         previousApp?.activate()
     }
 
-    @discardableResult
     private static func ejectAllDisks() throws -> Int {
         let keys: Set<URLResourceKey> = [
             .volumeIsEjectableKey, .volumeIsInternalKey, .volumeIsLocalKey,
@@ -438,10 +429,9 @@ enum SystemActionRunner {
     @discardableResult
     private static func toggleDefault(domain: String, key: String) async throws -> Bool {
         let read = try await process("/usr/bin/defaults", arguments: ["read", domain, key])
-        let normalized = read.stdout.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let current: Bool
         if read.status == 0 {
-            guard let parsed = booleanDefault(normalized) else {
+            guard let parsed = booleanDefault(read.stdout) else {
                 throw SystemActionFailure("macOS reported an unexpected value for this setting.")
             }
             current = parsed
@@ -456,15 +446,14 @@ enum SystemActionRunner {
             "/usr/bin/defaults",
             arguments: ["write", domain, key, "-bool", requested ? "true" : "false"])
         let verify = try await process("/usr/bin/defaults", arguments: ["read", domain, key])
-        let verified = verify.stdout.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard verify.status == 0, booleanDefault(verified) == requested else {
+        guard verify.status == 0, booleanDefault(verify.stdout) == requested else {
             throw SystemActionFailure("macOS did not save the requested setting.")
         }
         return requested
     }
 
     private static func booleanDefault(_ value: String) -> Bool? {
-        switch value {
+        switch value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
         case "1", "true", "yes": return true
         case "0", "false", "no": return false
         default: return nil
@@ -473,11 +462,7 @@ enum SystemActionRunner {
 
     /// Returns how many were dismissed, so an empty screen reads as information.
     private static func dismissNotifications() async throws -> Int {
-        guard Permissions.ensureAccessibility() else {
-            throw SystemActionFailure(
-                "Allow Tinycast to control your Mac in Accessibility settings, then try again.",
-                settings: .accessibility)
-        }
+        try requireAccessibility()
         guard
             let app = NSRunningApplication.runningApplications(
                 withBundleIdentifier: "com.apple.notificationcenterui"
