@@ -45,4 +45,11 @@ extension StoredSnippet {
     init(fileURL: URL, snippet: Snippet, content: String) {
         self.init(fileURL: fileURL, snippet: snippet, sourceRevision: SnippetSourceRevision(content: content))
     }
+
+    /// Name first, then path, so duplicate names still list in one stable order.
+    static func libraryOrder(_ lhs: StoredSnippet, _ rhs: StoredSnippet) -> Bool {
+        let comparison = lhs.snippet.name.localizedCaseInsensitiveCompare(rhs.snippet.name)
+        if comparison != .orderedSame { return comparison == .orderedAscending }
+        return lhs.id < rhs.id
+    }
 }

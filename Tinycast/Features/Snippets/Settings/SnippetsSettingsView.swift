@@ -74,11 +74,12 @@ struct SnippetsSettingsView: View {
 
     private var library: some View {
         Section {
-            if sortedSnippets.isEmpty {
+            // The store publishes in library order, so the rows need no sort of their own.
+            if snippetsStore.snippets.isEmpty {
                 Text(snippetsStore.state == .loading ? "Loading snippets…" : "No snippets yet.")
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(sortedSnippets) { record in
+                ForEach(snippetsStore.snippets) { record in
                     SnippetSettingsRow(
                         record: record,
                         onEdit: { editor = SnippetEditRequest(record: record) },
@@ -145,12 +146,6 @@ struct SnippetsSettingsView: View {
             }
         }
         .accessibilityElement(children: .contain)
-    }
-
-    private var sortedSnippets: [StoredSnippet] {
-        snippetsStore.snippets.sorted {
-            $0.snippet.name.localizedCaseInsensitiveCompare($1.snippet.name) == .orderedAscending
-        }
     }
 
     private var snippetIssueTitle: String {
@@ -311,32 +306,20 @@ private struct SnippetEditorPanel: View {
     /// Every placeholder the engine understands; parameters are in docs/features/snippets.md.
     private var placeholderMenu: some View {
         Menu("Insert…") {
-            Section("Text") {
-                placeholderItem("{cursor}")
-                placeholderItem("{clipboard}")
-                placeholderItem("{selection}")
-                placeholderItem("{uuid}")
-            }
-            Section("Date & Time") {
-                placeholderItem("{date}")
-                placeholderItem("{time}")
-                placeholderItem("{datetime}")
-                placeholderItem("{day}")
-            }
-            Section("Arguments") {
-                placeholderItem("{argument name=\"Name\"}")
-            }
-            Section("Snippets") {
-                placeholderItem("{snippet name=\"Name\"}")
-            }
+            placeholderSection("Text", ["{cursor}", "{clipboard}", "{selection}", "{uuid}"])
+            placeholderSection("Date & Time", ["{date}", "{time}", "{datetime}", "{day}"])
+            placeholderSection("Arguments", ["{argument name=\"Name\"}"])
+            placeholderSection("Snippets", ["{snippet name=\"Name\"}"])
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
         .accessibilityLabel("Insert a placeholder")
     }
 
-    private func placeholderItem(_ token: String) -> some View {
-        Button(token) { insert(token) }
+    private func placeholderSection(_ title: String, _ tokens: [String]) -> some View {
+        Section(title) {
+            ForEach(tokens, id: \.self) { token in Button(token) { insert(token) } }
+        }
     }
 
     /// Replaces the selection or lands at the caret; appends when there is no usable one.
@@ -382,17 +365,13 @@ private struct SnippetEditorPanel: View {
     }
 
     private var draft: Snippet {
-        Snippet(
+        let keyword = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
+        return Snippet(
             name: name.trimmingCharacters(in: .whitespacesAndNewlines),
             text: text,
-            keyword: trimmedOrNil(keyword),
+            keyword: keyword.isEmpty ? nil : keyword,
             isEnabled: isEnabled,
             showsConfirmation: showsConfirmation)
-    }
-
-    private func trimmedOrNil(_ value: String) -> String? {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
     }
 
     private func save() {

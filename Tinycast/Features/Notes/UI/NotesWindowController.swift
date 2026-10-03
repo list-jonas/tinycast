@@ -43,8 +43,7 @@ final class NotesWindowController: NSObject, NSWindowDelegate {
 
     func editorReady(_ textView: NoteTextView) {
         editor = textView
-        guard let panel, panel.isVisible else { return }
-        focusEditor(in: panel)
+        focusEditor()
     }
 
     func focusEditor() {
@@ -94,9 +93,11 @@ final class NotesWindowController: NSObject, NSWindowDelegate {
 
     /// `contentMinSize` alone leaks frames below it; AppKit takes whatever this returns verbatim.
     func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
-        NSSize(
-            width: max(frameSize.width, Theme.Size.noteWindow.width),
-            height: max(frameSize.height, Theme.Size.noteWindow.height))
+        Self.clamped(frameSize)
+    }
+
+    private static func clamped(_ size: NSSize) -> NSSize {
+        NSSize(width: max(size.width, Theme.Size.noteWindow.width), height: max(size.height, Theme.Size.noteWindow.height))
     }
 
     func windowDidResize(_ notification: Notification) {
@@ -150,10 +151,7 @@ final class NotesWindowController: NSObject, NSWindowDelegate {
         panel.setFrameAutosaveName(Self.frameAutosaveName)
         if !panel.setFrameUsingName(Self.frameAutosaveName) { panel.center() }
         // An autosaved frame can sit below the floor, so it is clamped on the way back in.
-        panel.setContentSize(
-            CGSize(
-                width: max(panel.frame.width, Theme.Size.noteWindow.width),
-                height: max(panel.frame.height, Theme.Size.noteWindow.height)))
+        panel.setContentSize(Self.clamped(panel.frame.size))
         if let close = panel.standardWindowButton(.closeButton) {
             close.postsFrameChangedNotifications = true
             NotificationCenter.default.addObserver(

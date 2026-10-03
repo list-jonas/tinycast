@@ -27,21 +27,18 @@ private func snippetKeywordCallback(
     let typeRaw = type.rawValue
     let flagsRaw = event.flags.rawValue
     let keyCode = Int(event.getIntegerValueField(.keyboardEventKeycode))
-    var length = 0
-    var characters = [UniChar](repeating: 0, count: 16)
-    event.keyboardGetUnicodeString(
-        maxStringLength: characters.count,
-        actualStringLength: &length,
-        unicodeString: &characters)
-    let text = length > 0 ? String(utf16CodeUnits: characters, count: length) : nil
+    // Runs for every keystroke system-wide, so the scratch buffer lives on the stack.
+    let text = withUnsafeTemporaryAllocation(of: UniChar.self, capacity: 16) { buffer -> String? in
+        guard let base = buffer.baseAddress else { return nil }
+        var length = 0
+        event.keyboardGetUnicodeString(
+            maxStringLength: buffer.count, actualStringLength: &length, unicodeString: base)
+        return length > 0 ? String(utf16CodeUnits: base, count: length) : nil
+    }
 
     MainActor.assumeIsolated {
         listener.processEvent(
-            typeRaw: typeRaw,
-            keyCode: keyCode,
-            flagsRaw: flagsRaw,
-            text: text,
-            eventUserData: eventUserData,
+            typeRaw: typeRaw, keyCode: keyCode, flagsRaw: flagsRaw, text: text, eventUserData: eventUserData,
             secureEventInputEnabled: secureEventInputEnabled)
     }
     return Unmanaged.passUnretained(event)
@@ -215,34 +212,19 @@ final class SnippetKeywordListener: HealthCheckable {
     private func installObserversIfNeeded() {
         guard observers.isEmpty else { return }
         let center = NSWorkspace.shared.notificationCenter
-        observers = [
+        func observe(
+            _ name: Notification.Name, _ handler: @escaping @MainActor (SnippetKeywordListener) -> Void
+        ) -> NotificationToken {
             NotificationToken(
-                center.addObserver(
-                    forName: NSWorkspace.didActivateApplicationNotification,
-                    object: nil,
-                    queue: .main
-                ) { [weak self] _ in
-                    MainActor.assumeIsolated { self?.clearBuffer() }
-                },
-                center: center),
-            NotificationToken(
-                center.addObserver(
-                    forName: NSWorkspace.sessionDidResignActiveNotification,
-                    object: nil,
-                    queue: .main
-                ) { [weak self] _ in
-                    MainActor.assumeIsolated { self?.sessionDidResign() }
-                },
-                center: center),
-            NotificationToken(
-                center.addObserver(
-                    forName: NSWorkspace.sessionDidBecomeActiveNotification,
-                    object: nil,
-                    queue: .main
-                ) { [weak self] _ in
-                    MainActor.assumeIsolated { self?.sessionDidBecomeActive() }
+                center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                    MainActor.assumeIsolated { if let self { handler(self) } }
                 },
                 center: center)
+        }
+        observers = [
+            observe(NSWorkspace.didActivateApplicationNotification) { $0.clearBuffer() },
+            observe(NSWorkspace.sessionDidResignActiveNotification) { $0.setSessionActive(false) },
+            observe(NSWorkspace.sessionDidBecomeActiveNotification) { $0.setSessionActive(true) }
         ]
     }
 
@@ -265,18 +247,12 @@ final class SnippetKeywordListener: HealthCheckable {
     }
 
     private func installTapIfNeeded() {
-        guard tapController.state == .absent,
-            isRequested,
-            sessionActive,
-            hasAccessibility
-        else { return }
+        guard tapController.state == .absent, isRequested, sessionActive, hasAccessibility else { return }
         guard tapController.install(listener: self) else {
-            if !loggedTapFailure {
-                if logsTapFailures {
-                    NSLog("Tinycast: Failed to create snippet keyword event tap")
-                }
-                loggedTapFailure = true
+            if !loggedTapFailure, logsTapFailures {
+                NSLog("Tinycast: Failed to create snippet keyword event tap")
             }
+            loggedTapFailure = true
             return
         }
         loggedTapFailure = false
@@ -292,11 +268,9 @@ final class SnippetKeywordListener: HealthCheckable {
 
     private func reenableTap() {
         policy.reset()
-        guard tapController.reenable() else {
-            tapController.tearDown()
-            installTapIfNeeded()
-            return
-        }
+        guard !tapController.reenable() else { return }
+        tapController.tearDown()
+        installTapIfNeeded()
     }
 
     fileprivate func tapWasDisabled() {
@@ -304,14 +278,8 @@ final class SnippetKeywordListener: HealthCheckable {
         syncTapPresence()
     }
 
-    private func sessionDidResign() {
-        sessionActive = false
-        policy.reset()
-        syncTapPresence()
-    }
-
-    private func sessionDidBecomeActive() {
-        sessionActive = true
+    private func setSessionActive(_ active: Bool) {
+        sessionActive = active
         policy.reset()
         syncTapPresence()
     }
@@ -348,18 +316,7 @@ final class SnippetKeywordListener: HealthCheckable {
     }
 
     private static let resetKeyCodes: Set<Int> = [
-        kVK_Return,
-        kVK_ANSI_KeypadEnter,
-        kVK_Escape,
-        kVK_Tab,
-        kVK_LeftArrow,
-        kVK_RightArrow,
-        kVK_UpArrow,
-        kVK_DownArrow,
-        kVK_Home,
-        kVK_End,
-        kVK_PageUp,
-        kVK_PageDown,
-        kVK_ForwardDelete
+        kVK_Return, kVK_ANSI_KeypadEnter, kVK_Escape, kVK_Tab, kVK_LeftArrow, kVK_RightArrow, kVK_UpArrow,
+        kVK_DownArrow, kVK_Home, kVK_End, kVK_PageUp, kVK_PageDown, kVK_ForwardDelete
     ]
 }

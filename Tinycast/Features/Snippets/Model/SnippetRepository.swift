@@ -137,7 +137,7 @@ struct SnippetRepository: Sendable {
                     }
                 }
 
-                records.sort(by: recordOrder)
+                records.sort(by: StoredSnippet.libraryOrder)
                 issues.sort { $0.fileURL.path < $1.fileURL.path }
                 return Snapshot(records: records, issues: issues)
             }
@@ -274,12 +274,6 @@ struct SnippetRepository: Sendable {
             throw RepositoryError.invalidFileLocation(fileURL)
         }
         return standardized
-    }
-
-    private func recordOrder(_ lhs: StoredSnippet, _ rhs: StoredSnippet) -> Bool {
-        let comparison = lhs.snippet.name.localizedCaseInsensitiveCompare(rhs.snippet.name)
-        if comparison != .orderedSame { return comparison == .orderedAscending }
-        return lhs.id < rhs.id
     }
 
     private func coordinatedMutation<Value>(
