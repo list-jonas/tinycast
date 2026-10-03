@@ -61,42 +61,57 @@ struct ExtensionListView: View {
     }
 
     private var rowList: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(screen.rows) { row in
-                        switch row {
-                        case .header(let title, let subtitle, _):
-                            SectionHeader(
-                                title: [title, subtitle].compactMap { $0 }.filter { !$0.isEmpty }
-                                    .joined(separator: "  ·  "),
-                                isFirst: row.id == screen.rows.first?.id)
-                        case .item(let item):
+        scrolling(atOrigin: selection == 0) {
+            LazyVStack(spacing: 0) {
+                ForEach(screen.rows) { row in
+                    switch row {
+                    case .header(let title, let subtitle, _):
+                        SectionHeader(
+                            title: [title, subtitle].compactMap { $0 }.filter { !$0.isEmpty }
+                                .joined(separator: "  ·  "),
+                            isFirst: row.id == screen.rows.first?.id)
+                    case .item(let item):
+                        interactive(item.index) {
                             ExtensionItemRow(
                                 node: item.node, selected: item.index == selection,
-                                assetsPath: assetsPath, compact: screen.showsDetail
-                            )
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                onSelect(item.index)
-                                onActivate(item.index)
-                            }
-                            .onRightClick { onActions(item.index) }
-                            .selectionFrame(item.index == selection)
+                                assetsPath: assetsPath, compact: screen.showsDetail)
                         }
                     }
                 }
-                .padding(.horizontal, metrics.spacing.md)
-                .padding(.top, metrics.spacing.xs)
-                .padding(.bottom, metrics.spacing.md)
-                .hideNativeScrollers()
-                .scrollOriginAnchor()
+            }
+        }
+    }
+
+    private func scrolling<Content: View>(
+        atOrigin: Bool, @ViewBuilder content: () -> Content
+    ) -> some View {
+        let content = content()
+        return ScrollViewReader { proxy in
+            ScrollView {
+                content
+                    .padding(.horizontal, metrics.spacing.md)
+                    .padding(.top, metrics.spacing.xs)
+                    .padding(.bottom, metrics.spacing.md)
+                    .hideNativeScrollers()
+                    .scrollOriginAnchor()
             }
             .edgeDissolve()
             .thinScrollbar()
-            .scrollFollowsSelection(
-                scroll, row: selectedRowID, atOrigin: selection == 0, proxy: proxy)
+            .scrollFollowsSelection(scroll, row: selectedRowID, atOrigin: atOrigin, proxy: proxy)
         }
+    }
+
+    private func interactive<Content: View>(
+        _ index: Int, @ViewBuilder content: () -> Content
+    ) -> some View {
+        content()
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onSelect(index)
+                onActivate(index)
+            }
+            .onRightClick { onActions(index) }
+            .selectionFrame(index == selection)
     }
 
     /// Scroll id of the selected item, or nil when the selection is out of range.
@@ -116,38 +131,21 @@ struct ExtensionListView: View {
     }
 
     private func grid(layout: ExtensionGridLayout, tileWidth: Double) -> some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVGrid(
-                    columns: Array(
-                        repeating: GridItem(.flexible(), spacing: metrics.spacing.sm),
-                        count: layout.columns),
-                    spacing: metrics.spacing.sm
-                ) {
-                    ForEach(screen.items) { item in
+        scrolling(atOrigin: selection < layout.columns) {
+            LazyVGrid(
+                columns: Array(
+                    repeating: GridItem(.flexible(), spacing: metrics.spacing.sm),
+                    count: layout.columns),
+                spacing: metrics.spacing.sm
+            ) {
+                ForEach(screen.items) { item in
+                    interactive(item.index) {
                         ExtensionGridCell(
                             node: item.node, selected: item.index == selection,
-                            assetsPath: assetsPath, layout: layout, width: tileWidth
-                        )
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            onSelect(item.index)
-                            onActivate(item.index)
-                        }
-                        .onRightClick { onActions(item.index) }
-                        .selectionFrame(item.index == selection)
+                            assetsPath: assetsPath, layout: layout, width: tileWidth)
                     }
                 }
-                .padding(.horizontal, metrics.spacing.md)
-                .padding(.top, metrics.spacing.xs)
-                .padding(.bottom, metrics.spacing.md)
-                .hideNativeScrollers()
-                .scrollOriginAnchor()
             }
-            .edgeDissolve()
-            .thinScrollbar()
-            .scrollFollowsSelection(
-                scroll, row: selectedRowID, atOrigin: selection < layout.columns, proxy: proxy)
         }
     }
 

@@ -121,34 +121,23 @@ struct ExtensionFormView: View {
                     onSubmit: onSubmit)
             }
 
-        case "Form.Dropdown":
+        case "Form.Dropdown", "Form.TagPicker":
+            let multiple = field.type == "Form.TagPicker"
             labelled(field) {
                 ExtensionPickerField(
                     items: ExtensionPickerItem.items(in: field),
-                    chosen: [field.string("value") ?? ""].filter { !$0.isEmpty },
+                    chosen: multiple
+                        ? field.array("value").compactMap(\.stringValue)
+                        : [field.string("value") ?? ""].filter { !$0.isEmpty },
                     placeholder: field.string("placeholder") ?? "Select…",
-                    title: field.string("title") ?? "Dropdown",
+                    title: field.string("title") ?? (multiple ? "Tags" : "Dropdown"),
                     info: field.string("info"),
                     error: field.string("error"),
                     assetsPath: assetsPath,
-                    allowsMultipleSelection: false,
+                    allowsMultipleSelection: multiple,
                     index: index, focus: $focused,
-                    onChange: { onChange(field, $0.first ?? "") }, onSubmit: onSubmit)
-            }
-
-        case "Form.TagPicker":
-            labelled(field) {
-                ExtensionPickerField(
-                    items: ExtensionPickerItem.items(in: field),
-                    chosen: field.array("value").compactMap(\.stringValue),
-                    placeholder: field.string("placeholder") ?? "Select…",
-                    title: field.string("title") ?? "Tags",
-                    info: field.string("info"),
-                    error: field.string("error"),
-                    assetsPath: assetsPath,
-                    allowsMultipleSelection: true,
-                    index: index, focus: $focused,
-                    onChange: { onChange(field, $0) }, onSubmit: onSubmit)
+                    onChange: { multiple ? onChange(field, $0) : onChange(field, $0.first ?? "") },
+                    onSubmit: onSubmit)
             }
 
         case "Form.DatePicker":
@@ -235,8 +224,6 @@ private struct ExtensionTextField: View {
     let onChange: (RenderNode, Any) -> Void
     let onSubmit: () -> Void
     @State private var text: String = ""
-    /// The last edit dispatched, so an echo of an older one cannot overwrite newer typing.
-    @State private var sent: String?
     @State private var hovered = false
 
     var body: some View {
@@ -256,25 +243,7 @@ private struct ExtensionTextField: View {
         // The visible label is a Text in the row beside it, which the field cannot claim itself.
         .accessibilityLabel(Text(node.string("title") ?? node.string("placeholder") ?? "Text"))
         .extensionFieldHint(node.string("info"), error: node.string("error"))
-        .onAppear { text = node.string("value") ?? "" }
-        .onChange(of: node.string("value") ?? "") { _, incoming in
-            adopt(incoming)
-        }
-        .onChange(of: text) { _, outgoing in
-            guard outgoing != (node.string("value") ?? "") else { return }
-            sent = outgoing
-            onChange(node, outgoing)
-        }
-    }
-
-    /// React answers a render late, so an echo mid-word is older than what was typed since.
-    private func adopt(_ incoming: String) {
-        if let sent {
-            guard incoming == sent else { return }
-            self.sent = nil
-            return
-        }
-        if incoming != text { text = incoming }
+        .modifier(ExtensionEchoedText(node: node, text: $text, onChange: onChange))
     }
 
     private var prompt: Text {
@@ -282,10 +251,36 @@ private struct ExtensionTextField: View {
     }
 }
 
+/// Owns the typed text and the last edit sent, applying React's answer only once it catches up.
+private struct ExtensionEchoedText: ViewModifier {
+    let node: RenderNode
+    @Binding var text: String
+    let onChange: (RenderNode, Any) -> Void
+    /// The last edit dispatched, so an echo of an older one cannot overwrite newer typing.
+    @State private var sent: String?
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear { text = node.string("value") ?? "" }
+            // React answers a render late, so an echo mid-word is older than what was typed since.
+            .onChange(of: node.string("value") ?? "") { _, incoming in
+                if let sent {
+                    guard incoming == sent else { return }
+                    self.sent = nil
+                } else if incoming != text {
+                    text = incoming
+                }
+            }
+            .onChange(of: text) { _, outgoing in
+                guard outgoing != (node.string("value") ?? "") else { return }
+                sent = outgoing
+                onChange(node, outgoing)
+            }
+    }
+}
+
 private struct ExtensionTextArea: View {
-
     private var form: ExtensionFormMetrics { ExtensionFormMetrics(scale: metrics.scale) }
-
     @Environment(\.metrics) private var metrics
     let node: RenderNode
     let index: Int?
@@ -293,8 +288,6 @@ private struct ExtensionTextArea: View {
     let onChange: (RenderNode, Any) -> Void
     let onSubmit: () -> Void
     @State private var text: String = ""
-    /// The last edit dispatched; see `ExtensionTextField.adopt` for why an echo can be stale.
-    @State private var sent: String?
     @State private var hovered = false
 
     var body: some View {
@@ -319,20 +312,7 @@ private struct ExtensionTextArea: View {
                         .allowsHitTesting(false)
                 }
             }
-            .onAppear { text = node.string("value") ?? "" }
-            .onChange(of: node.string("value") ?? "") { _, incoming in
-                if let sent {
-                    guard incoming == sent else { return }
-                    self.sent = nil
-                    return
-                }
-                if incoming != text { text = incoming }
-            }
-            .onChange(of: text) { _, outgoing in
-                guard outgoing != (node.string("value") ?? "") else { return }
-                sent = outgoing
-                onChange(node, outgoing)
-            }
+            .modifier(ExtensionEchoedText(node: node, text: $text, onChange: onChange))
     }
 }
 
