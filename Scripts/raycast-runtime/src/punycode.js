@@ -18,10 +18,6 @@ function error(type) {
   );
 }
 
-function map(array, fn) {
-  return array.map(fn);
-}
-
 function mapDomain(domain, fn) {
   const parts = domain.split("@");
   let result = "";
@@ -30,7 +26,7 @@ function mapDomain(domain, fn) {
     domain = parts[1];
   }
   domain = domain.replace(/[.。．｡]/g, ".");
-  return result + map(domain.split("."), fn).join(".");
+  return result + domain.split(".").map(fn).join(".");
 }
 
 export function ucs2decode(string) {

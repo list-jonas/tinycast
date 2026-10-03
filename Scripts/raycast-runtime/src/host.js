@@ -1,5 +1,4 @@
-// The single seam between the JS runtime and Swift. Swift installs `__tinycastHost` on the global
-// before evaluating the bundle; everything else in here goes through these helpers.
+// The single seam between the JS runtime and Swift, which installs `__tinycastHost` before evaluation.
 
 const raw = globalThis.__tinycastHost;
 if (!raw) throw new Error("__tinycastHost missing — the runtime was evaluated outside Tinycast.");
@@ -9,8 +8,7 @@ export const hostRaw = raw;
 let nextCallId = 1;
 const pending = new Map();
 
-/// Every Raycast API that touches the system is an async host call: Swift answers later via
-/// `__tinycast.settle`, so the JS thread never blocks waiting on the main actor.
+/// Swift answers through `__tinycast.settle`, so the JS thread never blocks on the main actor.
 export function hostCall(api, method, args) {
   return new Promise((resolve, reject) => {
     const callId = nextCallId++;
@@ -24,9 +22,7 @@ export function hostCall(api, method, args) {
   });
 }
 
-/// The blocking counterpart, for the node shims only (fs, child_process, crypto, zlib). Safe because
-/// Swift services these entirely on the JS thread — nothing here ever hops to the main actor, so a
-/// synchronous answer can't deadlock against the UI.
+/// Node shims only: Swift services these on the JS thread, so blocking can't deadlock against the UI.
 export function hostCallSync(api, method, args) {
   const json = hostRaw.invokeSync(api, method, JSON.stringify(args === undefined ? [] : args));
   const result = json ? JSON.parse(json) : { ok: true };
@@ -70,12 +66,25 @@ function formatLogArg(value) {
   }
 }
 
-/// JavaScriptCore's `Error.stack` is frames only — unlike V8 it does not repeat the message — so the
-/// headline has to be prepended or a logged error arrives as a bare stack.
+/// JavaScriptCore's `Error.stack` is frames only, so the headline has to be prepended.
 export function describeError(error) {
   if (!(error instanceof Error)) return String(error);
   const headline = `${error.name || "Error"}: ${error.message}`;
   const stack = String(error.stack || "");
   if (!stack) return headline;
   return stack.startsWith(headline) ? stack : `${headline}\n${stack}`;
+}
+
+let uncaughtSink = (error) => log("error", ["Uncaught:", error]);
+
+export function setUncaughtHandler(handler) {
+  uncaughtSink = handler;
+}
+
+export function reportUncaught(error) {
+  try {
+    uncaughtSink(error);
+  } catch {
+    log("error", ["Uncaught (and the handler threw):", error]);
+  }
 }

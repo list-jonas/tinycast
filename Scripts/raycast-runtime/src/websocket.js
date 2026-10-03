@@ -1,5 +1,4 @@
-// WebSockets over `URLSessionWebSocketTask`: Swift owns the wire, JS reads by keeping one `receive`
-// outstanding.
+// WebSockets over `URLSessionWebSocketTask`: Swift owns the wire, JS keeps one `receive` pending.
 
 import { Buffer } from "./buffer.js";
 import { hostCall } from "./host.js";
@@ -256,7 +255,7 @@ class WebSocketSocket extends Duplex {
     if (buffer.length < offset + length) return false;
     const payload = Buffer.from(buffer.subarray(offset, offset + length));
     if (mask) for (let i = 0; i < payload.length; i++) payload[i] ^= mask[i % 4];
-    this.pending = Buffer.from(buffer.subarray(offset + length));
+    this.pending = buffer.subarray(offset + length);
     this.handleFrame((buffer[0] & 0x80) !== 0, buffer[0] & 0x0f, payload);
     return true;
   }

@@ -93,15 +93,17 @@ same arrangement as `EmojiData.generated.swift`: building Tinycast never needs N
 | --- | --- |
 | `src/index.js` | the `__tinycast` object Swift calls into (`boot`, `start`, `dispatch`, `popNavigation`, `settle`, `fireTimer`, `stop`) |
 | `src/host.js` | the JS→Swift seam: async `hostCall`, blocking `hostCallSync`, logging |
+| `src/polyfills.js`, `src/fetch.js`, `src/dom-events.js` | the web globals: console, timers, `fetch` and its body types, `AbortController`, `Event`/`EventTarget`/`MessageChannel` |
 | `src/reconciler.js` | `react-reconciler` host config that commits into a JSON tree |
 | `src/api/components.js` | every `@raycast/api` component |
 | `src/api/system.js` | Clipboard, LocalStorage, Cache, Toast, preferences, environment |
 | `src/api/oauth.js` | `OAuth.PKCEClient`, `OAuth.TokenSet`, redirect url builders |
 | `src/api/enums.generated.js` | Icon / Color / Toast.Style / … extracted from the real `@raycast/api` types |
-| `src/node-shims.js` | `path`, `fs`, `os`, `child_process`, `crypto`, `zlib`, `util`, `events`, `buffer`, `punycode`, … |
+| `src/node-shims.js` | the Node builtin registry: what `require("fs")`, `require("node:stream")`, … resolve to |
+| `src/node/` | one file per shim family: `fs`, `child-process`, `crypto` (+ `zlib`), `http`, `process` (+ `path`, `os`), `util`, `unsupported` |
 | `src/websocket.js` | the `WebSocket` global, and the raw socket a bundled `ws` attaches to |
 | `src/dgram.js` | a UDP socket that answers one thing: an mDNS lookup of a `.local` name |
-| `src/url.js`, `src/punycode.js`, `src/buffer.js` | web/Node primitives JavaScriptCore lacks |
+| `src/url.js`, `src/punycode.js`, `src/buffer.js`, `src/bytes.js` | web/Node primitives JavaScriptCore lacks; `bytes.js` is the UTF-8/base64 codec |
 
 Two host-call flavours:
 
@@ -798,7 +800,7 @@ node build.mjs --dev       # unminified, React in development mode (better error
 Then the tests, fastest first:
 
 ```sh
-# 1. JS-only fixtures, in a bare `vm` context (the closest thing Node has to JavaScriptCore)
+# 1. JS-only fixtures (fixtures/*.mjs), in a bare `vm` context (the closest thing Node has to JavaScriptCore)
 node fixtures.mjs
 
 # 2. any prebuilt extension, printing the render tree it produces

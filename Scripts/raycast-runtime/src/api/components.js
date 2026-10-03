@@ -1,6 +1,4 @@
-// The @raycast/api component surface. Every component is a plain React function component that
-// renders one host node; element-valued props (`actions`, `detail`, `metadata`, …) are moved into
-// `__slot` children so the reconciler actually renders them and Swift receives them as structure.
+// The @raycast/api components: each renders one host node, element-valued props move into `__slot`s.
 
 import {
   createContext,
@@ -41,9 +39,7 @@ export function useNavigation() {
 
 export const Navigation = { useNavigation };
 
-/// The mounted root: keeps every pushed screen mounted (so popping back restores its state) and
-/// marks the top one active. Swift renders whichever `__screen` is active. `controls` is filled with
-/// push/pop so the session can pop from Escape without going through a rendered handler.
+/// Keeps every pushed screen mounted so popping restores state; `controls` lets Escape pop directly.
 export function NavigationRoot({ initial, onStackChange, controls }) {
   const [stack, setStack] = useState(() => [{ key: 0, element: initial }]);
   const nextKey = useRef(1);
@@ -108,9 +104,7 @@ function useFieldValue(props, fallback) {
   return [value, setValue];
 }
 
-/// React 19 passes `ref` as an ordinary prop, so no component here needs `forwardRef` — which also
-/// keeps every component directly callable (`List.Dropdown({...props})`), a pattern real extensions
-/// use to share one code path between List and Grid.
+/// No `forwardRef` (React 19 passes `ref` as a prop), so components stay callable as plain functions.
 function useFieldRef(ref, { setValue, initial, id }) {
   useImperativeHandle(ref ?? null, () => ({
     focus: () => hostFieldCommand("focus", id),
@@ -138,19 +132,17 @@ function useThrottledSearch(props) {
   return props.throttle && props.onSearchTextChange ? delayed : props.onSearchTextChange;
 }
 
-function List(props) {
-  const rest = omit(props, ["children", "actions", "searchBarAccessory"]);
-  rest.onSearchTextChange = useThrottledSearch(props);
-  // Raycast filters client-side unless the extension takes over the search text.
-  if (rest.filtering === undefined) rest.filtering = props.onSearchTextChange === undefined;
-  return h(
-    "List",
-    rest,
-    slot("actions", props.actions),
-    slot("searchBarAccessory", props.searchBarAccessory),
-    props.children,
-  );
+function makeSearchable(type) {
+  return function Searchable(props) {
+    const rest = omit(props, ["children", "actions", "searchBarAccessory"]);
+    rest.onSearchTextChange = useThrottledSearch(props);
+    // Raycast filters client-side unless the extension takes over the search text.
+    if (rest.filtering === undefined) rest.filtering = props.onSearchTextChange === undefined;
+    return h(type, rest, slot("actions", props.actions), slot("searchBarAccessory", props.searchBarAccessory), props.children);
+  };
 }
+
+const List = makeSearchable("List");
 
 function ListItem(props) {
   return h(
@@ -178,9 +170,7 @@ function EmptyView(type) {
   };
 }
 
-/// The search-bar dropdown for List and Grid. Deliberately hook-free: Swift owns the selection (it
-/// renders the control), seeded from `defaultValue`, and reports changes through `onChange`. That
-/// also makes it safe to invoke directly rather than through JSX.
+/// Hook-free, so callable without JSX: Swift owns the selection and reports it through `onChange`.
 function makeSearchDropdown(type) {
   function Dropdown(props) {
     return h(type, omit(props, ["children"]), props.children);
@@ -198,18 +188,7 @@ List.Dropdown = makeSearchDropdown("List.Dropdown");
 
 // ─── Grid ───────────────────────────────────────────────────────────
 
-function Grid(props) {
-  const rest = omit(props, ["children", "actions", "searchBarAccessory"]);
-  rest.onSearchTextChange = useThrottledSearch(props);
-  if (rest.filtering === undefined) rest.filtering = props.onSearchTextChange === undefined;
-  return h(
-    "Grid",
-    rest,
-    slot("actions", props.actions),
-    slot("searchBarAccessory", props.searchBarAccessory),
-    props.children,
-  );
-}
+const Grid = makeSearchable("Grid");
 
 function GridItem(props) {
   return h("Grid.Item", omit(props, ["children", "actions"]), slot("actions", props.actions), props.children);
@@ -337,99 +316,62 @@ function Action(props) {
   return h("Action", omit(props, ["children"]));
 }
 
-/// Host bindings the convenience actions need. Injected by index.js to avoid a circular import
-/// between the components and the system APIs they drive.
+/// Injected by api/index.js, which would otherwise be a circular import of the system APIs.
 let effects = {};
 export function setActionEffects(next) {
   effects = next;
 }
 
-function convenience(displayName, build) {
+const CONVENIENCE_KEYS = ["shortcut", "style", "autoFocus"];
+
+/// One "Action" node forwarding `title`, `icon` and `keys`, each falling back to its `defaults` entry.
+function convenience(displayName, defaults, onAction, keys = CONVENIENCE_KEYS) {
   const Component = function ConvenienceAction(props) {
-    return h(Action, build(props));
+    const forwarded = {};
+    for (const key of ["title", "icon", ...keys]) forwarded[key] = key in defaults ? props[key] ?? defaults[key] : props[key];
+    return h(Action, { ...forwarded, onAction: () => onAction(props) });
   };
   Component.displayName = displayName;
   return Component;
 }
 
-Action.CopyToClipboard = convenience("Action.CopyToClipboard", (props) => ({
-  title: props.title ?? "Copy to Clipboard",
-  icon: props.icon ?? Icon.CopyClipboard,
-  shortcut: props.shortcut,
-  style: props.style,
-  autoFocus: props.autoFocus,
-  onAction: async () => {
-    await effects.copy({ content: props.content, concealed: props.concealed });
-    props.onCopy?.(props.content);
-  },
-}));
+const SHORTCUT_ONLY = ["shortcut"];
 
-Action.Paste = convenience("Action.Paste", (props) => ({
-  title: props.title ?? "Paste in Active App",
-  icon: props.icon ?? Icon.Clipboard,
-  shortcut: props.shortcut,
-  style: props.style,
-  autoFocus: props.autoFocus,
-  onAction: async () => {
-    await effects.paste({ content: props.content });
-    props.onPaste?.(props.content);
-  },
-}));
+Action.CopyToClipboard = convenience("Action.CopyToClipboard", { title: "Copy to Clipboard", icon: Icon.CopyClipboard }, async (props) => {
+  await effects.copy({ content: props.content, concealed: props.concealed });
+  props.onCopy?.(props.content);
+});
 
-Action.OpenInBrowser = convenience("Action.OpenInBrowser", (props) => ({
-  title: props.title ?? "Open in Browser",
-  icon: props.icon ?? Icon.Globe,
-  shortcut: props.shortcut,
-  style: props.style,
-  autoFocus: props.autoFocus,
-  onAction: async () => {
-    await effects.open({ target: props.url, application: props.application });
-    props.onOpen?.(props.url);
-  },
-}));
+Action.Paste = convenience("Action.Paste", { title: "Paste in Active App", icon: Icon.Clipboard }, async (props) => {
+  await effects.paste({ content: props.content });
+  props.onPaste?.(props.content);
+});
 
-Action.Open = convenience("Action.Open", (props) => ({
-  title: props.title,
-  icon: props.icon ?? Icon.Document,
-  shortcut: props.shortcut,
-  style: props.style,
-  autoFocus: props.autoFocus,
-  onAction: async () => {
-    await effects.open({ target: props.target, application: props.application });
-    props.onOpen?.(props.target);
-  },
-}));
+Action.OpenInBrowser = convenience("Action.OpenInBrowser", { title: "Open in Browser", icon: Icon.Globe }, async (props) => {
+  await effects.open({ target: props.url, application: props.application });
+  props.onOpen?.(props.url);
+});
 
-Action.OpenWith = convenience("Action.OpenWith", (props) => ({
-  title: props.title ?? "Open With",
-  icon: props.icon ?? Icon.AppWindow,
-  shortcut: props.shortcut,
-  onAction: async () => {
-    await effects.openWith({ path: props.path });
-    props.onOpen?.(props.path);
-  },
-}));
+Action.Open = convenience("Action.Open", { icon: Icon.Document }, async (props) => {
+  await effects.open({ target: props.target, application: props.application });
+  props.onOpen?.(props.target);
+});
 
-Action.ShowInFinder = convenience("Action.ShowInFinder", (props) => ({
-  title: props.title ?? "Show in Finder",
-  icon: props.icon ?? Icon.Finder,
-  shortcut: props.shortcut,
-  onAction: async () => {
-    await effects.showInFinder({ path: props.path });
-    props.onShow?.(props.path);
-  },
-}));
+Action.OpenWith = convenience("Action.OpenWith", { title: "Open With", icon: Icon.AppWindow }, async (props) => {
+  await effects.openWith({ path: props.path });
+  props.onOpen?.(props.path);
+}, SHORTCUT_ONLY);
 
-Action.Trash = convenience("Action.Trash", (props) => ({
-  title: props.title ?? "Move to Trash",
-  icon: props.icon ?? Icon.Trash,
-  style: props.style ?? ActionStyle.Destructive,
-  shortcut: props.shortcut,
-  onAction: async () => {
-    await effects.trash({ paths: props.paths });
-    props.onTrash?.(props.paths);
-  },
-}));
+Action.ShowInFinder = convenience("Action.ShowInFinder", { title: "Show in Finder", icon: Icon.Finder }, async (props) => {
+  await effects.showInFinder({ path: props.path });
+  props.onShow?.(props.path);
+}, SHORTCUT_ONLY);
+
+const TRASH_DEFAULTS = { title: "Move to Trash", icon: Icon.Trash, style: ActionStyle.Destructive };
+Action.Trash = convenience("Action.Trash", TRASH_DEFAULTS, async (props) => {
+  await effects.trash({ paths: props.paths });
+  props.onTrash?.(props.paths);
+}, ["style", "shortcut"]);
 
 Action.Push = function ActionPush(props) {
   const { push } = useNavigation();
@@ -458,26 +400,9 @@ Action.SubmitForm = function ActionSubmitForm(props) {
   });
 };
 
-Action.CreateSnippet = convenience("Action.CreateSnippet", (props) => ({
-  title: props.title ?? "Create Snippet",
-  icon: props.icon ?? Icon.Snippets,
-  shortcut: props.shortcut,
-  onAction: () => effects.createSnippet(props.snippet),
-}));
-
-Action.CreateQuicklink = convenience("Action.CreateQuicklink", (props) => ({
-  title: props.title ?? "Create Quicklink",
-  icon: props.icon ?? Icon.Link,
-  shortcut: props.shortcut,
-  onAction: () => effects.createQuicklink(props.quicklink),
-}));
-
-Action.ToggleQuickLook = convenience("Action.ToggleQuickLook", (props) => ({
-  title: props.title ?? "Quick Look",
-  icon: props.icon ?? Icon.Eye,
-  shortcut: props.shortcut,
-  onAction: () => effects.quickLook(props.target),
-}));
+Action.CreateSnippet = convenience("Action.CreateSnippet", { title: "Create Snippet", icon: Icon.Snippets }, (props) => effects.createSnippet(props.snippet), SHORTCUT_ONLY);
+Action.CreateQuicklink = convenience("Action.CreateQuicklink", { title: "Create Quicklink", icon: Icon.Link }, (props) => effects.createQuicklink(props.quicklink), SHORTCUT_ONLY);
+Action.ToggleQuickLook = convenience("Action.ToggleQuickLook", { title: "Quick Look", icon: Icon.Eye }, (props) => effects.quickLook(props.target), SHORTCUT_ONLY);
 
 Action.PickDate = function ActionPickDate(props) {
   return h(Action, {
@@ -490,14 +415,8 @@ Action.PickDate = function ActionPickDate(props) {
     onTinycastChange: (value) => props.onChange?.(decodeDate(value)),
   });
 };
-Action.PickDate.Type = undefined; // filled in from the generated enums by index.js
 
-Action.InstallMCPServer = convenience("Action.InstallMCPServer", (props) => ({
-  title: props.title ?? "Install MCP Server",
-  icon: props.icon ?? Icon.Plug,
-  shortcut: props.shortcut,
-  onAction: () => effects.unsupported("Action.InstallMCPServer"),
-}));
+Action.InstallMCPServer = convenience("Action.InstallMCPServer", { title: "Install MCP Server", icon: Icon.Plug }, () => effects.unsupported("Action.InstallMCPServer"), SHORTCUT_ONLY);
 
 // ─── Menu bar ───────────────────────────────────────────────────────
 

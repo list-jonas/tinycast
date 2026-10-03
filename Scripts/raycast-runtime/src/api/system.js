@@ -1,5 +1,4 @@
-// The non-visual half of @raycast/api: clipboard, storage, cache, preferences, app lookup and the
-// window/feedback calls. Everything here is an async host call answered by Swift on the main actor.
+// The non-visual half of @raycast/api; every call is an async host call Swift answers on the main actor.
 
 import { hostCall } from "../host.js";
 import { nestedEnums } from "./enums.generated.js";
@@ -49,11 +48,7 @@ export const LocalStorage = {
 };
 
 // ─── Cache ──────────────────────────────────────────────────────────
-// Raycast's Cache is synchronous. Swift hands the whole namespace over at construction and every
-// mutation is fire-and-forget write-behind, so reads stay synchronous as the API promises.
-
-const cacheSubscribers = new Map();
-let nextCacheSubscription = 1;
+// Raycast's Cache is synchronous: Swift hands each namespace over at boot and writes are write-behind.
 
 export class Cache {
   constructor(options = {}) {
@@ -61,8 +56,7 @@ export class Cache {
     this.capacity = options.capacity ?? 10 * 1024 * 1024;
     this._entries = new Map(Object.entries(cacheSnapshot(this.namespace)));
     this._subscribers = new Set();
-    // `useCachedState` hands `cache.subscribe` straight to `useSyncExternalStore`, unbound — so every
-    // method has to survive being detached from the instance.
+    // `useCachedState` hands `cache.subscribe` to `useSyncExternalStore` unbound.
     for (const method of ["has", "get", "set", "remove", "clear", "subscribe"]) {
       this[method] = Cache.prototype[method].bind(this);
     }
@@ -102,13 +96,8 @@ export class Cache {
   }
 
   subscribe(subscriber) {
-    const id = nextCacheSubscription++;
     this._subscribers.add(subscriber);
-    cacheSubscribers.set(id, { namespace: this.namespace, subscriber });
-    return () => {
-      this._subscribers.delete(subscriber);
-      cacheSubscribers.delete(id);
-    };
+    return () => void this._subscribers.delete(subscriber);
   }
 
   _persist(key, value) {
@@ -126,8 +115,6 @@ export class Cache {
   }
 }
 
-/// Swift installs the initial contents of every cache namespace at boot; a namespace first touched
-/// later starts empty and fills as the extension writes to it.
 function cacheSnapshot(namespace) {
   return boot.caches?.[namespace] ?? {};
 }
@@ -151,27 +138,14 @@ export const environment = new Proxy(
   },
 );
 
-export function openExtensionPreferences() {
-  return hostCall("window", "openPreferences", ["extension"]);
-}
-
-export function openCommandPreferences() {
-  return hostCall("window", "openPreferences", ["command"]);
-}
+export const openExtensionPreferences = () => hostCall("window", "openPreferences", ["extension"]);
+export const openCommandPreferences = () => hostCall("window", "openPreferences", ["command"]);
 
 // ─── Window / navigation control ────────────────────────────────────
 
-export function closeMainWindow(options = {}) {
-  return hostCall("window", "close", [options]);
-}
-
-export function popToRoot(options = {}) {
-  return hostCall("window", "popToRoot", [options]);
-}
-
-export function clearSearchBar(options = {}) {
-  return hostCall("window", "clearSearchBar", [options]);
-}
+export const closeMainWindow = (options = {}) => hostCall("window", "close", [options]);
+export const popToRoot = (options = {}) => hostCall("window", "popToRoot", [options]);
+export const clearSearchBar = (options = {}) => hostCall("window", "clearSearchBar", [options]);
 
 // ─── Applications & files ───────────────────────────────────────────
 
@@ -181,52 +155,20 @@ export function open(target, application) {
 }
 
 /// Raycast shows an app picker for Action.OpenWith; Swift resolves the candidates and presents them.
-export function openWith(path) {
-  return hostCall("system", "openWith", [String(path)]);
-}
-
-export function trash(paths) {
-  return hostCall("system", "trash", [(Array.isArray(paths) ? paths : [paths]).map(String)]);
-}
-
-export function showInFinder(path) {
-  return hostCall("system", "showInFinder", [String(path)]);
-}
-
-export function getApplications(path) {
-  return hostCall("system", "applications", [path ? String(path) : null]);
-}
-
-export function getDefaultApplication(path) {
-  return hostCall("system", "defaultApplication", [String(path)]);
-}
-
-export function getFrontmostApplication() {
-  return hostCall("system", "frontmostApplication", []);
-}
-
-export function getSelectedText() {
-  return hostCall("system", "selectedText", []);
-}
-
-export function getSelectedFinderItems() {
-  return hostCall("system", "selectedFinderItems", []);
-}
+export const openWith = (path) => hostCall("system", "openWith", [String(path)]);
+export const trash = (paths) => hostCall("system", "trash", [(Array.isArray(paths) ? paths : [paths]).map(String)]);
+export const showInFinder = (path) => hostCall("system", "showInFinder", [String(path)]);
+export const getApplications = (path) => hostCall("system", "applications", [path ? String(path) : null]);
+export const getDefaultApplication = (path) => hostCall("system", "defaultApplication", [String(path)]);
+export const getFrontmostApplication = () => hostCall("system", "frontmostApplication", []);
+export const getSelectedText = () => hostCall("system", "selectedText", []);
+export const getSelectedFinderItems = () => hostCall("system", "selectedFinderItems", []);
+export const launchCommand = (options) => hostCall("system", "launchCommand", [options]);
+export const updateCommandMetadata = (metadata) => hostCall("system", "updateCommandMetadata", [metadata]);
+export const getFrontmostBrowserTab = () => unsupported("getFrontmostBrowserTab");
 
 export function captureException(error) {
   console.error(error instanceof Error ? error.stack || error.message : String(error));
-}
-
-export function launchCommand(options) {
-  return hostCall("system", "launchCommand", [options]);
-}
-
-export function updateCommandMetadata(metadata) {
-  return hostCall("system", "updateCommandMetadata", [metadata]);
-}
-
-export function getFrontmostBrowserTab() {
-  return unsupported("getFrontmostBrowserTab");
 }
 
 // ─── Feedback ───────────────────────────────────────────────────────
@@ -241,42 +183,6 @@ export class Toast {
       primaryAction: options.primaryAction,
       secondaryAction: options.secondaryAction,
     };
-  }
-
-  get style() {
-    return this._options.style;
-  }
-  set style(value) {
-    this._options.style = value;
-    this._sync();
-  }
-  get title() {
-    return this._options.title;
-  }
-  set title(value) {
-    this._options.title = value;
-    this._sync();
-  }
-  get message() {
-    return this._options.message;
-  }
-  set message(value) {
-    this._options.message = value;
-    this._sync();
-  }
-  get primaryAction() {
-    return this._options.primaryAction;
-  }
-  set primaryAction(value) {
-    this._options.primaryAction = value;
-    this._sync();
-  }
-  get secondaryAction() {
-    return this._options.secondaryAction;
-  }
-  set secondaryAction(value) {
-    this._options.secondaryAction = value;
-    this._sync();
   }
 
   async show() {
@@ -295,8 +201,7 @@ export class Toast {
     hostCall("feedback", "updateToast", [this._id, this._serialize()]).catch(() => {});
   }
 
-  /// Toast actions carry callbacks, which can't cross the bridge. Register them locally and send only
-  /// the titles plus a token Swift echoes back through `runToastAction`.
+  /// Callbacks can't cross the bridge: Swift gets titles plus a token it echoes to `runToastAction`.
   _serialize() {
     const encode = (action, slotName) => {
       if (!action) return null;
@@ -317,6 +222,20 @@ export class Toast {
     if (!this._tokenBase) this._tokenBase = `toast-${nextToastToken++}`;
     return this._tokenBase;
   }
+}
+
+// Every option is live: assigning one on a shown toast updates it in place.
+for (const name of ["style", "title", "message", "primaryAction", "secondaryAction"]) {
+  Object.defineProperty(Toast.prototype, name, {
+    get() {
+      return this._options[name];
+    },
+    set(value) {
+      this._options[name] = value;
+      this._sync();
+    },
+    configurable: true,
+  });
 }
 
 Toast.Style = ToastStyle;
@@ -341,9 +260,7 @@ export async function showToast(optionsOrStyle, title, message) {
   return toast;
 }
 
-export function showHUD(title, options = {}) {
-  return hostCall("feedback", "showHUD", [String(title), options]);
-}
+export const showHUD = (title, options = {}) => hostCall("feedback", "showHUD", [String(title), options]);
 
 export function confirmAlert(options = {}) {
   return hostCall("feedback", "confirmAlert", [

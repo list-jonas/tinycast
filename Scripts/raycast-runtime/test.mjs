@@ -138,15 +138,9 @@ export function createHarness({ onRender, onFail, verbose = false, stubs = {} } 
 }
 
 function syncHostCall(api, method, args) {
+  if (api === "os") return { cpus, freemem, uptime, loadavg }[method]();
+  if (api === "zlib") return zlib[`${method}Sync`](Buffer.from(args[0], "base64")).toString("base64");
   switch (`${api}.${method}`) {
-    case "os.cpus":
-      return cpus();
-    case "os.freemem":
-      return freemem();
-    case "os.uptime":
-      return uptime();
-    case "os.loadavg":
-      return loadavg();
     case "fs.open":
       return fs.openSync(args[0], args[1], args[2]);
     case "fs.close":
@@ -271,18 +265,6 @@ function syncHostCall(api, method, args) {
         };
       }
     }
-    case "zlib.gzip":
-      return zlib.gzipSync(Buffer.from(args[0], "base64")).toString("base64");
-    case "zlib.gunzip":
-      return zlib.gunzipSync(Buffer.from(args[0], "base64")).toString("base64");
-    case "zlib.deflate":
-      return zlib.deflateSync(Buffer.from(args[0], "base64")).toString("base64");
-    case "zlib.inflate":
-      return zlib.inflateSync(Buffer.from(args[0], "base64")).toString("base64");
-    case "zlib.deflateRaw":
-      return zlib.deflateRawSync(Buffer.from(args[0], "base64")).toString("base64");
-    case "zlib.inflateRaw":
-      return zlib.inflateRawSync(Buffer.from(args[0], "base64")).toString("base64");
     default:
       throw new Error(`harness: no sync stub for ${api}.${method}`);
   }
@@ -462,11 +444,9 @@ function summarize(value) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const [dir, command] = process.argv.slice(2);
-  if (dir) {
-    await runExtension(dir, command);
-  } else {
-    await runFixtures();
-  }
+  // The fixtures import this module, so awaiting them here would deadlock its evaluation.
+  if (dir) await runExtension(dir, command);
+  else runFixtures();
 }
 
 /// Mirrors the Swift-side resolution: a manifest default can be platform-keyed
@@ -526,5 +506,5 @@ async function runExtension(dir, commandName) {
 
 async function runFixtures() {
   const { runFixtures: run } = await import("./fixtures.mjs");
-  await run();
+  process.exitCode = (await run()) ? 1 : 0;
 }
