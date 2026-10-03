@@ -4,12 +4,7 @@ import SwiftUI
 struct BackupSettingsView: View {
     @Environment(AppCore.self) private var core
     private var runningApps: RunningAppsMonitor { core.runningApps }
-    @State private var raycastFile: URL?
-    @State private var passphrase = ""
-    @State private var importing = false
-    @State private var status: Status?
-    @State private var selection: RaycastImportOptions = .all
-    @State private var isRaycastExport = false
+    @State private var raycast = RaycastImportSession()
     @State private var exportSelection = BackupCategory.all
     @State private var importSelection: Set<BackupCategory> = []
     @State private var exporting = false
@@ -20,10 +15,7 @@ struct BackupSettingsView: View {
     /// Held between opening the file and applying it, so the extracted tree survives the picker.
     @State private var openedStaging: BackupStaging?
 
-    private enum Status {
-        case success(String)
-        case failure(String)
-    }
+    private typealias Status = RaycastImportSession.Status
 
     private var raycastRunning: Bool {
         runningApps.runningBundleIDs.contains(where: BackupActions.isRaycastBundleID)
@@ -34,13 +26,6 @@ struct BackupSettingsView: View {
         Binding(
             get: { core.settings.settingsFileEnabled },
             set: { enabled in Task { await BackupActions.setSettingsFileEnabled(enabled, core: core) } })
-    }
-
-    private var raycastFileSubtitle: String {
-        guard let name = raycastFile?.lastPathComponent else {
-            return "A .rayconfig file from Raycast 2.0 or later."
-        }
-        return "\(name) — \(isRaycastExport ? "Raycast export" : "not a Raycast export")"
     }
 
     var body: some View {
@@ -89,37 +74,36 @@ struct BackupSettingsView: View {
 
             Section {
                 LabeledContent {
-                    Button("Choose…") { chooseRaycastFile() }
+                    Button("Choose…") { raycast.chooseFile() }
                 } label: {
                     SettingsRowTitle(.backupImportFromRaycast, "Raycast Export")
-                    Text(raycastFileSubtitle)
+                    Text(raycast.fileSubtitle(placeholder: "A .rayconfig file from Raycast 2.0 or later."))
                 }
                 LabeledContent {
                     RevealableSecureField(
-                        title: "Passphrase", text: $passphrase, prompt: Text("Export password")
+                        title: "Passphrase", text: $raycast.passphrase, prompt: Text("Export password")
                     )
                     .labelsHidden()
                     .textFieldStyle(.roundedBorder)
-                    // LabeledContent right-aligns its value text, caret and all; a field reads left.
+                    // LabeledContent right-aligns its value, caret and all; a field reads left.
                     .multilineTextAlignment(.leading)
                     .frame(width: 160)
-                    .onSubmit(runRaycastImport)
+                    .onSubmit { raycast.run(core: core) }
                 } label: {
                     Text("Passphrase")
                 }
-                RaycastImportSelection(selection: $selection)
+                RaycastImportSelection(selection: $raycast.selection)
                 conflictNotice
                 LabeledContent {
-                    if importing {
+                    if raycast.importing {
                         ProgressView().controlSize(.small)
                     } else {
-                        Button("Import") { runRaycastImport() }
-                            .disabled(!isRaycastExport || passphrase.isEmpty || selection.isEmpty)
+                        Button("Import") { raycast.run(core: core) }.disabled(!raycast.canImport)
                     }
                 } label: {
                     Text("Import")
                 }
-                if let status { statusRow(status) }
+                if let status = raycast.status { statusRow(status) }
             } header: {
                 SettingsSectionHeader(.backupImportFromRaycast)
             }
@@ -251,31 +235,5 @@ struct BackupSettingsView: View {
         openedStaging?.discard()
         openedStaging = nil
         openedManifest = nil
-    }
-
-    private func chooseRaycastFile() {
-        guard let url = BackupActions.pickRaycastFile() else { return }
-        raycastFile = url
-        isRaycastExport = BackupActions.isRaycastExport(url)
-        status = nil
-    }
-
-    private func runRaycastImport() {
-        guard let file = raycastFile, isRaycastExport, !passphrase.isEmpty, !selection.isEmpty,
-            !importing
-        else { return }
-        importing = true
-        status = nil
-        Task {
-            defer { importing = false }
-            do {
-                let outcome = try await BackupActions.importRaycast(
-                    core: core, file: file, passphrase: passphrase, options: selection)
-                status = .success(BackupActions.raycastText(outcome))
-                passphrase = ""
-            } catch {
-                status = .failure(error.localizedDescription)
-            }
-        }
     }
 }

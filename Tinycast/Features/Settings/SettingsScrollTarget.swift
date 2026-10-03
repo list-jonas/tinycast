@@ -1,23 +1,18 @@
 import SwiftUI
 
 extension View {
-    /// A pane's `Form`: lets a search result scroll one of its sections into view and pulse it.
-    /// The pane names itself because both panes are briefly alive across a swap, and by then
-    /// `navigation.tab` already reads as the incoming one.
+    /// Names its pane: both are alive across a swap, when `navigation.tab` is already the new one.
     func settingsScrollTarget(_ tab: SettingsTab) -> some View {
         modifier(SettingsScrollTarget(tab: tab))
     }
 
-    /// A `Section` with no header of its own: still somewhere a result can scroll to, with no pulse
-    /// to paint. Every section that *has* a header uses `SettingsSectionHeader` instead.
+    /// A headerless `Section` a result can still scroll to; one with a header uses its header.
     func settingsAnchor(_ anchor: SettingsAnchor) -> some View {
         id(SettingsTarget.section(anchor))
     }
 }
 
-/// The pulse a search result leaves on arrival: a pill behind the name it matched, and nothing else.
-/// A `Form` applies a `.background` to a row's whole *content* box, so lighting the row or the
-/// section paints ragged blocks around every label, button and footer paragraph in it.
+/// A pill behind the matched name only: a `Form` row's own background paints ragged blocks.
 private struct SearchPill: ViewModifier {
     let target: SettingsTarget
     @Environment(SettingsNavigationState.self) private var navigation
@@ -47,14 +42,13 @@ struct SettingsSectionHeader<Label: View>: View {
 }
 
 extension SettingsSectionHeader where Label == Text {
-    /// The title comes from the anchor, so a section's name and its search breadcrumb are one string.
+    /// Titled by the anchor, so a section's name and its search breadcrumb are one string.
     init(_ anchor: SettingsAnchor) {
         self.init(anchor: anchor) { Text(anchor.title) }
     }
 }
 
-/// One setting's own name, in place of the `Text` a row's label would otherwise hold. This is what
-/// a row-level search result scrolls to and lights up.
+/// One setting's own name, which a row-level search result scrolls to and lights up.
 struct SettingsRowTitle: View {
     let anchor: SettingsAnchor
     let title: String

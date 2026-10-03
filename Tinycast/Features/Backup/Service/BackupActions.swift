@@ -54,9 +54,7 @@ enum BackupActions {
     /// Composes off-main, then seals — a clipboard history runs to gigabytes.
     static func exportBackup(
         core: AppCore, categories: Set<BackupCategory>
-    ) async throws
-        -> BackupComposer.Result
-    {
+    ) async throws -> BackupComposer.Result {
         guard let destination = chooseSaveLocation(named: "Tinycast", type: .tinycastBackup) else {
             throw CancellationError()
         }
@@ -70,7 +68,7 @@ enum BackupActions {
         }.value
     }
 
-    /// Opens the archive and reads its manifest, leaving staging for the caller to apply and discard.
+    /// Opens the archive and reads its manifest; the caller applies and discards the staging.
     static func openBackup(at file: URL) async throws -> (BackupStaging, BackupManifest) {
         try await Task.detached(priority: .userInitiated) {
             let staging = try BackupStaging()
@@ -165,7 +163,7 @@ enum BackupActions {
             if core.quicklinks.isAvailable {
                 quicklinksImported =
                     core.quicklinkCoordinator.addImportedQuicklinks(result.quicklinks).count
-                // Opening a link grants no permission class, so landing a library turns the switch on.
+                // A link grants no permission class, so landing a library turns the switch on.
                 if quicklinksImported > 0 { core.settings.quicklinksEnabled = true }
             } else {
                 quicklinksError = QuicklinkError.storageUnavailable.errorDescription
@@ -187,9 +185,7 @@ enum BackupActions {
     }
 
     /// Every Raycast channel (stable, beta, alpha, internal) shares this bundle-id prefix.
-    static let raycastBundleIDPrefix = "com.raycast"
-
-    static func isRaycastBundleID(_ id: String) -> Bool { id.hasPrefix(raycastBundleIDPrefix) }
+    static func isRaycastBundleID(_ id: String) -> Bool { id.hasPrefix("com.raycast") }
 
     /// Quit any running Raycast so its hotkeys stop clashing; background helpers stay.
     static func quitRaycast() {
@@ -224,11 +220,10 @@ enum BackupActions {
         if let settings = summary.settings, let applied = appliedText(settings) {
             parts.append(applied)
         }
-        var imported: [String] = []
-        if summary.clipboard > 0 { imported.append("\(summary.clipboard) clips") }
-        if summary.snippets > 0 { imported.append("\(summary.snippets) snippets") }
-        if summary.notes > 0 { imported.append("\(summary.notes) notes") }
-        if summary.learning > 0 { imported.append("\(summary.learning) learning records") }
+        let imported = counted([
+            (summary.clipboard, "clips"), (summary.snippets, "snippets"), (summary.notes, "notes"),
+            (summary.learning, "learning records")
+        ])
         if !imported.isEmpty {
             parts.append("Imported " + imported.joined(separator: ", ") + ".")
         }
@@ -251,7 +246,7 @@ enum BackupActions {
         return text
     }
 
-    static let nothingImportedText = "Nothing to import from this file."
+    private static let nothingImportedText = "Nothing to import from this file."
 
     /// No import may grant keystroke listening, so say the switch an imported keyword needs is off.
     private static let snippetsNeedEnablingText =
@@ -291,23 +286,21 @@ enum BackupActions {
     }
 
     /// nil when no settings applied, so a caller can compose one combined sentence.
-    static func appliedText(_ s: SettingsBackup.ApplySummary) -> String? {
-        var parts: [String] = []
-        if s.settingsFields > 0 { parts.append("\(s.settingsFields) settings") }
-        if s.hotkeys > 0 { parts.append("\(s.hotkeys) shortcuts") }
-        if s.favorites > 0 { parts.append("\(s.favorites) favorites") }
-        if s.hiddenItems > 0 { parts.append("\(s.hiddenItems) hidden items") }
-        if s.aliases > 0 { parts.append("\(s.aliases) aliases") }
-        if s.pinnedEmoji > 0 { parts.append("\(s.pinnedEmoji) pinned emoji and symbols") }
-        if s.customCommands > 0 { parts.append("\(s.customCommands) custom commands") }
-        if s.quicklinks > 0 { parts.append("\(s.quicklinks) quicklinks") }
-        if s.windowLayouts > 0 { parts.append("\(s.windowLayouts) window layouts") }
-        if s.windowRooms > 0 { parts.append("\(s.windowRooms) rooms") }
-        if s.customWindowSizes > 0 {
-            parts.append("\(s.customWindowSizes) custom window sizes")
-        }
+    private static func appliedText(_ s: SettingsBackup.ApplySummary) -> String? {
+        let parts = counted([
+            (s.settingsFields, "settings"), (s.hotkeys, "shortcuts"), (s.favorites, "favorites"),
+            (s.hiddenItems, "hidden items"), (s.aliases, "aliases"),
+            (s.pinnedEmoji, "pinned emoji and symbols"), (s.customCommands, "custom commands"),
+            (s.quicklinks, "quicklinks"), (s.windowLayouts, "window layouts"), (s.windowRooms, "rooms"),
+            (s.customWindowSizes, "custom window sizes")
+        ])
         guard !parts.isEmpty else { return nil }
         return "Applied " + parts.joined(separator: ", ") + "."
+    }
+
+    /// "3 clips" for every non-zero count, in the order given.
+    private static func counted(_ counts: [(Int, String)]) -> [String] {
+        counts.filter { $0.0 > 0 }.map { "\($0.0) \($0.1)" }
     }
 
     // MARK: - Settings file
@@ -346,15 +339,10 @@ enum BackupActions {
         NSWorkspace.shared.activateFileViewerSelecting([AppPaths.settingsFile()])
     }
 
-    private static func confirmExecutableImport(
-        core: AppCore, commands: Int, shortcuts: Int
-    ) async
-        -> Bool
-    {
+    private static func confirmExecutableImport(core: AppCore, commands: Int, shortcuts: Int) async -> Bool {
         guard commands > 0 || shortcuts > 0 else { return true }
         let commandText = commands == 1 ? "1 custom command" : "\(commands) custom commands"
-        let shortcutText =
-            shortcuts == 1 ? "1 global shortcut" : "\(shortcuts) global shortcuts"
+        let shortcutText = shortcuts == 1 ? "1 global shortcut" : "\(shortcuts) global shortcuts"
         // Red glyph for a real warning, plain button: importing destroys nothing.
         return await core.confirm(
             title: "Import executable commands?",

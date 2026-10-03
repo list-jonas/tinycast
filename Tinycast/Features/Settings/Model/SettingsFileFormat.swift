@@ -83,9 +83,7 @@ enum SettingsFileFormat {
     }
 
     /// Empty stays on one line; anything else puts one element per line.
-    private static func block(
-        _ lines: [String], open: String, close: String, indent: Int
-    ) -> String {
+    private static func block(_ lines: [String], open: String, close: String, indent: Int) -> String {
         guard !lines.isEmpty else { return open + close }
         let inner = String(repeating: indentUnit, count: indent + 1)
         let outer = String(repeating: indentUnit, count: indent)

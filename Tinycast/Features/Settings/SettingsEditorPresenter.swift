@@ -28,12 +28,7 @@ final class SettingsEditorPresenter: NSObject {
                     guard let presenter else { return }
                     if presented {
                         let binding = $isPresented
-                        presenter.present(
-                            id: presentationID,
-                            onDismiss: {
-                                binding.wrappedValue = false
-                            }
-                        ) {
+                        presenter.present(id: presentationID, onDismiss: { binding.wrappedValue = false }) {
                             panelContent()
                         }
                     } else {
@@ -82,23 +77,12 @@ final class SettingsEditorPresenter: NSObject {
         let onDismiss: () -> Void
     }
 
-    private final class Presentation {
+    private struct Presentation {
         let id: UUID
         weak var parent: NSWindow?
         let panel: Panel
         let blocker: BlockingPanel
         let onDismiss: () -> Void
-
-        init(
-            id: UUID, parent: NSWindow, panel: Panel,
-            blocker: BlockingPanel, onDismiss: @escaping () -> Void
-        ) {
-            self.id = id
-            self.parent = parent
-            self.panel = panel
-            self.blocker = blocker
-            self.onDismiss = onDismiss
-        }
     }
 
     private final class Panel: NSPanel {
@@ -129,7 +113,7 @@ final class SettingsEditorPresenter: NSObject {
         override var canBecomeKey: Bool { true }
         override var canBecomeMain: Bool { false }
 
-        /// A child window drags alone, so the drag goes to the window it sits on, as a sheet's does.
+        /// A child window drags alone, so the drag goes to its parent, as a sheet's does.
         override func performDrag(with event: NSEvent) {
             parent?.performDrag(with: event)
         }

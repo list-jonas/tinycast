@@ -7,14 +7,11 @@ enum SettingsFileSchema {
         settings: AppSettings, ai: AISettingsStore, quickActions: QuickActionSettingsStore,
         windowManagement: WindowManagementSettingsFile
     ) -> [SettingsFileBinding] {
-        var bindings: [SettingsFileBinding] = []
-        for key in SettingsFileKey.allCases {
-            bindings.append(
-                binding(
-                    for: key, settings: settings, ai: ai, quickActions: quickActions,
-                    windowManagement: windowManagement))
+        SettingsFileKey.allCases.map {
+            binding(
+                for: $0, settings: settings, ai: ai, quickActions: quickActions,
+                windowManagement: windowManagement)
         }
-        return bindings
     }
 
     private static func binding(

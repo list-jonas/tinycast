@@ -116,10 +116,7 @@ struct ClipboardScreen: PaletteScreen {
     func body(selection: Int, scroll: ScrollIntent) -> AnyView {
         AnyView(
             content(selection: selection, scroll: scroll)
-                .onChange(of: ClipFollowKey(id: store.items.first?.id, token: vm.followToken)) {
-                    old, new in
-                    follow(from: old, to: new)
-                }
+                .onChange(of: ClipFollowKey(id: store.items.first?.id, token: vm.followToken), follow)
         )
     }
 
@@ -187,21 +184,13 @@ enum ClipboardActionsMenu {
             ) {
                 core.clipboardCoordinator.pasteKeepingWindowOpen(item)
             })
-        if item.isPinned {
-            items.append(
-                PopoverMenuItem(
-                    title: "Unpin Entry", systemImage: "pin.slash", startsSection: true, shortcut: "⌘."
-                ) {
-                    core.clipboardCoordinator.togglePinnedClip(item)
-                })
-        } else {
-            items.append(
-                PopoverMenuItem(
-                    title: "Pin Entry", systemImage: "pin", startsSection: true, shortcut: "⌘."
-                ) {
-                    core.clipboardCoordinator.togglePinnedClip(item)
-                })
-        }
+        items.append(
+            PopoverMenuItem(
+                title: item.isPinned ? "Unpin Entry" : "Pin Entry",
+                systemImage: item.isPinned ? "pin.slash" : "pin", startsSection: true, shortcut: "⌘."
+            ) {
+                core.clipboardCoordinator.togglePinnedClip(item)
+            })
         if item.offersTextExtraction {
             items.append(
                 PopoverMenuItem(
@@ -247,9 +236,7 @@ enum ClipboardActionsMenu {
         return PopoverMenuContent(header: headerText(item), items: items)
     }
 
-    private static func icon(
-        for action: ClipboardDefaultAction, target: PasteTarget?
-    ) -> PopoverMenuIcon {
+    private static func icon(for action: ClipboardDefaultAction, target: PasteTarget?) -> PopoverMenuIcon {
         switch action {
         case .paste: .paste(target, fallback: "doc.on.clipboard")
         case .copy: .symbol("doc.on.doc")

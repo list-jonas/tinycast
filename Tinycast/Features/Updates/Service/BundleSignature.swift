@@ -25,7 +25,7 @@ enum BundleSignature {
         return running == candidate
     }
 
-    /// No `notarized`: its ticket lookup can hit the network, and the chain already proves ownership.
+    /// No `notarized`: its ticket lookup can hit the network; the chain already proves ownership.
     private static func satisfiesDeveloperID(_ code: SecStaticCode, flags: SecCSFlags) -> Bool {
         var requirement: SecRequirement?
         guard

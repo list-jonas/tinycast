@@ -146,10 +146,12 @@ final class ClipboardManager {
             return
         }
 
+        // Stops at the first visible scalar: trimming would copy a multi-MB string to test it.
         if let text = pb.string(forType: .string),
-            !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            text.unicodeScalars.contains(where: { !CharacterSet.whitespacesAndNewlines.contains($0) })
         {
-            guard text.count <= Self.maxTextLength else { return }
+            // Characters never outnumber UTF-8 bytes, so the cheap count settles most copies.
+            guard text.utf8.count <= Self.maxTextLength || text.count <= Self.maxTextLength else { return }
             store.addText(text, sourceBundleID: sourceBundleID)
             return
         }

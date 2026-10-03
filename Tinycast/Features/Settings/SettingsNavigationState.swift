@@ -20,7 +20,7 @@ final class SettingsNavigationState {
     /// The section lit right now. One source for the whole window, so a pane swap can't lose it.
     private(set) var flashing: SettingsTarget?
 
-    /// A search result navigates and asks the pane to reveal one section; a sidebar row just navigates.
+    /// A search result navigates and asks for a section to reveal; a sidebar row only navigates.
     func select(_ tab: SettingsTab, revealing target: SettingsTarget? = nil) {
         history.select(tab)
         // Any navigation puts the previous pulse out, so a stale light can't outlive its pane.
@@ -40,8 +40,7 @@ final class SettingsNavigationState {
         flashing = nil
     }
 
-    /// Released only once the pulse is over: it keys the pane's task, so clearing it early would
-    /// cancel the very task doing the revealing.
+    /// Released once the pulse is over: it keys the pane's task, which an early clear would cancel.
     func clear(_ request: SettingsScrollRequest) {
         guard scrollRequest == request else { return }
         scrollRequest = nil

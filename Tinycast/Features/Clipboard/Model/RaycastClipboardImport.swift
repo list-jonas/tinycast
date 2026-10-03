@@ -7,13 +7,18 @@ enum RaycastClipboardImport {
         guard let entries = (value as? [String: Any])?["clipboardEntries"] as? [[String: Any]]
         else { return ([], 0) }
 
-        let dateParser = ISO8601DateFormatter()
-        dateParser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let fractionalParser = ISO8601DateFormatter()
+        fractionalParser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        // Built once rather than per entry: a formatter is costly to create.
+        let wholeSecondParser = ISO8601DateFormatter()
 
         var items: [ClipboardItem] = []
         var missing = 0
         for entry in entries {
-            let createdAt = parseDate(entry["createdAt"] as? String, using: dateParser) ?? now()
+            let createdAt =
+                (entry["createdAt"] as? String).flatMap {
+                    fractionalParser.date(from: $0) ?? wholeSecondParser.date(from: $0)
+                } ?? now()
             let pinnedAt = isPinned(entry["pinned"]) ? createdAt : nil
             let reps = (entry["items"] as? [[String: Any]] ?? [])
                 .flatMap { ($0["representations"] as? [[String: Any]]) ?? [] }
@@ -43,11 +48,6 @@ enum RaycastClipboardImport {
             }
         }
         return (items, missing)
-    }
-
-    private static func parseDate(_ string: String?, using parser: ISO8601DateFormatter) -> Date? {
-        guard let string else { return nil }
-        return parser.date(from: string) ?? ISO8601DateFormatter().date(from: string)
     }
 
     private static func isPinned(_ value: Any?) -> Bool {

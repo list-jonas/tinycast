@@ -78,9 +78,7 @@ struct UninstallIdentity: Hashable, Sendable {
     }
 
     /// Gates a name must clear: long enough, not a macOS folder, not shared with another app.
-    static func safeNames(
-        displayName: String, bundleName: String?, otherAppNames: [String]
-    ) -> [String] {
+    static func safeNames(displayName: String, bundleName: String?, otherAppNames: [String]) -> [String] {
         let taken = Set(otherAppNames.map(folded))
         var result: [String] = []
         for candidate in [displayName, bundleName].compactMap({ $0 }) {
