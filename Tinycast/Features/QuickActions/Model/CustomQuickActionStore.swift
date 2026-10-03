@@ -11,16 +11,9 @@ final class CustomQuickActionStore {
     private let fileURL: URL
 
     init(directory: URL? = nil) {
-        let base = directory ?? Self.defaultDirectory
+        let base = directory ?? AppPaths.applicationSupport()
         fileURL = base.appendingPathComponent("quick-actions.json")
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
-    }
-
-    private static var defaultDirectory: URL {
-        let bundleID = Bundle.main.bundleIdentifier ?? "com.tinycast.app"
-        return FileManager.default
-            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent(bundleID, isDirectory: true)
     }
 
     func load() {
@@ -45,16 +38,15 @@ final class CustomQuickActionStore {
 
     @discardableResult
     func add(_ draft: CustomQuickAction) throws(CustomQuickActionError) -> CustomQuickAction {
-        let value = try validated(draft)
+        let value = try Self.validated(draft)
         try commit(actions + [value])
         return value
     }
 
     func update(_ draft: CustomQuickAction) throws(CustomQuickActionError) {
         guard let index = actions.firstIndex(where: { $0.id == draft.id }) else { return }
-        let value = try validated(draft)
         var updated = actions
-        updated[index] = value
+        updated[index] = try Self.validated(draft)
         try commit(updated)
     }
 
@@ -75,7 +67,7 @@ final class CustomQuickActionStore {
         try update(value)
     }
 
-    private func validated(
+    private static func validated(
         _ draft: CustomQuickAction
     ) throws(CustomQuickActionError) -> CustomQuickAction {
         var value = draft
@@ -109,20 +101,9 @@ final class CustomQuickActionStore {
 
     private static func sanitized(_ values: [CustomQuickAction]) -> [CustomQuickAction] {
         var ids = Set<UUID>()
-        var result: [CustomQuickAction] = []
-        for value in values {
-            var cleaned = value
-            cleaned.name = value.name.trimmingCharacters(in: .whitespacesAndNewlines)
-            cleaned.iconSymbol =
-                value.iconSymbol?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
-            cleaned.instructions = value.instructions.trimmingCharacters(
-                in: .whitespacesAndNewlines)
-            guard !cleaned.name.isEmpty, !cleaned.name.contains("\0"),
-                !cleaned.instructions.isEmpty, ids.insert(cleaned.id).inserted
-            else { continue }
-            result.append(cleaned)
-        }
-        return result.sorted(by: CustomQuickAction.precedes)
+        return values.compactMap { try? validated($0) }
+            .filter { ids.insert($0.id).inserted }
+            .sorted(by: CustomQuickAction.precedes)
     }
 }
 

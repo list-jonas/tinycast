@@ -36,20 +36,12 @@ final class QuicklinkStore {
 
     /// `directory` defaults per channel; the harness passes a throwaway one.
     init(directory: URL? = nil) {
-        let base = directory ?? Self.defaultDirectory
+        let base = directory ?? AppPaths.applicationSupport()
         dbURL = base.appendingPathComponent("quicklinks.sqlite3")
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         isAvailable = openDatabase()
         // A failed open leaves the file alone: this is authored data, so report, never delete.
         if !isAvailable { closeDatabase() }
-    }
-
-    /// Under Application Support, the same per-channel root snippets use.
-    private static var defaultDirectory: URL {
-        let bundleID = Bundle.main.bundleIdentifier ?? "com.tinycast.app"
-        return FileManager.default
-            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent(bundleID, isDirectory: true)
     }
 
     // Isolated so teardown may touch the main-actor pointers; the release is already on main.

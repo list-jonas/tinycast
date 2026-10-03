@@ -116,7 +116,8 @@ run() {
 L=Tinycast/Features/Launcher/Model
 run slow -O fuzz-test      $L/SearchRelevance.swift $L/ScriptRomanization.swift \
                            $L/LauncherMatch.swift $L/EntryNaming.swift $L/LauncherOrder.swift \
-                           $L/LauncherRankingStore.swift $L/LauncherSuggestions.swift
+                           $L/LauncherRankingStore.swift $L/LauncherSuggestions.swift \
+                           Tinycast/Platform/AppPaths.swift
 run file-search-test       $L/SearchRelevance.swift \
                            Tinycast/Features/FileSearch/Model/*.swift
 run file-search-session-test Tinycast/Platform/Signposts.swift \
@@ -133,7 +134,8 @@ run index file-search-performance Tinycast/Platform/Signposts.swift \
                            Tinycast/Features/FileSearch/Model/*.swift \
                            Tinycast/Features/FileSearch/Service/FileSearchService.swift
 run ranking-test           $L/SearchRelevance.swift $L/ScriptRomanization.swift \
-                           $L/LauncherMatch.swift $L/LauncherRankingStore.swift
+                           $L/LauncherMatch.swift $L/LauncherRankingStore.swift \
+                           Tinycast/Platform/AppPaths.swift
 run scopes-test            $L/SearchScopes.swift
 run app-name-test          Tinycast/Platform/AppDisplayName.swift \
                            Tinycast/Platform/BundleLocalization.swift \
@@ -420,6 +422,7 @@ run uninstall-test         Tinycast/Features/Uninstall/Model/UninstallTarget.swi
                            Tinycast/Features/Uninstall/Model/UninstallProtection.swift \
                            Tinycast/Features/Uninstall/Model/UninstallPlan.swift
 run quicklink-test         Tinycast/Features/Quicklinks/Model/Quicklink.swift \
+                           Tinycast/Platform/AppPaths.swift \
                            Tinycast/Features/Quicklinks/Model/QuicklinkDestination.swift \
                            Tinycast/Features/Quicklinks/Model/QuicklinkStore.swift \
                            Tinycast/Features/Quicklinks/Model/QuicklinkArchive.swift \
@@ -664,6 +667,7 @@ run quick-action-test      Tinycast/Features/Settings/AppSettingsKey.swift \
                            Tinycast/Features/AI/Model/ChatGPTSubscription.swift \
                            Tinycast/Features/AI/Model/InstalledAI.swift \
                            Tinycast/Features/QuickActions/Model/*.swift \
+                           Tinycast/Platform/AppPaths.swift \
                            Tinycast/Features/QuickActions/Settings/QuickActionSettingsStore.swift
 run apple-intelligence-test Tinycast/Features/Settings/AppSettingsKey.swift \
                            Tinycast/Features/AI/Model/*.swift \
