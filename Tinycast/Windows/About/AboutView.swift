@@ -61,12 +61,8 @@ struct AboutView: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, Theme.Spacing.md)
                     .padding(.vertical, Theme.Spacing.xs / 2)
-                    .background(
-                        Capsule().fill(Theme.Colors.cardFill)
-                    )
-                    .overlay(
-                        Capsule().strokeBorder(Theme.Colors.cardStroke, lineWidth: 1)
-                    )
+                    .background(Capsule().fill(Theme.Colors.cardFill))
+                    .overlay(Capsule().strokeBorder(Theme.Colors.cardStroke, lineWidth: 1))
                 Button {
                     core.updateCoordinator.checkForUpdates()
                 } label: {
@@ -144,8 +140,7 @@ private struct AboutLink: Identifiable {
 
     static let all: [AboutLink] = [
         AboutLink(
-            id: "website", glyph: .symbol("globe"), title: "Website",
-            detail: "tinycast.dev",
+            id: "website", glyph: .symbol("globe"), title: "Website", detail: "tinycast.dev",
             url: URL(string: "https://tinycast.dev/")!),
         AboutLink(
             id: "github", glyph: .brand("BrandGitHub"), title: "GitHub",
@@ -184,11 +179,7 @@ private struct AboutLinkRow: View {
                         .foregroundStyle(hovered ? .secondary : .tertiary)
                 }
             } label: {
-                Label {
-                    Text(link.title)
-                } icon: {
-                    glyph
-                }
+                Label { Text(link.title) } icon: { glyph }
             }
             .contentShape(Rectangle())
         }

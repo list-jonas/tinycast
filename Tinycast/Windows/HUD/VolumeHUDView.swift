@@ -7,15 +7,13 @@ struct VolumeHUDView: View {
     var body: some View {
         VStack(spacing: Theme.Spacing.lg) {
             SymbolImage(
-                name: VolumeLevel.symbol(level: state.level, muted: state.muted),
-                size: Theme.Size.dialogIcon
+                name: VolumeLevel.symbol(level: state.level, muted: state.muted), size: Theme.Size.dialogIcon
             )
             .foregroundStyle(Color.primary)
             HStack(spacing: Theme.Spacing.md) {
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
-                        Capsule()
-                            .fill(Theme.Colors.controlSurface)
+                        Capsule().fill(Theme.Colors.controlSurface)
                         Capsule()
                             .fill(Theme.Colors.textPrimary.opacity(state.muted ? 0.35 : 0.85))
                             .frame(width: geometry.size.width * fill)

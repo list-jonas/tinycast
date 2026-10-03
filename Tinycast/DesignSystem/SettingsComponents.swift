@@ -11,11 +11,11 @@ struct SettingsTabIcon: View {
 
     var body: some View {
         let scale = size / (Theme.Size.settingsSidebarGlyph + Theme.Spacing.xs * 2)
+        let glyph = Theme.Size.settingsSidebarGlyph * scale
         Image(systemName: systemImage)
             .resizable()
             .scaledToFit()
-            .frame(
-                width: Theme.Size.settingsSidebarGlyph * scale, height: Theme.Size.settingsSidebarGlyph * scale)
+            .frame(width: glyph, height: glyph)
             .foregroundStyle(tint)
             .padding(Theme.Spacing.xs * scale)
             .background(

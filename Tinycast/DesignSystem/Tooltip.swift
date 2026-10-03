@@ -41,10 +41,7 @@ private struct TooltipModifier: ViewModifier {
                 shape.fill(Color(nsColor: .windowBackgroundColor))
                 shape.fill(Theme.Colors.controlSurface)
             }
-            .shadow(
-                color: Theme.Colors.tooltipShadow, radius: metrics.spacing.xs,
-                y: metrics.spacing.xxs
-            )
+            .shadow(color: Theme.Colors.tooltipShadow, radius: metrics.spacing.xs, y: metrics.spacing.xxs)
             .fixedSize()
             // A zero-height frame on the control's edge, so a label of any height hangs off it.
             .frame(height: 0, alignment: edge == .top ? .bottom : .top)

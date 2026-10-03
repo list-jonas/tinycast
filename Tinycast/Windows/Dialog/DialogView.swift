@@ -114,10 +114,7 @@ private struct DialogSymbol: View {
     var body: some View {
         SymbolImage(name: name, size: metrics.size.dialogSymbol, monochrome: true)
             .foregroundStyle(symbolTint)
-            .frame(
-                width: metrics.size.dialogSymbolContainer,
-                height: metrics.size.dialogSymbolContainer
-            )
+            .frame(width: metrics.size.dialogSymbolContainer, height: metrics.size.dialogSymbolContainer)
             .background(
                 RoundedRectangle(cornerRadius: metrics.radius.dialogSymbol, style: .continuous)
                     .fill(tone.tileFill))

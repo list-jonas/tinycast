@@ -303,8 +303,7 @@ struct PopoverMenu: View {
             .truncationMode(.tail)
             .frame(
                 maxWidth: .infinity, minHeight: metrics.size.menuSectionHeader,
-                maxHeight: metrics.size.menuSectionHeader, alignment: .leading
-            )
+                maxHeight: metrics.size.menuSectionHeader, alignment: .leading)
             // `md`, matching a row's own inset, so header and icon share one edge.
             .padding(.horizontal, metrics.spacing.md)
             .padding(.top, isFirst ? 0 : metrics.spacing.md)
@@ -344,12 +343,9 @@ private struct PopoverMenuRow: View {
                             .font(
                                 .system(
                                     size: metrics.scaled(Theme.Typography.menuSymbolSize),
-                                    weight: Theme.Typography.menuSymbolWeight)
-                            )
+                                    weight: Theme.Typography.menuSymbolWeight))
                             .symbolRenderingMode(.monochrome)
-                            .foregroundStyle(
-                                item.isDestructive ? Color.red : Theme.Colors.menuSymbol
-                            )
+                            .foregroundStyle(item.isDestructive ? Color.red : Theme.Colors.menuSymbol)
                             .frame(width: metrics.size.menuIcon, height: metrics.size.menuIcon)
                     case .asset(let name):
                         Image(name)
@@ -390,13 +386,11 @@ private struct PopoverMenuRow: View {
             // Stated, not padded: the height maths above counts rows, so a row is one exact height.
             .frame(
                 maxWidth: .infinity, minHeight: metrics.size.menuRowHeight,
-                maxHeight: metrics.size.menuRowHeight, alignment: .leading
-            )
+                maxHeight: metrics.size.menuRowHeight, alignment: .leading)
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: metrics.radius.menuRow, style: .continuous)
-                    .fill(selected ? Theme.Colors.menuHover : Color.clear)
-            )
+                    .fill(selected ? Theme.Colors.menuHover : Color.clear))
             .opacity(item.isEnabled ? 1 : 0.45)
         }
         .buttonStyle(.plain)
