@@ -367,6 +367,7 @@ run window-layout-test     Tinycast/Features/WindowManagement/Model/WindowComman
                            Tinycast/Features/WindowManagement/Model/WindowPlacementEngine.swift \
                            Tinycast/Features/WindowManagement/Model/WindowLayoutAnchor.swift \
                            Tinycast/Features/WindowManagement/Model/WindowLayoutDisplay.swift \
+                           Tinycast/Features/WindowManagement/Model/WindowLibraryRecord.swift \
                            Tinycast/Features/WindowManagement/Model/WindowLayout.swift \
                            Tinycast/Features/WindowManagement/Model/WindowLayoutGeometry.swift \
                            Tinycast/Features/WindowManagement/Model/WindowLayoutPlan.swift \
@@ -378,6 +379,7 @@ run window-room-test       Tinycast/Features/WindowManagement/Model/WindowComman
                            Tinycast/Features/WindowManagement/Model/WindowPlacementEngine.swift \
                            Tinycast/Features/WindowManagement/Model/WindowLayoutAnchor.swift \
                            Tinycast/Features/WindowManagement/Model/WindowLayoutDisplay.swift \
+                           Tinycast/Features/WindowManagement/Model/WindowLibraryRecord.swift \
                            Tinycast/Features/WindowManagement/Model/WindowLayout.swift \
                            Tinycast/Features/WindowManagement/Model/WindowLayoutGeometry.swift \
                            Tinycast/Features/WindowManagement/Model/WindowLayoutPlan.swift \
@@ -398,6 +400,7 @@ run window-file-test       Tinycast/Features/WindowManagement/Model/WindowComman
                            Tinycast/Features/WindowManagement/Model/WindowPlacementEngine.swift \
                            Tinycast/Features/WindowManagement/Model/WindowLayoutAnchor.swift \
                            Tinycast/Features/WindowManagement/Model/WindowLayoutDisplay.swift \
+                           Tinycast/Features/WindowManagement/Model/WindowLibraryRecord.swift \
                            Tinycast/Features/WindowManagement/Model/WindowLayout.swift \
                            Tinycast/Features/WindowManagement/Model/WindowLayoutGeometry.swift \
                            Tinycast/Features/WindowManagement/Model/CustomWindowSize.swift \

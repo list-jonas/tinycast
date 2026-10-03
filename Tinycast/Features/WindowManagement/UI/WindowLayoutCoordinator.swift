@@ -6,11 +6,7 @@ final class WindowLayoutCoordinator {
     private let store: WindowLayoutStore
     private let settings: AppSettings
     private let appIndex: AppIndex
-    private let hotKeys: HotKeyManager
-    private let favorites: FavoritesStore
-    private let visibility: VisibilityStore
-    private let ranking: LauncherRankingStore
-    private let aliases: AliasStore
+    private let references: WindowLibraryReferenceService
     private let paletteCoordinator: PaletteCoordinator
     private let settingsCoordinator: SettingsCoordinator
     /// Dialog and message-HUD presentation, and the editor handoff. Never state this type owns.
@@ -28,17 +24,13 @@ final class WindowLayoutCoordinator {
         self.store = store
         self.settings = settings
         self.appIndex = appIndex
-        self.hotKeys = hotKeys
-        self.favorites = favorites
-        self.visibility = visibility
-        self.ranking = ranking
-        self.aliases = aliases
+        references = WindowLibraryReferenceService(
+            hotKeys: hotKeys, favorites: favorites, visibility: visibility, ranking: ranking,
+            aliases: aliases)
         self.paletteCoordinator = paletteCoordinator
         self.settingsCoordinator = settingsCoordinator
         self.core = core
     }
-
-    // MARK: - Feature presence
 
     func applyWindowLayoutsPresence() {
         let visible = settings.windowManagementEnabled && settings.windowLayoutsShowInLauncher
@@ -47,8 +39,6 @@ final class WindowLayoutCoordinator {
         appIndex.setCommandsVisible(commands, settings.windowManagementEnabled)
         appIndex.setCommandsListed(commands, settings.windowLayoutsShowInLauncher)
     }
-
-    // MARK: - Running
 
     /// The one funnel for a palette row, a global shortcut and the pane's Apply alike.
     func runWindowLayout(id: UUID) {
@@ -68,12 +58,8 @@ final class WindowLayoutCoordinator {
         run = nil
     }
 
-    // MARK: - Library
-
     @discardableResult
-    func addWindowLayout(
-        _ draft: WindowLayout
-    ) throws(WindowLayoutValidationError) -> WindowLayout {
+    func addWindowLayout(_ draft: WindowLayout) throws(WindowLayoutValidationError) -> WindowLayout {
         try store.add(draft)
     }
 
@@ -85,28 +71,27 @@ final class WindowLayoutCoordinator {
         do {
             _ = try store.duplicate(id: id)
         } catch {
-            Task { await report(failure: error) }
+            Task {
+                await core.showNotice(
+                    title: "Couldn't Save the Layout",
+                    message: error.errorDescription ?? "The layout could not be saved.",
+                    symbol: WindowLayout.sfSymbol, tone: .danger)
+            }
         }
     }
 
     func deleteWindowLayout(id: UUID) {
         guard let layout = store.remove(id: id) else { return }
-        // Unwound only once the row is gone, so a kept record never loses its shortcut.
-        removeWindowLayoutReferences(ids: [layout.id], entryIDs: [layout.entryID])
+        references.remove([layout], action: HotKeyAction.windowLayout)
     }
 
     @discardableResult
     func replaceWindowLayouts(_ incoming: [WindowLayout]) -> Int {
-        let previous = Dictionary(uniqueKeysWithValues: store.layouts.map { ($0.id, $0) })
+        let previous = store.layouts
         let count = store.replace(with: incoming)
-        let live = Set(store.layouts.map(\.id))
-        let removed = Set(previous.keys).subtracting(live)
-        removeWindowLayoutReferences(
-            ids: removed, entryIDs: Set(removed.compactMap { previous[$0]?.entryID }))
+        references.removeDropped(from: previous, keeping: store.layouts, action: HotKeyAction.windowLayout)
         return count
     }
-
-    // MARK: - Editing
 
     /// Opens the Window Management pane with the editor showing `layout`; nil is a new one.
     func editWindowLayout(_ layout: WindowLayout?) {
@@ -123,13 +108,11 @@ final class WindowLayoutCoordinator {
         }
         // Gapless by construction, so a later change to `windowGap` can't move every window.
         let draft = WindowLayout(
-            name: Self.uniqueCaptureName(among: store.layouts), usesPreferredGap: false,
+            name: WindowLayoutStore.uniqueName("Captured Layout", among: store.layouts), usesPreferredGap: false,
             entries: entries, frontmostEntryID: frontmostEntryID)
         core.pendingWindowLayoutEdit = WindowLayoutEditRequest(layout: draft, isCapture: true)
         settingsCoordinator.showSettings(tab: .windowManagement)
     }
-
-    // MARK: - Reporting
 
     private func report(_ outcome: WindowLayoutRunner.Outcome, for layout: WindowLayout) async {
         if outcome.isBlockedOnPermission {
@@ -166,36 +149,5 @@ final class WindowLayoutCoordinator {
             parts.append(failed == 1 ? "1 app couldn't open" : "\(failed) apps couldn't open")
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
-    }
-
-    private func report(failure: WindowLayoutValidationError) async {
-        await core.showNotice(
-            title: "Couldn't Save the Layout",
-            message: failure.errorDescription ?? "The layout could not be saved.",
-            symbol: WindowLayout.sfSymbol, tone: .danger)
-    }
-
-    private func removeWindowLayoutReferences(ids: Set<UUID>, entryIDs: Set<String>) {
-        for id in ids {
-            let action = HotKeyAction.windowLayout(id: id)
-            if hotKeys.recordingAction == action { hotKeys.recordingAction = nil }
-            hotKeys.setBinding(nil, for: action)
-        }
-        favorites.remove(keys: entryIDs)
-        visibility.removeItemKeys(entryIDs)
-        aliases.removeKeys(entryIDs)
-        for entryID in entryIDs {
-            ranking.reset(itemKey: entryID)
-        }
-    }
-
-    /// "Captured Layout", then " 2", so the editor opens on a name that will validate.
-    private static func uniqueCaptureName(among existing: [WindowLayout]) -> String {
-        let taken = Set(existing.map { $0.name.lowercased() })
-        let base = "Captured Layout"
-        guard taken.contains(base.lowercased()) else { return base }
-        var index = 2
-        while taken.contains("\(base) \(index)".lowercased()) { index += 1 }
-        return "\(base) \(index)"
     }
 }

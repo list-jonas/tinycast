@@ -1,9 +1,8 @@
 import CoreGraphics
 import Foundation
 
-/// A user-defined window command: one size at one position, applied to the focused window.
-/// See docs/features/window-management.md#custom-sizes.
-struct CustomWindowSize: Codable, Hashable, Identifiable, Sendable {
+/// One size at one position, applied to the focused window. window-management.md#custom-sizes
+struct CustomWindowSize: Codable, Hashable, WindowLibraryRecord, Sendable {
     static let entryIDPrefix = "window-size:"
     static let sfSymbol = "macwindow.and.cursorarrow"
 
@@ -15,18 +14,10 @@ struct CustomWindowSize: Codable, Hashable, Identifiable, Sendable {
 
             /// Wider than any display for points, so a real size is never clipped at authoring.
             var range: ClosedRange<Int> {
-                switch self {
-                case .points: return 1...16_000
-                case .percent: return 1...100
-                }
+                self == .points ? 1...16_000 : 1...100
             }
 
-            var suffix: String {
-                switch self {
-                case .points: return "pt"
-                case .percent: return "%"
-                }
-            }
+            var suffix: String { self == .points ? "pt" : "%" }
         }
 
         var value: Int
@@ -37,14 +28,11 @@ struct CustomWindowSize: Codable, Hashable, Identifiable, Sendable {
             self.unit = unit
         }
 
-        var label: String {
-            unit == .points ? "\(value) pt" : "\(value)%"
-        }
+        var label: String { unit == .points ? "\(value) pt" : "\(value)%" }
 
         /// The length this asks for inside `available`, never zero and never past it.
         func length(in available: CGFloat) -> CGFloat {
-            let requested =
-                unit == .points ? CGFloat(value) : available * CGFloat(value) / 100
+            let requested = unit == .points ? CGFloat(value) : available * CGFloat(value) / 100
             return min(available, max(WindowLayoutGeometry.minimumLength, requested))
         }
 
@@ -71,58 +59,16 @@ struct CustomWindowSize: Codable, Hashable, Identifiable, Sendable {
         }
     }
 
-    let id: UUID
+    var id = UUID()
     var name: String
-    var width: Dimension
-    var height: Dimension
-    var anchor: WindowLayoutAnchor
-    var offset: Offset
+    var width = Dimension(60, .percent)
+    var height = Dimension(60, .percent)
+    var anchor = WindowLayoutAnchor.center
+    var offset = Offset.zero
 
-    init(
-        id: UUID = UUID(), name: String, width: Dimension = Dimension(60, .percent),
-        height: Dimension = Dimension(60, .percent), anchor: WindowLayoutAnchor = .center,
-        offset: Offset = .zero
-    ) {
-        self.id = id
-        self.name = name
-        self.width = width
-        self.height = height
-        self.anchor = anchor
-        self.offset = offset
-    }
-
-    // Hand-written, so an added field keeps stored sizes and older backups readable.
-    private enum CodingKeys: String, CodingKey {
-        case id, name, width, height, anchor, offset
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
-        name = try container.decode(String.self, forKey: .name)
-        width = try container.decode(Dimension.self, forKey: .width)
-        height = try container.decode(Dimension.self, forKey: .height)
-        anchor = try container.decode(WindowLayoutAnchor.self, forKey: .anchor)
-        offset = try container.decodeIfPresent(Offset.self, forKey: .offset) ?? .zero
-    }
-
-    var entryID: String { Self.entryIDPrefix + id.uuidString.lowercased() }
-
-    /// The settings row's subtitle: what this size does, in one line.
     var summary: String {
         let base = "\(width.label) × \(height.label) · \(anchor.title)"
         return offset == .zero ? base : "\(base) · Offset \(offset.x), \(offset.y) pt"
-    }
-
-    static func id(fromEntryID entryID: String) -> UUID? {
-        guard entryID.hasPrefix(entryIDPrefix) else { return nil }
-        return UUID(uuidString: String(entryID.dropFirst(entryIDPrefix.count)))
-    }
-
-    static func precedes(_ lhs: Self, _ rhs: Self) -> Bool {
-        let order = lhs.name.localizedCaseInsensitiveCompare(rhs.name)
-        guard order == .orderedSame else { return order == .orderedAscending }
-        return lhs.id.uuidString < rhs.id.uuidString
     }
 
     /// Trimmed and clamped rather than rejected, so a bad import keeps the record.
@@ -134,8 +80,6 @@ struct CustomWindowSize: Codable, Hashable, Identifiable, Sendable {
         cleaned.offset = Offset(x: offset.x, y: offset.y)
         return cleaned
     }
-
-    // MARK: - Geometry
 
     /// The frame this size asks for on a display, in AX space; nil when the display has no room.
     func frame(in visibleFrame: CGRect, gap: CGFloat) -> CGRect? {
@@ -162,16 +106,27 @@ struct CustomWindowSize: Codable, Hashable, Identifiable, Sendable {
     }
 }
 
+extension CustomWindowSize {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            id: try container.decode(UUID.self, forKey: .id),
+            name: try container.decode(String.self, forKey: .name),
+            width: try container.decode(Dimension.self, forKey: .width),
+            height: try container.decode(Dimension.self, forKey: .height),
+            anchor: try container.decode(WindowLayoutAnchor.self, forKey: .anchor),
+            offset: try container.decodeIfPresent(Offset.self, forKey: .offset) ?? .zero)
+    }
+}
+
 enum CustomWindowSizeValidationError: LocalizedError, Equatable {
-    case emptyName
-    case duplicateName
-    case invalidCharacter
+    case emptyName, duplicateName, invalidCharacter
 
     var errorDescription: String? {
         switch self {
-        case .emptyName: return "Enter a name for the size."
-        case .duplicateName: return "A custom size with this name already exists."
-        case .invalidCharacter: return "Names cannot contain null characters."
+        case .emptyName: "Enter a name for the size."
+        case .duplicateName: "A custom size with this name already exists."
+        case .invalidCharacter: "Names cannot contain null characters."
         }
     }
 }

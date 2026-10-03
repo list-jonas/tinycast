@@ -151,7 +151,7 @@ final class RoomStore {
             let frame = window.unitFrame
             let finite = [frame.minX, frame.minY, frame.width, frame.height].allSatisfy(\.isFinite)
             if !finite || frame.width <= 0 || frame.height <= 0 {
-                cleaned.unitFrame = CGRect(x: 0, y: 0, width: 1, height: 1)
+                cleaned.unitFrame = RoomWindow.wholeUnit
             }
             if let cell = window.cell, !RoomGrid.isValid([cell]) { cleaned.cell = nil }
             return cleaned

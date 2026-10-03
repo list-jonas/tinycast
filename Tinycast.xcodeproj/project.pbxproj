@@ -171,6 +171,7 @@
 		36784C964DB27B94A62EEAA3 /* tinycast.icon in Resources */ = {isa = PBXBuildFile; fileRef = 6621A88681E993D49EEF07A3 /* tinycast.icon */; };
 		36968DFA1E201E681F0BCD42 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1306524F57602D90FCF153C /* Theme.swift */; };
 		36A6FC9C41CDBD4ADA1F8E87 /* AIModelDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = A68649D40F987D1CD24D1112 /* AIModelDiscovery.swift */; };
+		37FE645EDC340630E75EC76A /* WindowLibraryReferenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58F088E798AD2E29CCA02FA4 /* WindowLibraryReferenceService.swift */; };
 		383A577E1A70AF702C474B0F /* ClipDragPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6491D532351DEB940B4FBD1A /* ClipDragPayload.swift */; };
 		3891DA96CC148D13893F4494 /* ShortcutCaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B235DFF451FF4D52A8E44D00 /* ShortcutCaptureSession.swift */; };
 		3917193B62450F226297B3F1 /* SelectionReveal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 648F0F43FEEE537F6451756B /* SelectionReveal.swift */; };
@@ -477,6 +478,7 @@
 		99DE042F9012822660B94FB0 /* NoteBlockLayoutFragment.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2F10908DDD321EF695BA31B /* NoteBlockLayoutFragment.swift */; };
 		9A0964A7D0E14D77F4997BBE /* CustomWindowSizeEditorPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0805655B4808B5B407C7BE7A /* CustomWindowSizeEditorPanel.swift */; };
 		9A4C05944E6C4471DA873CA7 /* RoomPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC56DF5D3B82C81597649D6 /* RoomPlan.swift */; };
+		9A6A626BCB8035C1ACD9D1BE /* WindowLibraryRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = C26262A01916DBBF10605033 /* WindowLibraryRecord.swift */; };
 		9A7BBA93D54AB1638F1EBE6F /* SpaceGesture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9B724FD9A867189A6118DF7 /* SpaceGesture.swift */; };
 		9A80D2997DCF835AF225A586 /* RunningAppsMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB5FA545F484D7666E9A5F14 /* RunningAppsMonitor.swift */; };
 		9AA3CF9A3494776DC8E772A8 /* ColorDot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A068600862BC729F0565D67 /* ColorDot.swift */; };
@@ -1115,6 +1117,7 @@
 		582A70CF432F5E0144E57369 /* ExtensionRefreshState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionRefreshState.swift; sourceTree = "<group>"; };
 		58D62BFB4EC604AE6171BBA3 /* CountryZoneData.generated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountryZoneData.generated.swift; sourceTree = "<group>"; };
 		58E4CA2F03AC089232301F8E /* ModifierKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModifierKey.swift; sourceTree = "<group>"; };
+		58F088E798AD2E29CCA02FA4 /* WindowLibraryReferenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowLibraryReferenceService.swift; sourceTree = "<group>"; };
 		590A432CC25ED6372B453BFA /* ScheduleScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleScreen.swift; sourceTree = "<group>"; };
 		5A1E7B96668721F12170CD72 /* WindowActionMemory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowActionMemory.swift; sourceTree = "<group>"; };
 		5A54D1E880E274A3B56C6951 /* DictationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationModel.swift; sourceTree = "<group>"; };
@@ -1437,6 +1440,7 @@
 		C01EA2D102571E10CCE4E1B0 /* MathAttachmentCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MathAttachmentCell.swift; sourceTree = "<group>"; };
 		C0599199132DAFBE12C59FBD /* MeetingDay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingDay.swift; sourceTree = "<group>"; };
 		C214E40D42F4812F141C16A8 /* ColorPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorPreview.swift; sourceTree = "<group>"; };
+		C26262A01916DBBF10605033 /* WindowLibraryRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowLibraryRecord.swift; sourceTree = "<group>"; };
 		C2EAA357A9F0317320CFAADF /* TerminalLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalLogView.swift; sourceTree = "<group>"; };
 		C330E1D58D9A9A71D35D4019 /* QuicklinkEditorPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuicklinkEditorPanel.swift; sourceTree = "<group>"; };
 		C3C83D437500107168E12647 /* QuickActionSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActionSettings.swift; sourceTree = "<group>"; };
@@ -2633,6 +2637,7 @@
 				AFF7FC0E52E9082006614E0D /* WindowLayoutGeometry.swift */,
 				3A5D8DD69E6E38D96B13D1A6 /* WindowLayoutPlan.swift */,
 				112FAE46D58E17331C1CEEAF /* WindowLayoutStore.swift */,
+				C26262A01916DBBF10605033 /* WindowLibraryRecord.swift */,
 				49E8194DC4F75C103DA35F3D /* WindowManagementFileFormat.swift */,
 				7E89EC889B55E3E5DD543542 /* WindowPlacementEngine.swift */,
 				059EE288BB5EF35F9FB60F43 /* WindowShortcutPreset.swift */,
@@ -2864,6 +2869,7 @@
 				D68722D56122F3EFDA707782 /* RoomsScreen.swift */,
 				BE33C0D70D728B12E9A8D4A6 /* WindowCommandCoordinator.swift */,
 				8BE58163F028AC3AD537AAC3 /* WindowLayoutCoordinator.swift */,
+				58F088E798AD2E29CCA02FA4 /* WindowLibraryReferenceService.swift */,
 				EC895E9AF76C4530E52C34BB /* WindowShortcutPresetCoordinator.swift */,
 			);
 			path = UI;
@@ -4511,6 +4517,8 @@
 				24774D18B408004B9016A007 /* WindowLayoutStore.swift in Sources */,
 				B568B2DB072831116AA95767 /* WindowLayoutsSection.swift in Sources */,
 				52D4B7F8B8223B8BF44C4E99 /* WindowLevel.swift in Sources */,
+				9A6A626BCB8035C1ACD9D1BE /* WindowLibraryRecord.swift in Sources */,
+				37FE645EDC340630E75EC76A /* WindowLibraryReferenceService.swift in Sources */,
 				163C9DFF6B22C76F41CE9FD3 /* WindowManagementFileFormat.swift in Sources */,
 				BD0D91ADFEC096476788939C /* WindowManagementSettingsFile.swift in Sources */,
 				EE6A9E899566ACCB8258D901 /* WindowManagementSettingsView.swift in Sources */,

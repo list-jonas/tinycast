@@ -320,7 +320,7 @@ enum WindowManagementFileFormat {
     private static func unitFrame(_ json: SettingsFileJSON?) -> CGRect {
         guard let json, let x = json["x"]?.number, let y = json["y"]?.number,
             let width = json["width"]?.number, let height = json["height"]?.number
-        else { return CGRect(x: 0, y: 0, width: 1, height: 1) }
+        else { return RoomWindow.wholeUnit }
         return CGRect(x: x, y: y, width: width, height: height)
     }
 

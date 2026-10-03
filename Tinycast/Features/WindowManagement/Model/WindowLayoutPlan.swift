@@ -13,14 +13,7 @@ struct WindowLayoutWindow: Equatable, Sendable {
     var bundleID: String
     var frame: CGRect
     /// Only ever used to make the binding order deterministic.
-    var title: String
-
-    init(handle: Int, bundleID: String, frame: CGRect, title: String = "") {
-        self.handle = handle
-        self.bundleID = bundleID
-        self.frame = frame
-        self.title = title
-    }
+    var title = ""
 }
 
 /// Everything running a layout will do, decided before a single AX write. Pure.

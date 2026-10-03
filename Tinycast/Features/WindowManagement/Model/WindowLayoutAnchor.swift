@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 
 /// The 3×3 position grid. Raw values are spelled out so renaming a case can't rename a stored one.
 enum WindowLayoutAnchor: String, Codable, CaseIterable, Sendable {
@@ -18,34 +19,22 @@ enum WindowLayoutAnchor: String, Codable, CaseIterable, Sendable {
     }
 
     /// The accessibility label for the grid button, and the name a settings row shows.
-    var title: String {
-        switch self {
-        case .topLeft: return "Top Left"
-        case .top: return "Top"
-        case .topRight: return "Top Right"
-        case .left: return "Left"
-        case .center: return "Center"
-        case .right: return "Right"
-        case .bottomLeft: return "Bottom Left"
-        case .bottom: return "Bottom"
-        case .bottomRight: return "Bottom Right"
-        }
-    }
+    var title: String { rawValue.split(separator: "-").map(\.capitalized).joined(separator: " ") }
 
     private var horizontal: WindowPlacementEngine.Anchor.Axis {
         switch self {
-        case .topLeft, .left, .bottomLeft: return .min
-        case .top, .center, .bottom: return .center
-        case .topRight, .right, .bottomRight: return .max
+        case .topLeft, .left, .bottomLeft: .min
+        case .top, .center, .bottom: .center
+        case .topRight, .right, .bottomRight: .max
         }
     }
 
     /// `.min` is the top, since +Y points down in the AX space every frame here lives in.
     private var vertical: WindowPlacementEngine.Anchor.Axis {
         switch self {
-        case .topLeft, .top, .topRight: return .min
-        case .left, .center, .right: return .center
-        case .bottomLeft, .bottom, .bottomRight: return .max
+        case .topLeft, .top, .topRight: .min
+        case .left, .center, .right: .center
+        case .bottomLeft, .bottom, .bottomRight: .max
         }
     }
 
@@ -53,16 +42,6 @@ enum WindowLayoutAnchor: String, Codable, CaseIterable, Sendable {
     static func named(
         horizontal: WindowPlacementEngine.Anchor.Axis, vertical: WindowPlacementEngine.Anchor.Axis
     ) -> WindowLayoutAnchor {
-        switch (horizontal, vertical) {
-        case (.min, .min): return .topLeft
-        case (.center, .min): return .top
-        case (.max, .min): return .topRight
-        case (.min, .center): return .left
-        case (.center, .center): return .center
-        case (.max, .center): return .right
-        case (.min, .max): return .bottomLeft
-        case (.center, .max): return .bottom
-        case (.max, .max): return .bottomRight
-        }
+        allCases.first { $0.horizontal == horizontal && $0.vertical == vertical } ?? .center
     }
 }
