@@ -184,11 +184,15 @@ final class RoomCoordinator {
         let plan = RoomPlan.make(
             room, windows: snapshot.windows, on: screen, gap: gap, minimums: minimums.sizes,
             claimed: store.claimedWindowIDs(excluding: room.id))
-        let cards = plan.placements.compactMap { placement in
-            snapshot.window(placement.handle).map { card(for: $0, at: placement.frame) }
-        }
+        showPreview(
+            plan.placements.compactMap { placement in
+                snapshot.window(placement.handle).map { card(for: $0, at: placement.frame) }
+            })
+    }
+
+    /// Back to front, so the main window's card ends on top, as the window itself will.
+    private func showPreview(_ cards: [RoomPreviewCard]) {
         guard !cards.isEmpty else { return preview.hide() }
-        // Back to front, so the main window's card ends on top, as the window itself will.
         preview.show(cards.reversed(), avoiding: paletteCoordinator.panelFrame)
     }
 
@@ -315,39 +319,28 @@ final class RoomCoordinator {
     func previewPicked() {
         guard let snapshot = session.snapshot, let screen = snapshot.screen(uuid: targetDisplayUUID)
         else { return }
-        let members = session.picked.compactMap { member(for: $0, in: snapshot) }
+        let members = session.picked.compactMap { pick -> (bundleID: String, card: RoomPreviewCard)? in
+            switch pick {
+            case .window(let handle):
+                snapshot.window(handle).map { ($0.bundleID, card(for: $0, at: .zero)) }
+            case .app(let app):
+                (
+                    app.bundleID,
+                    RoomPreviewCard(
+                        id: "app:" + app.bundleID, frame: .zero, appName: app.name, title: "",
+                        appURL: app.url)
+                )
+            }
+        }
         let frames = RoomLayoutEngine.frames(
             count: members.count, kind: .auto, in: screen.screen.visibleFrame, gap: gap,
             minimums: members.map { minimums.size(for: $0.bundleID) })
-        let cards = zip(members, frames).map { member, frame in
-            RoomPreviewCard(
-                id: member.id, frame: frame, appName: member.appName, title: member.title,
-                appURL: member.appURL)
-        }
-        guard !cards.isEmpty else { return preview.hide() }
-        preview.show(cards.reversed(), avoiding: paletteCoordinator.panelFrame)
-    }
-
-    private struct Member {
-        let id: String
-        let bundleID: String
-        let appName: String
-        let title: String
-        let appURL: URL?
-    }
-
-    private func member(for pick: RoomSession.Pick, in snapshot: RoomWindowSweep.Snapshot) -> Member? {
-        switch pick {
-        case .window(let handle):
-            guard let window = snapshot.window(handle) else { return nil }
-            return Member(
-                id: card(for: window, at: .zero).id, bundleID: window.bundleID,
-                appName: window.appName, title: window.title, appURL: window.appURL)
-        case .app(let app):
-            return Member(
-                id: "app:" + app.bundleID, bundleID: app.bundleID, appName: app.name, title: "",
-                appURL: app.url)
-        }
+        showPreview(
+            zip(members, frames).map { member, frame in
+                var card = member.card
+                card.frame = frame
+                return card
+            })
     }
 
     func nameIsMissing() {
@@ -384,13 +377,7 @@ final class RoomCoordinator {
             }
         }
         room.name = name
-        do {
-            if session.editingID == nil { try store.add(room) } else { try store.update(room) }
-        } catch {
-            core.showMessage(error.errorDescription ?? "Couldn't save the room", tone: .danger)
-            return
-        }
-        enterRoom(id: room.id)
+        if save(room, isNew: session.editingID == nil) { enterRoom(id: room.id) }
     }
 
     /// Remembers how the room's open windows sit now: the closest layout, or exactly as is.
@@ -413,13 +400,18 @@ final class RoomCoordinator {
             let (updated, reading) = learn(
                 room, from: windows, keeping: kept, in: snapshot, keepsOrder: false)
         else { return }
+        guard save(updated, isNew: false) else { return }
+        core.showMessage("\(room.name) — remembered as \(reading.kind.title)", tone: .success)
+    }
+
+    private func save(_ room: Room, isNew: Bool) -> Bool {
         do {
-            try store.update(updated)
+            if isNew { try store.add(room) } else { try store.update(room) }
+            return true
         } catch {
             core.showMessage(error.errorDescription ?? "Couldn't save the room", tone: .danger)
-            return
+            return false
         }
-        core.showMessage("\(room.name) — remembered as \(reading.kind.title)", tone: .success)
     }
 
     /// Read on the display most of the windows share, which is where their arrangement is.

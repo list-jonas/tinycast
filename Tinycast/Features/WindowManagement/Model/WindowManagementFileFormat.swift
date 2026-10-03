@@ -56,7 +56,8 @@ enum WindowManagementFileFormat {
     static func customSizes(from json: SettingsFileJSON) -> Decoded<CustomWindowSize>? {
         list(json, noun: "custom size") { item, name, label, decoded in
             guard let width = dimension(item["width"]), let height = dimension(item["height"]) else {
-                decoded.problems.append("\(label) needs a “width” and “height”, as \"60%\" or \"900pt\"")
+                decoded.problems.append(
+                    "\(label) needs a “width” and “height”, as \"60%\" or \"900pt\"")
                 return nil
             }
             let id = identity(of: item, kind: "custom-size", name: name, label: label, into: &decoded)
@@ -104,7 +105,8 @@ enum WindowManagementFileFormat {
                 guard let bundleID = app["app"]?.string, let display = app["display"],
                     let displayID = display["id"]?.string
                 else {
-                    decoded.problems.append("\(label): app \(position + 1) needs an “app” and a “display.id”")
+                    decoded.problems.append(
+                        "\(label): app \(position + 1) needs an “app” and a “display.id”")
                     continue
                 }
                 // Derived, not stored, so reading the same file twice yields the same layout.
@@ -113,7 +115,8 @@ enum WindowManagementFileFormat {
                 entries.append(
                     WindowLayoutEntry(
                         id: entryID, bundleID: bundleID, argument: app["open"]?.string,
-                        display: WindowLayoutDisplay(uuid: displayID, name: display["name"]?.string ?? "Display"),
+                        display: WindowLayoutDisplay(
+                            uuid: displayID, name: display["name"]?.string ?? "Display"),
                         widthFraction: CGFloat(app["width"]?.number ?? 1),
                         heightFraction: CGFloat(app["height"]?.number ?? 1),
                         anchor: anchor(app["position"], label: label, into: &decoded),
@@ -193,7 +196,8 @@ enum WindowManagementFileFormat {
                 guard let kind = member.value.string.flatMap(RoomLayoutKind.init(rawValue:)) else { continue }
                 layoutsByDisplay[member.key.lowercased()] = kind
             }
-            return Room(id: id, name: name, windows: windows, layout: layout, layoutsByDisplay: layoutsByDisplay)
+            return Room(
+                id: id, name: name, windows: windows, layout: layout, layoutsByDisplay: layoutsByDisplay)
         }
     }
 
@@ -238,7 +242,9 @@ enum WindowManagementFileFormat {
     /// `"60%"` or `"900pt"`; a bare number reads as points, the unit a person means by one.
     private static func dimension(_ json: SettingsFileJSON?) -> CustomWindowSize.Dimension? {
         if let points = json?.number { return Int(exactly: points.rounded()).map { .init($0, .points) } }
-        guard let spelled = json?.string?.trimmingCharacters(in: .whitespaces).lowercased() else { return nil }
+        guard let spelled = json?.string?.trimmingCharacters(in: .whitespaces).lowercased() else {
+            return nil
+        }
         for unit in CustomWindowSize.Dimension.Unit.allCases where spelled.hasSuffix(unit.suffix) {
             let number = spelled.dropLast(unit.suffix.count).trimmingCharacters(in: .whitespaces)
             return Double(number).flatMap { Int(exactly: $0.rounded()) }.map { .init($0, unit) }

@@ -134,7 +134,9 @@ enum AXWindowAccess {
         guard var actual = frame(of: window) else { return target }
 
         // The second resize can shift the origin: some apps anchor on a different corner.
-        if abs(actual.minX - target.minX) > clampTolerance || abs(actual.minY - target.minY) > clampTolerance {
+        if abs(actual.minX - target.minX) > clampTolerance
+            || abs(actual.minY - target.minY) > clampTolerance
+        {
             _ = setPosition(target.origin, on: window)
             actual = frame(of: window) ?? actual
         }
@@ -178,15 +180,21 @@ enum AXWindowAccess {
         return AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, value) == .success
     }
 
-    private static func axValue(_ element: AXUIElement, _ attribute: String, _ type: AXValueType) -> AXValue? {
-        guard let value = copy(element, attribute), CFGetTypeID(value) == AXValueGetTypeID() else { return nil }
+    private static func axValue(
+        _ element: AXUIElement, _ attribute: String, _ type: AXValueType
+    ) -> AXValue? {
+        guard let value = copy(element, attribute), CFGetTypeID(value) == AXValueGetTypeID() else {
+            return nil
+        }
         // Type checked by CFGetTypeID above; `as?` on a CF type is a compile error.
         let axValue = value as! AXValue
         return AXValueGetType(axValue) == type ? axValue : nil
     }
 
     static func element(_ element: AXUIElement, _ attribute: String) -> AXUIElement? {
-        guard let value = copy(element, attribute), CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
+        guard let value = copy(element, attribute), CFGetTypeID(value) == AXUIElementGetTypeID() else {
+            return nil
+        }
         // Type checked by CFGetTypeID above; `as?` on a CF type is a compile error.
         return (value as! AXUIElement)
     }

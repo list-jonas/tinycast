@@ -108,7 +108,8 @@ final class WindowLayoutCoordinator {
         }
         // Gapless by construction, so a later change to `windowGap` can't move every window.
         let draft = WindowLayout(
-            name: WindowLayoutStore.uniqueName("Captured Layout", among: store.layouts), usesPreferredGap: false,
+            name: WindowLayoutStore.uniqueName("Captured Layout", among: store.layouts),
+            usesPreferredGap: false,
             entries: entries, frontmostEntryID: frontmostEntryID)
         core.pendingWindowLayoutEdit = WindowLayoutEditRequest(layout: draft, isCapture: true)
         settingsCoordinator.showSettings(tab: .windowManagement)

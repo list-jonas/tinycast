@@ -9,7 +9,9 @@ struct RoomsList: View {
     let onActivate: (RoomRow) -> Void
 
     var body: some View {
-        RoomList(rows: rows, selectedID: selectedID, scroll: scroll, onActivate: onActivate) { row, selected in
+        RoomList(
+            rows: rows, selectedID: selectedID, scroll: scroll, onActivate: onActivate
+        ) { row, selected in
             RoomRowView(
                 row: row, selected: selected, isCurrent: row.room?.id == currentRoomID,
                 layout: row.room.map(layout))

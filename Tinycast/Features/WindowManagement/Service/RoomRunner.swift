@@ -176,7 +176,9 @@ enum RoomRunner {
 
     private static func write(_ frame: CGRect, to window: AXUIElement) {
         AXUIElementSetMessagingTimeout(window, AXWindowAccess.messagingTimeout)
-        if AXWindowAccess.bool(window, kAXMinimizedAttribute) == true { _ = AXWindowAccess.unminimize(window) }
+        if AXWindowAccess.bool(window, kAXMinimizedAttribute) == true {
+            _ = AXWindowAccess.unminimize(window)
+        }
         _ = AXWindowAccess.place(frame, anchor: .topLeading, canvas: nil, on: window)
     }
 

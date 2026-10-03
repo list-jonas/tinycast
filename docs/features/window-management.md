@@ -51,22 +51,25 @@ entries and a still-registered shortcut moves nothing.
 | `UI/CustomWindowSizeCoordinator.swift` | Foundation                 | Custom sizes' launcher presence, edits and a deletion's cleanup     |
 | `Model/WindowShortcutPreset.swift`   | Foundation + Carbon          | **Pure.** Rectangle / Magnet and Spectacle tables, and the apply plan |
 | `UI/WindowShortcutPresetCoordinator.swift` | Foundation             | Applies a preset, confirming first when it replaces a user's key   |
+| `Model/WindowLibraryRecord.swift`    | Foundation                   | **Pure.** Entry ID and name order shared by layouts, rooms and sizes |
+| `UI/WindowLibraryReferenceService.swift` | Foundation               | A deleted record's shortcut and launcher references, unwound once   |
+| `Settings/WindowLibraryRowControls.swift` | SwiftUI                 | The rows' glyph buttons and launcher checkbox                       |
 
 The feature also owns **[Window Layouts](window-layouts.md)** — saved multi-display arrangements
 applied in one pass — and **[Rooms](window-rooms.md)**, named sets of windows that tile on the
 display you are on while everything else steps back. Both share this feature's switch, its
 Accessibility grant and its gap setting.
 
-The first four compile into `Tests/window-command-test.swift` and `Tests/window-display-test.swift`, and `SpaceGesture.swift` compiles into
-`Tests/space-gesture-test.swift`, so none of them may gain an AppKit, SwiftUI or `NSScreen`
+The first four compile into `Tests/window-command-test.swift` and `Tests/window-display-test.swift`,
+and `SpaceGesture.swift` compiles into `Tests/space-gesture-test.swift`, so none of them may gain an AppKit, SwiftUI or `NSScreen`
 dependency, and all must stay pure — `WindowActionMemory` takes `now` as a parameter rather than
 reading a clock. CoreGraphics is needed only because `CGRect`'s `Equatable` conformance lives in that
 overlay rather than in Foundation.
 
-Adding a command is four edits in `WindowCommand.swift` (a case in `ID`, plus `name`, `symbol` and
-`group` arms), an arm in `WindowPlacementEngine.placement` or `tileFractions`, and bumping
+Adding a command is two edits in `WindowCommand.swift` (a case in `ID`, plus its `spec` arm naming
+its title, symbol and group), an arm in `WindowPlacementEngine.placement` or `tileFractions`, and bumping
 `commands.count == 35` and its group count in the harness. A command opening a new family also needs
-a `Group` case and its `title` arm; `ID.allCases` stays in group order.
+a `Group` case, titled by its capitalised raw value; `ID.allCases` stays in group order.
 
 ## Coordinate space
 

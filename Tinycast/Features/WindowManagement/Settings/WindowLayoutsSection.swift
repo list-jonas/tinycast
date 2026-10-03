@@ -78,7 +78,8 @@ private struct WindowLayoutSettingsRow: View {
             WindowLibraryRowButton(symbol: "play", help: "Run this layout", label: "Run \(layout.name)") {
                 core.windowLayoutCoordinator.runWindowLayout(id: layout.id)
             }
-            WindowLibraryRowButton(symbol: "pencil", help: "Edit", label: "Edit \(layout.name)", action: onEdit)
+            WindowLibraryRowButton(
+                symbol: "pencil", help: "Edit", label: "Edit \(layout.name)", action: onEdit)
             WindowLibraryRowButton(
                 symbol: "plus.square.on.square", help: "Duplicate", label: "Duplicate \(layout.name)"
             ) { core.windowLayoutCoordinator.duplicateWindowLayout(id: layout.id) }

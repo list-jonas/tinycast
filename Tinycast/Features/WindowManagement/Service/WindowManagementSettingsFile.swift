@@ -31,7 +31,9 @@ struct WindowManagementSettingsFile {
                     return [.invalidValue(key)]
                 }
                 let wanted = WindowCommand.ID.allCases.map { id in
-                    Wanted(action: .windowCommand(id: id), text: decoded.shortcuts[id], label: "“\(id.rawValue)”")
+                    Wanted(
+                        action: .windowCommand(id: id), text: decoded.shortcuts[id],
+                        label: "“\(id.rawValue)”")
                 }
                 return decoded.problems.map { .invalidEntry(key, $0) } + apply(wanted, key: key)
             })
@@ -40,7 +42,8 @@ struct WindowManagementSettingsFile {
     func customSizesBinding(for key: SettingsFileKey) -> SettingsFileBinding {
         libraryBinding(
             for: key, kind: "custom size", rule: "a name is empty or used twice", records: { sizes.sizes },
-            json: WindowManagementFileFormat.json(_:shortcut:), decode: WindowManagementFileFormat.customSizes,
+            json: WindowManagementFileFormat.json(_:shortcut:),
+            decode: WindowManagementFileFormat.customSizes,
             replace: { sizes.replace(with: $0) }, bound: \.boundCustomWindowSizeIDs,
             action: HotKeyAction.customWindowSize)
     }
@@ -59,13 +62,15 @@ struct WindowManagementSettingsFile {
             records: { rooms.rooms }, json: WindowManagementFileFormat.json(_:shortcut:),
             decode: WindowManagementFileFormat.rooms,
             replace: { incoming in
-                let learned = Dictionary(rooms.rooms.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-                return rooms.replace(with: incoming.map { room in learned[room.id].map(room.keepingRuntime) ?? room })
+                let learned = Dictionary(
+                    rooms.rooms.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+                return rooms.replace(
+                    with: incoming.map { room in learned[room.id].map(room.keepingRuntime) ?? room })
             },
             bound: \.boundWindowRoomIDs, action: HotKeyAction.windowRoom)
     }
 
-    /// A list whose records each carry their shortcut; a record the file drops takes its shortcut too.
+    /// Each record carries its shortcut, so a record the file drops takes its shortcut too.
     private func libraryBinding<Record: WindowLibraryRecord>(
         for key: SettingsFileKey, kind: String, rule: String, records: @escaping () -> [Record],
         json: @escaping (Record, String?) -> SettingsFileJSON,
@@ -129,7 +134,8 @@ struct WindowManagementSettingsFile {
                 continue
             }
             guard let binding = spelling.binding(from: text) else {
-                issues.append(.invalidEntry(key, "\(item.label): “\(text)” isn't a shortcut Tinycast can bind"))
+                issues.append(
+                    .invalidEntry(key, "\(item.label): “\(text)” isn't a shortcut Tinycast can bind"))
                 continue
             }
             guard binding != current else { continue }
@@ -142,7 +148,8 @@ struct WindowManagementSettingsFile {
                 hotKeys.setBinding(change.binding, for: action)
                 continue
             }
-            issues.append(.invalidEntry(key, "\(change.wanted.label): “\(change.text)” already runs \(owner)"))
+            issues.append(
+                .invalidEntry(key, "\(change.wanted.label): “\(change.text)” already runs \(owner)"))
             // The old binding returns when it is still free, so a clash never costs a working one.
             if let previous = change.previous, hotKeys.conflictOwner(of: previous, excluding: action) == nil {
                 hotKeys.setBinding(previous, for: action)

@@ -9,8 +9,11 @@ struct RoomPickerList: View {
     let onActivate: (RoomPickerRow) -> Void
 
     var body: some View {
-        RoomList(rows: rows, selectedID: selectedID, scroll: scroll, onActivate: onActivate) { row, selected in
-            RoomPickerRowView(row: row, place: picked.firstIndex(of: row.pick).map { $0 + 1 }, selected: selected)
+        RoomList(
+            rows: rows, selectedID: selectedID, scroll: scroll, onActivate: onActivate
+        ) { row, selected in
+            RoomPickerRowView(
+                row: row, place: picked.firstIndex(of: row.pick).map { $0 + 1 }, selected: selected)
         }
     }
 }
@@ -25,7 +28,8 @@ private struct RoomPickerRowView: View {
     private var title: String {
         switch row {
         case .window(let window):
-            window.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? window.appName : window.title
+            window.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? window.appName : window.title
         case .app(let app):
             app.name
         }
