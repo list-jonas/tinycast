@@ -15,9 +15,7 @@ struct SettingsTabIcon: View {
             .resizable()
             .scaledToFit()
             .frame(
-                width: Theme.Size.settingsSidebarGlyph * scale,
-                height: Theme.Size.settingsSidebarGlyph * scale
-            )
+                width: Theme.Size.settingsSidebarGlyph * scale, height: Theme.Size.settingsSidebarGlyph * scale)
             .foregroundStyle(tint)
             .padding(Theme.Spacing.xs * scale)
             .background(
@@ -139,14 +137,9 @@ struct SettingsScopeRow: View {
                     .interpolation(.high)
                     .id(IconCache.style.generation)
                     .frame(
-                        width: SettingsListMetrics.iconSize
-                            - (isFolder ? Theme.Spacing.xxs + 1 : 0),
-                        height: SettingsListMetrics.iconSize - (isFolder ? 1 : 0)
-                    )
-                    .frame(
-                        width: SettingsListMetrics.iconSize,
-                        height: SettingsListMetrics.iconSize
-                    )
+                        width: SettingsListMetrics.iconSize - (isFolder ? Theme.Spacing.xxs + 1 : 0),
+                        height: SettingsListMetrics.iconSize - (isFolder ? 1 : 0))
+                    .frame(width: SettingsListMetrics.iconSize, height: SettingsListMetrics.iconSize)
                     .accessibilityHidden(true)
                 Text(scope)
                     .lineLimit(1)
@@ -160,16 +153,9 @@ struct SettingsScopeRow: View {
 extension View {
     func settingsOptionSegment(isSelected: Bool) -> some View {
         let shape = RoundedRectangle(cornerRadius: Theme.Radius.barControl, style: .continuous)
-        return
-            self
-            .frame(
-                width: Theme.Size.settingsControlHeight,
-                height: Theme.Size.settingsControlHeight
-            )
+        return frame(width: Theme.Size.settingsControlHeight, height: Theme.Size.settingsControlHeight)
             .contentShape(shape)
-            .background {
-                shape.fill(isSelected ? Theme.Colors.controlSurface : Color.clear)
-            }
+            .background { shape.fill(isSelected ? Theme.Colors.controlSurface : Color.clear) }
     }
 
     /// Dims as well as disables; `.disabled` alone leaves the title at full strength.
@@ -178,16 +164,30 @@ extension View {
     }
 
     func settingsEditorTextField() -> some View {
-        modifier(SettingsEditorTextField())
+        textFieldStyle(.plain)
+            .padding(.horizontal, Theme.Spacing.lg)
+            .frame(height: Theme.Size.dialogButtonHeight)
+            .background(editorFieldFill)
     }
 
     func settingsEditorTextArea(height: CGFloat) -> some View {
-        modifier(SettingsEditorTextArea(height: height))
+        scrollContentBackground(.hidden)
+            .padding(Theme.Spacing.sm)
+            .frame(height: height)
+            .background(editorFieldFill)
     }
 
     /// `controlsOnGlass: false` draws the glass behind, so a control keeps its accent colour.
+    @ViewBuilder
     func settingsEditorPanelSurface(controlsOnGlass: Bool = true) -> some View {
-        modifier(SettingsEditorPanelSurface(controlsOnGlass: controlsOnGlass))
+        let shape = RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous)
+        // In front of the glass: a glass fill is hit-testable and would hide a handle behind it.
+        let draggable = background(WindowDragBackground())
+        if controlsOnGlass {
+            draggable.background(Theme.Colors.panelScrim, in: shape).glassEffect(.regular, in: shape)
+        } else {
+            draggable.background { shape.fill(Theme.Colors.panelScrim).glassEffect(.regular, in: shape) }
+        }
     }
 
     /// The one place that says hiding a row from the launcher never unbinds its shortcut.
@@ -240,50 +240,8 @@ struct SettingsEditorField<Content: View>: View {
     }
 }
 
-private struct SettingsEditorTextField: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .textFieldStyle(.plain)
-            .padding(.horizontal, Theme.Spacing.lg)
-            .frame(height: Theme.Size.dialogButtonHeight)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous)
-                    .fill(Theme.Colors.controlSurface))
-    }
-}
-
-private struct SettingsEditorTextArea: ViewModifier {
-    let height: CGFloat
-
-    func body(content: Content) -> some View {
-        content
-            .scrollContentBackground(.hidden)
-            .padding(Theme.Spacing.sm)
-            .frame(height: height)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous)
-                    .fill(Theme.Colors.controlSurface))
-    }
-}
-
-private struct SettingsEditorPanelSurface: ViewModifier {
-    let controlsOnGlass: Bool
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous)
-        // In front of the glass: a glass fill is hit-testable and would hide a handle behind it.
-        let draggable = content.background(WindowDragBackground())
-        if controlsOnGlass {
-            draggable
-                .background(Theme.Colors.panelScrim, in: shape)
-                .glassEffect(.regular, in: shape)
-        } else {
-            draggable.background {
-                shape.fill(Theme.Colors.panelScrim).glassEffect(.regular, in: shape)
-            }
-        }
-    }
+private var editorFieldFill: some View {
+    RoundedRectangle(cornerRadius: Theme.Radius.row, style: .continuous).fill(Theme.Colors.controlSurface)
 }
 
 /// A feature pane's opening section: the master switch, then its launcher-visibility companion.
