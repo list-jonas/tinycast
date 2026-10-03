@@ -64,9 +64,7 @@ struct DictionaryEntryTests {
                     Run(text: "a tropical fruit: ", style: .plain),
                     Run(text: "a ripe mango.", style: .example)
                 ]),
-            .subsense([
-                Run(text: "informal ", style: .label), Run(text: "a mango tree", style: .plain)
-            ]),
+            .subsense([Run(text: "informal ", style: .label), Run(text: "a mango tree", style: .plain)]),
             .sense(number: "2", [Run(text: "a hummingbird.", style: .plain)]),
             .note([Run(text: "Genus ", style: .plain), Run(text: "Anthracothorax", style: .italic)]),
             .section("ORIGIN"),

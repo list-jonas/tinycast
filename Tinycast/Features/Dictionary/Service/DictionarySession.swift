@@ -6,7 +6,6 @@ import Foundation
 final class DictionarySession {
     struct Lookup: Equatable {
         let term: String
-        /// Nil when no enabled dictionary knows the term.
         let entry: DictionaryEntry?
     }
 

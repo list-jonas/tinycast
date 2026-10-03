@@ -37,8 +37,7 @@ struct CalendarMenuBarLabel: View {
     }
 
     private func summary(for meeting: MeetingEvent) -> String {
-        let countdown = UpcomingWindow.menuBarCountdown(
-            for: meeting, now: AppCore.shared.meetingClock.now)
+        let countdown = UpcomingWindow.menuBarCountdown(for: meeting, now: AppCore.shared.meetingClock.now)
         return "\(MenuBarSummary.title(meeting.title)) • \(countdown)"
     }
 }

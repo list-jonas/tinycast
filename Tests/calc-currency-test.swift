@@ -37,8 +37,7 @@ struct CalcCurrencyTests {
         expectError("10 kg to usd", "Cannot convert Weight to Currency.")
         // A known currency the snapshot doesn't quote, and no snapshot at all
         expectError("5 usd to npr", "No exchange rate for NPR.")
-        expectErrorWithoutRates(
-            "1 eur to usd", "Exchange rates unavailable — check your connection.")
+        expectErrorWithoutRates("1 eur to usd", "Exchange rates unavailable — check your connection.")
         expectNil("10 usd to nonsense")
         expectNil("usd")  // a lone code is still an app search
         expectNil("btc")  // …and a lone ticker no more than a lone code
@@ -135,12 +134,9 @@ struct CalcCurrencyTests {
         expectDisplay("5(2)$", "10.00 USD")
         expectDisplay("$5(2) to eur", "9.20 EUR")
         expectError("$10 + 5kg", "Cannot add Currency and Weight.")
-        expectErrorWithoutRates(
-            "$10 + $5", "Exchange rates unavailable — check your connection.")
-        expectErrorWithoutRates(
-            "$100 * 3%", "Exchange rates unavailable — check your connection.")
-        expectErrorWithoutRates(
-            "10$", "Exchange rates unavailable — check your connection.")
+        expectErrorWithoutRates("$10 + $5", "Exchange rates unavailable — check your connection.")
+        expectErrorWithoutRates("$100 * 3%", "Exchange rates unavailable — check your connection.")
+        expectErrorWithoutRates("10$", "Exchange rates unavailable — check your connection.")
 
         // Crypto — priced by the same table, so a coin converts against fiat with no special case
         expectDisplay("1 btc to usd", "60,000.00 USD")
@@ -418,9 +414,7 @@ struct CalcCurrencyTests {
         check(
             "history [date prose]", expected: "Friday, 24 July 2026",
             got: italian.localized("Friday, 24 July 2026"))
-        check(
-            "history [arguments]", expected: "max(1,5; 2)",
-            got: italian.localizedExpression("max(1.5, 2)"))
+        check("history [arguments]", expected: "max(1,5; 2)", got: italian.localizedExpression("max(1.5, 2)"))
         // Inside a call a canonical comma is an argument, even where it looks like grouping
         check(
             "history [unspaced arguments]", expected: "max(2;3)", got: italian.localizedExpression("max(2,3)")
@@ -450,9 +444,7 @@ struct CalcCurrencyTests {
         check(formatLabel(query, format) + " [copy]", expected: expected, got: copy)
     }
 
-    static func expectLocalizedExpression(
-        _ query: String, _ expected: String, _ format: CalcNumberFormat
-    ) {
+    static func expectLocalizedExpression(_ query: String, _ expected: String, _ format: CalcNumberFormat) {
         guard let result = evaluateLocalized(query, format) else {
             fail(formatLabel(query, format), expected: expected, got: "nil")
             return

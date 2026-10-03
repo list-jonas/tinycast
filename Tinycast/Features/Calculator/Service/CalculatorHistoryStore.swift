@@ -65,7 +65,6 @@ final class CalculatorHistoryStore {
         persist()
     }
 
-    /// Case-insensitive substring match over both sides of each calculation.
     func search(_ query: String) -> [CalcHistoryEntry] {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return entries }

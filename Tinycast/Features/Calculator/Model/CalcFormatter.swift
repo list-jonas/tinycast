@@ -67,7 +67,6 @@ enum CalcFormatter {
         (604800, "wk"), (86400, "day"), (3600, "hr"), (60, "min"), (1, "s")
     ]
 
-    /// Insert `,` every three integer digits. Exponent-form strings pass through untouched.
     static func grouped(_ text: String) -> String {
         let bytes = text.utf8
         guard !bytes.contains(101), !bytes.contains(69) else { return text }

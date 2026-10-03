@@ -116,8 +116,7 @@ struct EmojiScreen: PaletteScreen {
         guard count > 0 else { return selection }
         switch axis {
         case .vertical:
-            let geometry = EmojiGridGeometry(
-                counts: sections.map(\.entries.count), columns: columns.rawValue)
+            let geometry = EmojiGridGeometry(counts: sections.map(\.entries.count), columns: columns.rawValue)
             return delta > 0 ? geometry.down(from: selection) : geometry.up(from: selection)
         case .horizontal:
             return min(max(selection + delta, 0), count - 1)
@@ -194,9 +193,7 @@ enum EmojiActionsMenu {
             ) {
                 core.emojiCoordinator.pasteEmoji(entry)
             },
-            PopoverMenuItem(
-                title: "Copy to Clipboard", systemImage: "doc.on.doc", shortcut: "⌘↵"
-            ) {
+            PopoverMenuItem(title: "Copy to Clipboard", systemImage: "doc.on.doc", shortcut: "⌘↵") {
                 core.emojiCoordinator.copyEmoji(entry)
             },
             PopoverMenuItem(

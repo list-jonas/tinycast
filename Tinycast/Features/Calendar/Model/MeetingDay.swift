@@ -2,7 +2,6 @@ import Foundation
 
 /// The day a meeting falls on, counted from today, so My Schedule and the menu bar head it alike.
 struct MeetingDay: Hashable, Sendable {
-    /// The midnight that starts the day.
     let start: Date
     /// Whole days after today; a meeting still running from before midnight is happening today.
     let offset: Int

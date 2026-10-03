@@ -8,9 +8,7 @@ final class CalculatorCoordinator {
     /// Dialogs, for the one action here that can't be undone.
     private unowned let core: AppCore
 
-    init(
-        calcHistory: CalculatorHistoryStore, paletteCoordinator: PaletteCoordinator, core: AppCore
-    ) {
+    init(calcHistory: CalculatorHistoryStore, paletteCoordinator: PaletteCoordinator, core: AppCore) {
         self.calcHistory = calcHistory
         self.paletteCoordinator = paletteCoordinator
         self.core = core

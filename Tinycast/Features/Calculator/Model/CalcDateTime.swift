@@ -464,20 +464,17 @@ private struct DateResolver {
     }
 
     func parsePair(_ a: String, _ b: String, bias: MomentBias) -> Moment? {
-        // number + month  /  month + number  →  a day in that month
         if let month = monthByName[b], let day = ordinalDay(a) {
             return monthDayMoment(month: month, day: day, bias: bias)
         }
         if let month = monthByName[a], let day = ordinalDay(b) {
             return monthDayMoment(month: month, day: day, bias: bias)
         }
-        // clock + am/pm  →  a time today (or tomorrow if it has passed)
         if b == "am" || b == "pm", let (hour, minute) = parseClock(a) {
             guard (1...12).contains(hour) else { return nil }
             let adjusted = b == "pm" ? (hour % 12) + 12 : hour % 12
             return clockMoment(hour: adjusted, minute: minute, bias: bias)
         }
-        // next / last  +  weekday or month
         if a == "next" || a == "last" {
             if let weekday = weekdayByName[b] {
                 return nextWeekday(weekday, offsetToFuture: a == "next", past: a == "last")

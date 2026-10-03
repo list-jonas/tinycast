@@ -101,7 +101,6 @@ enum CalcTimeZone {
         return "time \(place.joined(separator: " ")) to \(target.joined(separator: " "))"
     }
 
-    /// Splits a trailing `+ 2h` / `- 30 min` off the zone phrase it shifts.
     private static func splitOffset(
         _ query: String
     ) -> (String, (count: Int, component: Calendar.Component)?) {

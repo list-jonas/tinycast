@@ -11,9 +11,7 @@ struct CameraPreviewView: View {
     var body: some View {
         VStack(spacing: 0) {
             CameraStage(feed: feed)
-                .frame(
-                    width: Theme.Size.cameraPreview.width,
-                    height: Theme.Size.cameraPreview.height)
+                .frame(width: Theme.Size.cameraPreview.width, height: Theme.Size.cameraPreview.height)
             footer
         }
         .frame(width: Theme.Size.cameraPreview.width)

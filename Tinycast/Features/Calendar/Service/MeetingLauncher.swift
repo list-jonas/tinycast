@@ -22,7 +22,6 @@ enum MeetingLauncher {
         } catch { return false }
     }
 
-    /// Every app that opens `https`, one per bundle ID, sorted by name.
     @MainActor static func installedBrowsers() -> [Browser] {
         guard let probe = URL(string: "https://example.com") else { return [] }
         var seen = Set<String>()

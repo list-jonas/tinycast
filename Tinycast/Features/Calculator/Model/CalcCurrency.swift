@@ -18,7 +18,6 @@ struct CurrencyRates: Codable, Equatable, Sendable {
         return code == base ? 1 : nil
     }
 
-    /// Cross-rate through the base currency.
     func convert(_ amount: Double, from: String, to: String) -> Double? {
         guard let source = rate(for: from), let target = rate(for: to) else { return nil }
         let output = amount / source * target
@@ -37,7 +36,6 @@ enum CalcCurrency {
         case unavailable
     }
 
-    /// The category label used in the mismatch message, mirroring `UnitCategory.displayName`.
     static let categoryName = "Currency"
     static let unavailable = "Exchange rates unavailable — check your connection."
 

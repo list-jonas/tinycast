@@ -162,10 +162,7 @@ struct EmojiGridView: View {
                                 row: row, selection: selection, tone: tone, columns: columns,
                                 onSelect: onSelect, onActivate: onActivate, onActions: onActions
                             )
-                            .padding(
-                                .bottom,
-                                row.isLastInSection ? 0 : metrics.spacing.md
-                            )
+                            .padding(.bottom, row.isLastInSection ? 0 : metrics.spacing.md)
                             .selectionFrame(item.id == selectedRowID)
                         }
                     }
@@ -325,8 +322,7 @@ private struct EmojiCell: View {
                     .strokeBorder(Theme.Colors.emojiInnerBorder, lineWidth: 1)
             } else if hovered {
                 ZStack {
-                    shape.strokeBorder(
-                        Theme.Colors.emojiHoverBorder, lineWidth: 2)
+                    shape.strokeBorder(Theme.Colors.emojiHoverBorder, lineWidth: 2)
                     shape.inset(by: 2)
                         .strokeBorder(Theme.Colors.emojiInnerBorder, lineWidth: 1)
                 }

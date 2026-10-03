@@ -432,9 +432,7 @@ struct CalcTests {
         // Affine temperatures only combine in the same unit; mixed absolute scales are ambiguous
         expectDisplay("20 celsius + 10 celsius", "30 °C")
         expectDisplay("68 fahrenheit - 32 fahrenheit", "36 °F")
-        expectError(
-            "20 celsius + 50 fahrenheit",
-            "Cannot combine temperatures with different units.")
+        expectError("20 celsius + 50 fahrenheit", "Cannot combine temperatures with different units.")
 
         // Clear dimensional mistakes are errors; incomplete or non-finite input stays silent
         expectError("1kg + 1m", "Cannot add Weight and Length.")

@@ -11,11 +11,9 @@ struct CalcDateTests {
         expectDisplayAt("hrs till july", "8,207.7 hours")
         expectBadgesAt("hrs till july", source: "12:18 AM", target: "12:00 AM")
         expectDisplayAt("days till 9april", "259 days")
-        expectBadgesAt(
-            "days till 9april", source: "Friday, 24 July", target: "Friday, 9 April, 2027")
+        expectBadgesAt("days till 9april", source: "Friday, 24 July", target: "Friday, 9 April, 2027")
         expectDisplayAt("days till july", "342 days")
-        expectBadgesAt(
-            "days till july", source: "Friday, 24 July", target: "Thursday, 1 July, 2027")
+        expectBadgesAt("days till july", source: "Friday, 24 July", target: "Thursday, 1 July, 2027")
         expectDisplayAt("days until tomorrow", "1 day")
         expectDisplayAt("weeks till 9april", "37 weeks")  // 259 / 7
         expectDisplayAt("today + 3 weeks", "14 August")
@@ -98,8 +96,7 @@ struct CalcDateTests {
         expectBadgesAt("hrs till 9am", source: "00:18", target: "09:00", calendar: britain)
         expectDisplayAt("time in sf", "5:18 pm (yesterday)", calendar: britain12)
 
-        let zoneNow = clock.calendar.date(
-            from: DateComponents(year: 2026, month: 9, day: 15, hour: 12))!
+        let zoneNow = clock.calendar.date(from: DateComponents(year: 2026, month: 9, day: 15, hour: 12))!
         for home in ["UTC", "Asia/Shanghai", "America/Los_Angeles"] {
             var calendar = clock.calendar
             calendar.timeZone = TimeZone(identifier: home)!
