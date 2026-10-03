@@ -387,10 +387,9 @@ final class TextInjector {
 
     private func beginTemporaryPasteboardLease(_ text: String) -> TemporaryPasteboardLease? {
         clipboardManager.prepareForTinycastPasteboardMutation()
-        return TemporaryPasteboardLease.begin(text: text, pasteboard: NSPasteboard.general) {
-            [clipboardManager] changeCount in
-            clipboardManager.synchronizeAfterTinycastPasteboardMutation(changeCount: changeCount)
-        }
+        return TemporaryPasteboardLease.begin(
+            text: text, pasteboard: NSPasteboard.general,
+            onMutation: clipboardManager.synchronizeAfterTinycastPasteboardMutation(changeCount:))
     }
 
     @discardableResult
