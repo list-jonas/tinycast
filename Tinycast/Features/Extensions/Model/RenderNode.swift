@@ -185,11 +185,6 @@ struct RenderNode: Sendable, Hashable, Identifiable {
     func array(_ key: String) -> [RenderValue] { props[key]?.arrayValue ?? [] }
     func object(_ key: String) -> [String: RenderValue]? { props[key]?.objectValue }
 
-    /// How `Form.Description`-style content and stray JSX strings arrive.
-    var textContent: String {
-        children.compactMap { $0.isText ? $0.text : nil }.joined()
-    }
-
     /// Depth-first search for the first descendant of `type`, following hoisted slot props too.
     func firstDescendant(ofType type: String) -> RenderNode? {
         if self.type == type { return self }

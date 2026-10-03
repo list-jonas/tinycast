@@ -363,7 +363,8 @@ screens hold (see [palette.md](palette.md)).
   `ExtensionDateField` is the same shape over `ExtensionDateExpression`, which parses what Raycast's
   date field parses — "tomorrow at 10am", "in 3 days", "next friday", "25 dec" — and offers the same
   presets. It is pure and takes its clock and calendar as parameters, so `ext-form-test` drives it
-  and the popover's flip-up rule directly.
+  and the popover's flip-up rule directly. Both controls get their keys, focus, list panel and
+  teardown from one `ExtensionControlListBehavior`, so the two cannot drift apart.
 
   A picker opens downward, or upward when the form's bottom edge would cut the list off, which is
   `ExtensionFormMetrics.placement` applied by `ExtensionListPlacement` against the palette's own
