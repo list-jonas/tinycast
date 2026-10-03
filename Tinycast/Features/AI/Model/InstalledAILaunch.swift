@@ -39,11 +39,6 @@ struct InstalledAILaunch: Equatable, Sendable {
     var commandPath = ""
     var environment: [String: String] = [:]
 
-    init(commandPath: String = "", environment: [String: String] = [:]) {
-        self.commandPath = commandPath
-        self.environment = environment
-    }
-
     /// The set path wins or fails: falling back would hide the mistake the path was set to fix.
     func command(
         isExecutable: (String) -> Bool = { FileManager.default.isExecutableFile(atPath: $0) }

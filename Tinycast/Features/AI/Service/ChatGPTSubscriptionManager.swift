@@ -97,9 +97,7 @@ final class ChatGPTSubscriptionManager {
     }
 
     @discardableResult
-    private func runOperation(_ operation: @escaping @MainActor () async -> Void)
-        -> Task<Void, Never>
-    {
+    private func runOperation(_ operation: @escaping @MainActor () async -> Void) -> Task<Void, Never> {
         operationTask?.cancel()
         let task = Task { await operation() }
         operationTask = task
@@ -146,20 +144,15 @@ final class ChatGPTSubscriptionManager {
             let response = try await client.request(
                 method: "model/list", params: ["includeHidden": false, "limit": 100])
             models = (response["data"]?.arrayValue ?? []).compactMap { value in
-                guard let raw = value.objectValue, let id = raw["model"]?.stringValue else {
-                    return nil
-                }
+                guard let raw = value.objectValue, let id = raw["model"]?.stringValue else { return nil }
                 let rawEfforts = raw["supportedReasoningEfforts"]?.arrayValue ?? []
                 let efforts = rawEfforts.compactMap { effort -> ChatGPTSubscription.Effort? in
-                    guard let raw = effort.objectValue,
-                        let id = raw["reasoningEffort"]?.stringValue
+                    guard let raw = effort.objectValue, let id = raw["reasoningEffort"]?.stringValue
                     else { return nil }
                     return ChatGPTSubscription.Effort(id: id, detail: raw["description"]?.stringValue)
                 }
                 return ChatGPTSubscription.Model(
-                    id: id,
-                    name: raw["displayName"]?.stringValue ?? id,
-                    efforts: efforts,
+                    id: id, name: raw["displayName"]?.stringValue ?? id, efforts: efforts,
                     defaultEffort: raw["defaultReasoningEffort"]?.stringValue,
                     isDefault: raw["isDefault"]?.boolValue ?? false)
             }
@@ -185,15 +178,10 @@ final class ChatGPTSubscriptionManager {
     }
 
     private func usageWindow(_ value: JSONValue?) -> ChatGPTSubscription.UsageWindow? {
-        guard let raw = value?.objectValue, let used = raw["usedPercent"]?.intValue else {
-            return nil
-        }
+        guard let raw = value?.objectValue, let used = raw["usedPercent"]?.intValue else { return nil }
         return ChatGPTSubscription.UsageWindow(
-            usedPercent: used,
-            durationMinutes: raw["windowDurationMins"]?.intValue,
-            resetsAt: raw["resetsAt"]?.intValue.map {
-                Date(timeIntervalSince1970: Double($0))
-            })
+            usedPercent: used, durationMinutes: raw["windowDurationMins"]?.intValue,
+            resetsAt: raw["resetsAt"]?.intValue.map { Date(timeIntervalSince1970: Double($0)) })
     }
 
     private func restoreAccess() async throws -> Bool {
@@ -234,9 +222,7 @@ final class ChatGPTSubscriptionManager {
         guard !Task.isCancelled else { return }
         forget()
         let message = Self.userFacing(error).localizedDescription
-        if let clientError = error as? CodexAppServerClient.ClientError,
-            case .executableMissing = clientError
-        {
+        if case .executableMissing? = error as? CodexAppServerClient.ClientError {
             phase = .unavailable(message)
         } else {
             phase = .failed(message)
@@ -245,9 +231,7 @@ final class ChatGPTSubscriptionManager {
 
     static func userFacing(_ error: Error) -> Error {
         if error is AIProviderError { return error }
-        let message =
-            (error as? LocalizedError)?.errorDescription
-            ?? "The Codex connection failed."
+        let message = (error as? LocalizedError)?.errorDescription ?? "The Codex connection failed."
         return AIProviderError.responseFailed(message)
     }
 }
