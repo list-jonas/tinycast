@@ -6,12 +6,9 @@ enum LaunchAtLogin {
     }
 
     static func set(_ enabled: Bool) {
+        guard enabled != isEnabled else { return }
         do {
-            if enabled {
-                if SMAppService.mainApp.status != .enabled { try SMAppService.mainApp.register() }
-            } else {
-                if SMAppService.mainApp.status == .enabled { try SMAppService.mainApp.unregister() }
-            }
+            try enabled ? SMAppService.mainApp.register() : SMAppService.mainApp.unregister()
         } catch {
             NSLog("Tinycast: launch-at-login change failed: \(error.localizedDescription)")
         }

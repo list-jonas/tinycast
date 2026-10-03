@@ -33,8 +33,7 @@ enum BundleLocalization {
             .map { "\(code)-\($0)" }
     }
 
-    /// Every name the bundle carries, most preferred language first. `base` — an app's file name, a
-    /// pane's `Info.plist` — ranks with the language it is written in, unless that one renames it.
+    /// Most preferred language first; `base` ranks with its own language unless that renames it.
     nonisolated static func names(
         for bundleURL: URL, base: String, developmentRegion: String?, languages: [String]
     ) -> [String] {

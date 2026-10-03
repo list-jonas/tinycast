@@ -33,8 +33,8 @@ enum Zlib {
     static func gzip(_ data: Data) throws -> Data {
         var out = Data([0x1f, 0x8b, 0x08, 0x00, 0, 0, 0, 0, 0x00, 0xff])
         out.append(try deflateRaw(data))
-        out.append(littleEndian(crc32(data)))
-        out.append(littleEndian(UInt32(truncatingIfNeeded: data.count)))
+        out.append(bytes(of: crc32(data).littleEndian))
+        out.append(bytes(of: UInt32(truncatingIfNeeded: data.count).littleEndian))
         return out
     }
 
@@ -54,7 +54,7 @@ enum Zlib {
     static func deflate(_ data: Data) throws -> Data {
         var out = Data([0x78, 0x9c])
         out.append(try deflateRaw(data))
-        out.append(bigEndian(adler32(data)))
+        out.append(bytes(of: adler32(data).bigEndian))
         return out
     }
 
@@ -71,12 +71,10 @@ enum Zlib {
     // MARK: - Internals
 
     private static func skipCString(_ bytes: [UInt8], from start: Int) throws -> Int {
-        var i = start
-        while i < bytes.count {
-            if bytes[i] == 0 { return i + 1 }
-            i += 1
+        guard start < bytes.count, let end = bytes[start...].firstIndex(of: 0) else {
+            throw ZlibError.corrupt
         }
-        throw ZlibError.corrupt
+        return end + 1
     }
 
     private static func stream(
@@ -143,15 +141,8 @@ enum Zlib {
         return (b << 16) | a
     }
 
-    private static func littleEndian(_ value: UInt32) -> Data {
-        Data([
-            UInt8(value & 0xff), UInt8((value >> 8) & 0xff), UInt8((value >> 16) & 0xff), UInt8(value >> 24)
-        ])
-    }
-
-    private static func bigEndian(_ value: UInt32) -> Data {
-        Data([
-            UInt8(value >> 24), UInt8((value >> 16) & 0xff), UInt8((value >> 8) & 0xff), UInt8(value & 0xff)
-        ])
+    /// Pass a value already in the byte order the format wants.
+    private static func bytes(of value: UInt32) -> Data {
+        withUnsafeBytes(of: value) { Data($0) }
     }
 }

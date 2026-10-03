@@ -18,12 +18,7 @@ enum Permissions {
 
     @MainActor
     static func openAccessibilitySettings() {
-        guard
-            let url = URL(
-                string:
-                    "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-        else { return }
-        NSWorkspace.shared.open(url)
+        openPrivacyPane("Privacy_Accessibility")
     }
 
     static func calendarAccess() -> CalendarAccess {
@@ -63,18 +58,17 @@ enum Permissions {
 
     @MainActor
     static func openMicrophoneSettings() {
-        guard
-            let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
-        else { return }
-        NSWorkspace.shared.open(url)
+        openPrivacyPane("Privacy_Microphone")
     }
 
     @MainActor
     static func openCalendarSettings() {
-        guard
-            let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars")
+        openPrivacyPane("Privacy_Calendars")
+    }
+
+    @MainActor
+    private static func openPrivacyPane(_ anchor: String) {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)")
         else { return }
         NSWorkspace.shared.open(url)
     }
