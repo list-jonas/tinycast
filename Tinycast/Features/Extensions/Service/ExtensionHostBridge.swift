@@ -63,19 +63,9 @@ struct ExtensionToast: Sendable, Equatable, Identifiable {
     var message: String?
     var primaryAction: Action?
     var secondaryAction: Action?
+}
 
-    init(
-        id: Int = 0, style: Style = .success, title: String = "", message: String? = nil,
-        primaryAction: Action? = nil, secondaryAction: Action? = nil
-    ) {
-        self.id = id
-        self.style = style
-        self.title = title
-        self.message = message
-        self.primaryAction = primaryAction
-        self.secondaryAction = secondaryAction
-    }
-
+extension ExtensionToast {
     init(payload: [String: RenderValue]) {
         style = Style(raw: payload["style"]?.stringValue)
         title = payload["title"]?.stringValue ?? ""
@@ -201,7 +191,9 @@ final class ExtensionHostBridge: ExtensionHostAPI {
                 }
                 return nil
             }
-            guard let text = clipboardText(from: content) else { return nil }
+            guard let text = content["text"]?.stringValue ?? content["html"]?.stringValue else {
+                return nil
+            }
             if method == "copy" {
                 // History records unmarked copies; ConcealedType is how secrets stay out.
                 if concealed {
@@ -256,12 +248,6 @@ final class ExtensionHostBridge: ExtensionHostAPI {
 
     private static let concealedPasteboardType = NSPasteboard.PasteboardType(
         "org.nspasteboard.ConcealedType")
-
-    private func clipboardText(from content: [String: RenderValue]) -> String? {
-        if let text = content["text"]?.stringValue { return text }
-        if let html = content["html"]?.stringValue { return html }
-        return nil
-    }
 
     // MARK: - LocalStorage
 
@@ -424,16 +410,13 @@ final class ExtensionHostBridge: ExtensionHostAPI {
             guard let name = options["name"]?.stringValue else {
                 throw ExtensionHostError.unsupported("launchCommand without a name")
             }
-            var launchArguments: [String: String] = [:]
-            for (key, value) in options["arguments"]?.objectValue ?? [:] {
-                launchArguments[key] = value.stringValue
-            }
             let launchType: ExtensionLaunchType =
                 options["type"]?.stringValue == ExtensionLaunchType.background.rawValue
                 ? .background : .userInitiated
             try context?.launch(
                 command: name, extensionName: options["extensionName"]?.stringValue,
-                arguments: launchArguments, fallbackText: options["fallbackText"]?.stringValue,
+                arguments: (options["arguments"]?.objectValue ?? [:]).compactMapValues(\.stringValue),
+                fallbackText: options["fallbackText"]?.stringValue,
                 launchType: launchType, launchContext: options["context"]?.objectValue ?? [:])
             return nil
 
@@ -555,19 +538,16 @@ final class ExtensionHostBridge: ExtensionHostAPI {
             return dict
 
         case "getTokens":
-            let providerId = arguments.first?.stringValue ?? ""
-            guard let tokens = context.getOAuthTokens(providerId: providerId) else { return nil }
-            return tokens
+            return context.getOAuthTokens(providerId: arguments.first?.stringValue ?? "")
 
         case "setTokens":
-            let providerId = arguments.first?.stringValue ?? ""
-            let tokens = arguments[safe: 1]?.stringValue ?? ""
-            context.setOAuthTokens(providerId: providerId, tokens: tokens)
+            context.setOAuthTokens(
+                providerId: arguments.first?.stringValue ?? "",
+                tokens: arguments[safe: 1]?.stringValue ?? "")
             return nil
 
         case "removeTokens":
-            let providerId = arguments.first?.stringValue ?? ""
-            context.removeOAuthTokens(providerId: providerId)
+            context.removeOAuthTokens(providerId: arguments.first?.stringValue ?? "")
             return nil
 
         default:

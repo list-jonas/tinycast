@@ -380,6 +380,7 @@
 		76738C4DCFFD40E68037245D /* AXWindowAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FDB7BD7AB45EAD1A11FFFC4 /* AXWindowAccess.swift */; };
 		77A82B4F0CC09E7248DC5706 /* MeetingLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = B117F11E9B15D1B1919B7FB1 /* MeetingLink.swift */; };
 		7833FD6E0A6036954FE285CE /* FrequentEmojiStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D35CA0655717E1798AFDA7B /* FrequentEmojiStore.swift */; };
+		7857687D22C110094E915D4C /* ExtensionControlList.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC58496D98E6953A02259922 /* ExtensionControlList.swift */; };
 		785814080D8521FC4E6C37B6 /* ChatHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8247D97D304215156447FF3 /* ChatHistoryView.swift */; };
 		7892921C41FF7226352889A7 /* AIToolServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 737C126A1DB2FA800A32A8AE /* AIToolServer.swift */; };
 		78A06F98F84C3B491E9F30A1 /* RoomWindowMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 123F780230818E83DEEB6988 /* RoomWindowMatcher.swift */; };
@@ -1625,6 +1626,7 @@
 		FBFE3C41897391C14DB5A55C /* ShellCommandRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellCommandRunner.swift; sourceTree = "<group>"; };
 		FC2B77DA46386E7E459406E4 /* NotesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesStore.swift; sourceTree = "<group>"; };
 		FC5458F77141FFCA909AFA4C /* RoomPickerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomPickerScreen.swift; sourceTree = "<group>"; };
+		FC58496D98E6953A02259922 /* ExtensionControlList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionControlList.swift; sourceTree = "<group>"; };
 		FCB3657AEC586A2C14B41C80 /* ExtensionImportPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionImportPanel.swift; sourceTree = "<group>"; };
 		FDC04AF159B94B3E8D1A5217 /* QwenRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QwenRecognizer.swift; sourceTree = "<group>"; };
 		FE31A7F41EDA33E7E574F62D /* CustomWindowSizeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomWindowSizeStore.swift; sourceTree = "<group>"; };
@@ -2970,6 +2972,7 @@
 				0266BAF4643A4B5C41B600DE /* ExtensionColors.swift */,
 				52146CB01C791AB02518273D /* ExtensionCommandScreen.swift */,
 				5D2DDA019FE0EF38A91AA495 /* ExtensionCommandView.swift */,
+				FC58496D98E6953A02259922 /* ExtensionControlList.swift */,
 				A0BAA0471DD8CE4352F45FED /* ExtensionCoordinator.swift */,
 				B6915B7D8E6816B7919F5CF4 /* ExtensionDateField.swift */,
 				2B0D967615846F9C4EC3E44F /* ExtensionDetailView.swift */,
@@ -4044,6 +4047,7 @@
 				C1FC3507BFC408DCD7F142D8 /* ExtensionCommandMetadataStore.swift in Sources */,
 				A5693BFABA85B873EC7F1E0B /* ExtensionCommandScreen.swift in Sources */,
 				B8CECD85524BCCCBC0CDC2B5 /* ExtensionCommandView.swift in Sources */,
+				7857687D22C110094E915D4C /* ExtensionControlList.swift in Sources */,
 				1F0E7F2EF27CB82211EDCB4C /* ExtensionCoordinator.swift in Sources */,
 				533C229E97F9047A2DEC1A2B /* ExtensionDateExpression.swift in Sources */,
 				8A34168607D3C7EDD83CB485 /* ExtensionDateField.swift in Sources */,
