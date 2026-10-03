@@ -94,7 +94,7 @@ final class ExtensionMenuBarManager: ExtensionRuntimeDelegate {
         _ owner: InstalledExtension, command: ExtensionCommand, arguments: [String: String] = [:],
         type: ExtensionLaunchType = .userInitiated, context: [String: RenderValue] = [:]
     ) {
-        let reference = ExtensionCommandRef(extensionName: owner.manifest.name, commandName: command.name)
+        let reference = owner.reference(for: command)
         if command.mode == .menuBar, type == .userInitiated, !metadata(reference).menuBarEnabled {
             commandMetadata.setMenuBarEnabled(
                 true, extension: reference.extensionName,

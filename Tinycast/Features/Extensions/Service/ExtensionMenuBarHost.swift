@@ -16,7 +16,7 @@ final class ExtensionMenuBarHost: ExtensionHostContext {
         manager: ExtensionManager, coordinator: ExtensionCoordinator
     ) {
         self.owner = owner
-        reference = ExtensionCommandRef(extensionName: owner.manifest.name, commandName: command.name)
+        reference = owner.reference(for: command)
         isInteractive = launchType == .userInitiated
         self.storage = storage
         self.manager = manager
