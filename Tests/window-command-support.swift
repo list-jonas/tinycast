@@ -1,35 +1,6 @@
-// Shared fixtures for the window-command and window-display harnesses.
+// Placement fixtures shared by the window-command and window-display harnesses.
 import CoreGraphics
 import Foundation
-
-@MainActor
-enum Tally {
-    static var failures = 0
-    static var passes = 0
-
-    static func finish() {
-        print("\(passes) passed, \(failures) failed")
-        if failures > 0 { exit(1) }
-    }
-}
-
-@MainActor func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
-    if condition() {
-        Tally.passes += 1
-    } else {
-        Tally.failures += 1
-        print("FAIL: \(message)")
-    }
-}
-
-@MainActor func expectRect(_ actual: CGRect, _ expected: CGRect, _ message: String) {
-    if actual == expected {
-        Tally.passes += 1
-    } else {
-        Tally.failures += 1
-        print("FAIL: \(message) — got \(actual), expected \(expected)")
-    }
-}
 
 /// The reference display: origin at the AX origin, evenly divisible by halves and thirds.
 let mainScreen = WindowPlacementEngine.Screen(

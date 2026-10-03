@@ -352,12 +352,14 @@ run window-command-test    Tinycast/Features/WindowManagement/Model/WindowComman
                            Tinycast/Features/WindowManagement/Model/WindowCycle.swift \
                            Tinycast/Features/WindowManagement/Model/WindowPlacementEngine.swift \
                            Tinycast/Features/WindowManagement/Model/WindowActionMemory.swift \
-                           Tests/window-command-support.swift
+                           Tests/window-command-support.swift \
+                           Tests/window-test-support.swift
 run window-display-test    Tinycast/Features/WindowManagement/Model/WindowCommand.swift \
                            Tinycast/Features/WindowManagement/Model/WindowCycle.swift \
                            Tinycast/Features/WindowManagement/Model/WindowPlacementEngine.swift \
                            Tinycast/Features/WindowManagement/Model/WindowActionMemory.swift \
-                           Tests/window-command-support.swift
+                           Tests/window-command-support.swift \
+                           Tests/window-test-support.swift
 run window-preset-test     Tinycast/Features/WindowManagement/Model/WindowCommand.swift \
                            Tinycast/Features/WindowManagement/Model/WindowShortcutPreset.swift \
                            Tinycast/Features/HotKeys/Model/DoubleTapModifier.swift \
@@ -365,9 +367,11 @@ run window-preset-test     Tinycast/Features/WindowManagement/Model/WindowComman
                            Tinycast/Features/HotKeys/Model/HotKeyBinding.swift \
                            Tinycast/Features/HotKeys/Model/HyperKey.swift \
                            Tinycast/Platform/ASCIIKeyboardLayout.swift \
-                           Tinycast/Features/HotKeys/Service/KeyShortcut.swift
+                           Tinycast/Features/HotKeys/Service/KeyShortcut.swift \
+                           Tests/window-test-support.swift
 run space-gesture-test     Tinycast/Features/WindowManagement/Model/WindowCommand.swift \
-                           Tinycast/Features/WindowManagement/Model/SpaceGesture.swift
+                           Tinycast/Features/WindowManagement/Model/SpaceGesture.swift \
+                           Tests/window-test-support.swift
 run window-layout-test     Tinycast/Features/WindowManagement/Model/WindowCommand.swift \
                            Tinycast/Features/WindowManagement/Model/WindowCycle.swift \
                            Tinycast/Features/WindowManagement/Model/WindowPlacementEngine.swift \
@@ -379,7 +383,8 @@ run window-layout-test     Tinycast/Features/WindowManagement/Model/WindowComman
                            Tinycast/Features/WindowManagement/Model/WindowLayoutPlan.swift \
                            Tinycast/Features/WindowManagement/Model/WindowLayoutStore.swift \
                            Tinycast/Features/WindowManagement/Model/CustomWindowSize.swift \
-                           Tinycast/Features/WindowManagement/Model/CustomWindowSizeStore.swift
+                           Tinycast/Features/WindowManagement/Model/CustomWindowSizeStore.swift \
+                           Tests/window-test-support.swift
 run window-room-test       Tinycast/Features/WindowManagement/Model/WindowCommand.swift \
                            Tinycast/Features/WindowManagement/Model/WindowCycle.swift \
                            Tinycast/Features/WindowManagement/Model/WindowPlacementEngine.swift \
@@ -400,7 +405,8 @@ run window-room-test       Tinycast/Features/WindowManagement/Model/WindowComman
                            Tinycast/Features/WindowManagement/Model/RoomArrangement.swift \
                            Tinycast/Features/WindowManagement/Model/RoomStore.swift \
                            Tinycast/Features/WindowManagement/Model/RoomMinimumSizeStore.swift \
-                           Tinycast/Features/WindowManagement/Model/RoomParkingLedger.swift
+                           Tinycast/Features/WindowManagement/Model/RoomParkingLedger.swift \
+                           Tests/window-test-support.swift
 run window-file-test       Tinycast/Features/WindowManagement/Model/WindowCommand.swift \
                            Tinycast/Features/WindowManagement/Model/WindowCycle.swift \
                            Tinycast/Features/WindowManagement/Model/WindowPlacementEngine.swift \

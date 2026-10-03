@@ -5,18 +5,6 @@ import Foundation
 @main
 @MainActor
 struct WindowPresetTests {
-    static var failures = 0
-    static var passes = 0
-
-    static func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
-        if condition() {
-            passes += 1
-        } else {
-            failures += 1
-            print("FAIL: \(message)")
-        }
-    }
-
     static func combo(_ keyCode: Int, _ modifiers: Int) -> HotKeyBinding {
         .combo(KeyShortcut(carbonKeyCode: keyCode, carbonModifiers: modifiers))
     }
@@ -30,8 +18,7 @@ struct WindowPresetTests {
         testUnrelated()
         testMatching()
 
-        print("\(passes) passed, \(failures) failed")
-        if failures > 0 { exit(1) }
+        Tally.finish()
     }
 
     static func testTables() {

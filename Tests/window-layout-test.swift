@@ -6,42 +6,6 @@ import Foundation
 @main
 @MainActor
 struct WindowLayoutTests {
-    static var failures = 0
-    static var passes = 0
-
-    static func expect(_ condition: @autoclosure () -> Bool, _ message: String) {
-        if condition() {
-            passes += 1
-        } else {
-            failures += 1
-            print("FAIL: \(message)")
-        }
-    }
-
-    static func expectThrows(
-        _ expected: WindowLayoutValidationError, _ message: String, _ body: () throws -> Void
-    ) {
-        do {
-            try body()
-            expect(false, message)
-        } catch let error as WindowLayoutValidationError {
-            expect(error == expected, message)
-        } catch {
-            expect(false, message)
-        }
-    }
-
-    static func expectRect(_ actual: CGRect?, _ expected: CGRect, _ message: String) {
-        if actual == expected {
-            passes += 1
-        } else {
-            failures += 1
-            print(
-                "FAIL: \(message) — got \(actual.map(String.init(describing:)) ?? "nil"), expected \(expected)"
-            )
-        }
-    }
-
     // MARK: - Fixtures
 
     /// The reference display: at the AX origin, evenly divisible by halves and thirds.
@@ -111,8 +75,7 @@ struct WindowLayoutTests {
         customSizeStore()
         customSizePersistence()
 
-        print("\(passes)/\(passes + failures) passed")
-        if failures > 0 { exit(1) }
+        Tally.finish()
     }
 
     // MARK: - Record
@@ -619,18 +582,18 @@ struct WindowLayoutTests {
     static func storeValidation() {
         withStore { store in
             for (name, label) in [("", "an empty"), ("   ", "a whitespace-only")] {
-                expectThrows(.emptyName, "\(label) name is rejected") {
+                expectThrows(WindowLayoutValidationError.emptyName, "\(label) name is rejected") {
                     _ = try store.add(layout(name, entries: [entry()]))
                 }
             }
-            expectThrows(.invalidCharacter, "a null character is rejected") {
+            expectThrows(WindowLayoutValidationError.invalidCharacter, "a null character is rejected") {
                 _ = try store.add(layout("Bad\0Name", entries: [entry()]))
             }
-            expectThrows(.noEntries, "a layout with no entries is rejected") {
+            expectThrows(WindowLayoutValidationError.noEntries, "a layout with no entries is rejected") {
                 _ = try store.add(layout("Empty", entries: []))
             }
             _ = try? store.add(layout("Office", entries: [entry()]))
-            expectThrows(.duplicateName, "a duplicate name is rejected") {
+            expectThrows(WindowLayoutValidationError.duplicateName, "a duplicate name is rejected") {
                 _ = try store.add(layout("OFFICE", entries: [entry()]))
             }
         }
