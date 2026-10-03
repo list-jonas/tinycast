@@ -81,20 +81,11 @@ struct ExtensionsSettingsView: View {
         }
     }
 
-    private func row<Trailing: View>(
-        _ title: String, _ subtitle: String, symbol: String, anchor: SettingsAnchor? = nil,
-        subtitleLineLimit: Int = 1, @ViewBuilder trailing: () -> Trailing
-    ) -> some View {
-        SettingsRow(
-            title: title, subtitle: subtitle, subtitleLineLimit: subtitleLineLimit, anchor: anchor
-        ) {
-            Image(systemName: symbol)
-                .font(.system(size: Theme.Size.settingsRowIcon - Theme.Spacing.xs))
-                .foregroundStyle(.primary)
-                .frame(width: SettingsListMetrics.iconSize, height: SettingsListMetrics.iconSize)
-        } trailing: {
-            trailing()
-        }
+    private func icon(_ symbol: String) -> some View {
+        Image(systemName: symbol)
+            .font(.system(size: Theme.Size.settingsRowIcon - Theme.Spacing.xs))
+            .foregroundStyle(.primary)
+            .frame(width: SettingsListMetrics.iconSize, height: SettingsListMetrics.iconSize)
     }
 
     @ViewBuilder
@@ -108,13 +99,17 @@ struct ExtensionsSettingsView: View {
 
     private var compatibility: some View {
         Section {
-            row(
-                "What works",
-                "List, detail, form, grid, no-view and menu-bar commands, plus preferences, storage and OAuth.",
-                symbol: "checkmark.circle", subtitleLineLimit: 2) {}
-            row(
-                "What doesn't, yet", "Raycast's OAuth proxy, and its AI, browser and window services.",
-                symbol: "xmark.circle", subtitleLineLimit: 2) {}
+            SettingsRow(
+                title: "What works",
+                subtitle:
+                    "List, detail, form, grid, no-view and menu-bar commands, plus preferences, storage and OAuth.",
+                subtitleLineLimit: 2
+            ) { icon("checkmark.circle") } trailing: {}
+            SettingsRow(
+                title: "What doesn't, yet",
+                subtitle: "Raycast's OAuth proxy, and its AI, browser and window services.",
+                subtitleLineLimit: 2
+            ) { icon("xmark.circle") } trailing: {}
         } header: {
             SettingsSectionHeader(.extensionsCompatibility)
         }
@@ -126,10 +121,12 @@ struct ExtensionsSettingsView: View {
         Section {
             if !extensions.updates.isEmpty {
                 // Above the list as well as on each row, so a batch is one press.
-                row(
-                    "Updates available", listed(extensions.updates.values.map(\.title)) + ".",
-                    symbol: "arrow.down.circle"
+                SettingsRow(
+                    title: "Updates available",
+                    subtitle: listed(extensions.updates.values.map(\.title)) + "."
                 ) {
+                    icon("arrow.down.circle")
+                } trailing: {
                     if extensions.updating.isEmpty {
                         Button("Update All") { update(extensions.updates.keys.sorted()) }
                     } else {
@@ -191,23 +188,29 @@ struct ExtensionsSettingsView: View {
     /// Rows rather than a menu: each route installs differently.
     private var install: some View {
         Section {
-            row(
-                "Search extensions", "Ready-built from the Raycast Store.", symbol: "magnifyingglass",
+            SettingsRow(
+                title: "Search extensions", subtitle: "Ready-built from the Raycast Store.",
                 anchor: .extensionsInstall
             ) {
+                icon("magnifyingglass")
+            } trailing: {
                 Button("Search…") { browsingStore = true }
             }
-            row(
-                "Install from GitHub", "Builds from source with your package manager.",
-                symbol: "hammer", anchor: .extensionsInstall
+            SettingsRow(
+                title: "Install from GitHub",
+                subtitle: "Builds from source with your package manager.",
+                anchor: .extensionsInstall
             ) {
+                icon("hammer")
+            } trailing: {
                 Button("Install…") { installingFromGitHub = true }
             }
             // A state of this row, not a card: the same job as the button beside it.
-            row(
-                "Import from Raycast", importSubtitle, symbol: "arrow.down.doc",
-                anchor: .extensionsInstall
+            SettingsRow(
+                title: "Import from Raycast", subtitle: importSubtitle, anchor: .extensionsInstall
             ) {
+                icon("arrow.down.doc")
+            } trailing: {
                 if importProgress != nil {
                     ProgressView().controlSize(.small)
                 } else {
@@ -218,10 +221,13 @@ struct ExtensionsSettingsView: View {
                     }
                 }
             }
-            row(
-                "Add from folder", "A folder with package.json and built commands.", symbol: "folder",
+            SettingsRow(
+                title: "Add from folder",
+                subtitle: "A folder with package.json and built commands.",
                 anchor: .extensionsInstall
             ) {
+                icon("folder")
+            } trailing: {
                 Button("Choose…", action: addFolder)
             }
         } header: {
@@ -234,10 +240,11 @@ struct ExtensionsSettingsView: View {
     /// An install cleans up after itself, so in normal use this row has nothing to offer.
     private var storage: some View {
         Section {
-            row(
-                "Leftover files", reclaimableSubtitle, symbol: "internaldrive",
-                anchor: .extensionsStorage
+            SettingsRow(
+                title: "Leftover files", subtitle: reclaimableSubtitle, anchor: .extensionsStorage
             ) {
+                icon("internaldrive")
+            } trailing: {
                 Button("Clean Up…") {
                     Task {
                         await core.extensionCoordinator.confirmCleanup(reclaimable)

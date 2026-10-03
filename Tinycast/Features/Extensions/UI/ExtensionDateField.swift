@@ -97,7 +97,7 @@ struct ExtensionDateField: View {
     private func choose(_ rows: [ExtensionDateExpression.Suggestion], at index: Int) {
         guard rows.indices.contains(index) else { return }
         if let date = rows[index].date {
-            onChange(node, ["$date": ISO8601DateFormatter().string(from: date)])
+            onChange(node, RenderValue.date(date).jsonValue)
         } else {
             onChange(node, NSNull())
         }

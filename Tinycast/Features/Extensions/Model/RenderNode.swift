@@ -81,7 +81,7 @@ enum RenderValue: Sendable, Hashable {
         case .string(let value): return value
         case .number(let value): return value
         case .bool(let value): return value
-        case .date(let value): return ["$date": ISO8601DateFormatter().string(from: value)]
+        case .date(let value): return ["$date": Self.plainISO.format(value)]
         case .handler(let id): return ["$fn": id]
         case .array(let values): return values.map(\.jsonValue)
         case .object(let values): return values.mapValues(\.jsonValue)
