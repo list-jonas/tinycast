@@ -275,7 +275,6 @@ struct CalcCurrencyTests {
         expectNil("average of 5")
         expectNil("10,5")
 
-
         localeTests()
         finish()
     }

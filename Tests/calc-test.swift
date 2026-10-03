@@ -608,7 +608,6 @@ struct CalcTests {
         expectDisplay("1234kg + 1kg", "1,235 kg")
         expectCopy("1234kg + 1kg", "1235 kg")
 
-
         // Angle units (deg is a real unit now, not just a trig postfix)
         expectDisplay("1 deg", "0.01745329252 rad")
         expectExpression("1 deg", "1 deg")
@@ -658,7 +657,6 @@ struct CalcTests {
         expectBadges("0xff to decimal", source: "Hexadecimal", target: "Decimal")
         expectBadges("3*3", source: "Expression", target: "Result")
         expectBadges("20% off 500", source: "Expression", target: "Discounted")
-
 
         // Spoken function and operator names
         expectDisplay("square root of 625", "25")

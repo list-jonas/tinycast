@@ -33,8 +33,8 @@ struct CalcResult: Equatable, Sendable {
     /// Normalized echo of what was evaluated, shown on the card's left side ("3×3", "10 km").
     var expression: String
     /// Optional word-name pills beneath each side; nil for plain arithmetic.
-    var sourceBadge: String? = nil
-    var targetBadge: String? = nil
+    var sourceBadge: String?
+    var targetBadge: String?
     let payload: Payload
 
     /// True only for a copyable value; an error card has no primary action and no actions menu.

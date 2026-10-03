@@ -37,7 +37,6 @@ struct CalcDateTests {
         expectNilAt("july")
         expectNilAt("tomorrow")
 
-
         // days since — past elapsed, against the fixed clock (Fri 2026-07-24)
         expectDisplayAt("days since 9jul", "15 days")
         expectBadgesAt("days since 9jul", source: "Thursday, 9 July", target: "Friday, 24 July")
@@ -45,7 +44,6 @@ struct CalcDateTests {
         expectDisplayAt("days since yesterday", "1 day")
         // The answer's weekday is the badge, so the date itself does not repeat it.
         expectBadgesAt("today + 3 weeks", source: "Friday, 24 July", target: "Friday")
-
 
         // Timespans break a duration into the units that fit it
         expectDisplay("145 mins to timespan", "2 hr 25 min")
@@ -561,8 +559,6 @@ struct CalcDateTests {
         // A lone date word is still an app search
         expectNilAt("tomorrow")
         expectNilAt("today")
-
-
 
         // Business days skip weekends. The clock is Fri 2026-07-24, so every hop crosses one.
         expectDisplayAt("today + 1 business day", "27 July")
