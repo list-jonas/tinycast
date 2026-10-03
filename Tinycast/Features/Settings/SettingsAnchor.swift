@@ -1,5 +1,4 @@
-/// One `Section` inside a pane, named once so the catalog and the pane cannot disagree: the search
-/// result carries the anchor, the pane's `.settingsAnchor(_:)` marks the section it scrolls to.
+/// One `Section` inside a pane, named once so the search catalog and the pane cannot disagree.
 struct SettingsAnchor: Hashable, Sendable {
     let tab: SettingsTab
     /// The `Section`'s own header text, which is also what a result's breadcrumb reads.
@@ -130,8 +129,7 @@ enum SettingsTarget: Hashable, Sendable {
     var tab: SettingsTab { anchor.tab }
 }
 
-/// One jump asked for by a search result. The token is what makes picking the same result twice
-/// scroll and pulse again, rather than comparing equal and doing nothing.
+/// One jump asked for by a search result; the token makes a repeated pick scroll and pulse again.
 struct SettingsScrollRequest: Equatable, Sendable {
     let target: SettingsTarget
     let token: Int

@@ -123,9 +123,7 @@ enum UninstallScanner {
     /// Serial: four directories of cheap symlink reads, and nothing here needs a walk.
     private static func binRows(
         environment: UninstallEnvironment, bundlePath: String
-    ) throws
-        -> [UninstallCandidate]
-    {
+    ) throws -> [UninstallCandidate] {
         var rows: [UninstallCandidate] = []
         for directory in UninstallSearchRoot.binDirectories {
             try Task.checkCancellation()
@@ -178,9 +176,7 @@ enum UninstallScanner {
     /// `lstat`, never `stat`: a symlink is judged as the link, not as whatever it points at.
     private static func inspect(
         _ path: String, parent: ParentFacts?
-    )
-        -> (facts: PathFacts, isDirectory: Bool, byteSize: Int64)?
-    {
+    ) -> (facts: PathFacts, isDirectory: Bool, byteSize: Int64)? {
         var info = stat()
         guard lstat(path, &info) == 0 else { return nil }
         let parent = parent ?? parentFacts(of: (path as NSString).deletingLastPathComponent)

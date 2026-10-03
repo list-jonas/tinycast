@@ -34,9 +34,7 @@ struct UpdateInstaller: Sendable {
     let bundleURL: URL
     let stagingDirectory: URL
 
-    func install(
-        _ release: AvailableRelease, onProgress: @escaping @Sendable (Phase) -> Void
-    ) async throws {
+    func install(_ release: AvailableRelease, onProgress: @escaping @Sendable (Phase) -> Void) async throws {
         try? FileManager.default.createDirectory(
             at: stagingDirectory, withIntermediateDirectories: true)
         let archive = stagingDirectory.appendingPathComponent("\(release.tag).zip")

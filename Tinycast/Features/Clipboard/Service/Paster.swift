@@ -114,9 +114,7 @@ enum Paster {
 
     /// Whether anything was written; a vanished item leaves the pasteboard untouched.
     @MainActor @discardableResult
-    static func write(
-        _ item: ClipboardItem, store: ClipboardStore, to pb: NSPasteboard = .general
-    ) -> Bool {
+    static func write(_ item: ClipboardItem, store: ClipboardStore, to pb: NSPasteboard = .general) -> Bool {
         switch item.kind {
         case .text:
             guard let text = item.text else { return false }

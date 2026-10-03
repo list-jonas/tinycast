@@ -113,7 +113,7 @@ final class SettingsEditorPresenter: NSObject {
         override var canBecomeKey: Bool { true }
         override var canBecomeMain: Bool { false }
 
-        /// A child window drags alone, so the drag goes to the window it sits on, as a sheet's does.
+        /// A child window drags alone, so the drag goes to its parent, as a sheet's does.
         override func performDrag(with event: NSEvent) {
             parent?.performDrag(with: event)
         }

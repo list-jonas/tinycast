@@ -85,7 +85,7 @@ struct BackupSettingsView: View {
                     )
                     .labelsHidden()
                     .textFieldStyle(.roundedBorder)
-                    // LabeledContent right-aligns its value text, caret and all; a field reads left.
+                    // LabeledContent right-aligns its value, caret and all; a field reads left.
                     .multilineTextAlignment(.leading)
                     .frame(width: 160)
                     .onSubmit { raycast.run(core: core) }

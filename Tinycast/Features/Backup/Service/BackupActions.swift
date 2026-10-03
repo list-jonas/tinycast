@@ -68,7 +68,7 @@ enum BackupActions {
         }.value
     }
 
-    /// Opens the archive and reads its manifest, leaving staging for the caller to apply and discard.
+    /// Opens the archive and reads its manifest; the caller applies and discards the staging.
     static func openBackup(at file: URL) async throws -> (BackupStaging, BackupManifest) {
         try await Task.detached(priority: .userInitiated) {
             let staging = try BackupStaging()
@@ -163,7 +163,7 @@ enum BackupActions {
             if core.quicklinks.isAvailable {
                 quicklinksImported =
                     core.quicklinkCoordinator.addImportedQuicklinks(result.quicklinks).count
-                // Opening a link grants no permission class, so landing a library turns the switch on.
+                // A link grants no permission class, so landing a library turns the switch on.
                 if quicklinksImported > 0 { core.settings.quicklinksEnabled = true }
             } else {
                 quicklinksError = QuicklinkError.storageUnavailable.errorDescription

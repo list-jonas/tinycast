@@ -219,7 +219,7 @@ final class ClipboardCoordinator {
         textTask?.cancel()
         textTask = Task {
             do {
-                // A stat on an unmounted or network volume can stall, so it stays off the main actor.
+                // A stat on an unmounted or network volume can stall, so it runs off-main.
                 let exists = await Task.detached { FileManager.default.fileExists(atPath: path) }.value
                 try Task.checkCancellation()
                 guard exists else {

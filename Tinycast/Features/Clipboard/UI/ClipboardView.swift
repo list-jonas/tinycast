@@ -316,8 +316,9 @@ struct ClipboardPreview: View {
                 }
             }
         case .image:
-            AsyncThumbnail(url: store.imageURL(for: item), maxPixel: metrics.size.clipboardPreviewPixel) {
-                image in
+            AsyncThumbnail(
+                url: store.imageURL(for: item), maxPixel: metrics.size.clipboardPreviewPixel
+            ) { image in
                 image
                     .resizable()
                     .scaledToFit()

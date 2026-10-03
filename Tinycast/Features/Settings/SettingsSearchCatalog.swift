@@ -45,8 +45,7 @@ struct SettingsSearchEntry: Identifiable, Hashable, Sendable {
     }
 }
 
-/// What Settings offers to search. Hand-written: a `Form` can't be asked what rows it holds, so a
-/// new row is searchable only once it is listed here.
+/// What Settings offers to search; hand-written, as a `Form` can't be asked what rows it holds.
 enum SettingsSearchCatalog {
     struct Query: Sendable {
         let terms: [FuzzyMatch.Query]
@@ -104,7 +103,6 @@ enum SettingsSearchCatalog {
         return band + titleScore + (entry.anchor == nil ? 500_000 : 0)
     }
 
-    // MARK: - The index
     // Pane order, then section order within a pane, so this reads as a table of contents.
 
     static let entries: [SettingsSearchEntry] =

@@ -151,11 +151,7 @@ enum BackupComposer {
     }
 
     /// Markdown copied verbatim: both repositories read `.md` back, so a round trip loses nothing.
-    private nonisolated static func copyDocuments(
-        from source: URL, to destination: URL
-    ) throws
-        -> Int
-    {
+    private nonisolated static func copyDocuments(from source: URL, to destination: URL) throws -> Int {
         let names = (try? FileManager.default.contentsOfDirectory(atPath: source.path)) ?? []
         var copied = 0
         for name in names.sorted() where (name as NSString).pathExtension == "md" {

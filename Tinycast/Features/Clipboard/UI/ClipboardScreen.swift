@@ -236,9 +236,7 @@ enum ClipboardActionsMenu {
         return PopoverMenuContent(header: headerText(item), items: items)
     }
 
-    private static func icon(
-        for action: ClipboardDefaultAction, target: PasteTarget?
-    ) -> PopoverMenuIcon {
+    private static func icon(for action: ClipboardDefaultAction, target: PasteTarget?) -> PopoverMenuIcon {
         switch action {
         case .paste: .paste(target, fallback: "doc.on.clipboard")
         case .copy: .symbol("doc.on.doc")

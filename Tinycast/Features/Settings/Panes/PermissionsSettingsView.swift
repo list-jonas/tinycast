@@ -52,7 +52,7 @@ struct PermissionsSettingsView: View {
                         }
                         .foregroundStyle(calendarStatus.tint)
                         Button(calendarNeedsPrompt ? "Grant Access…" : "Open…") {
-                            // Settings lists no app TCC was never asked about, so asking is the way in.
+                            // Settings lists no app TCC never asked about, so asking is the way in.
                             if calendarNeedsPrompt {
                                 core.calendarCoordinator.setCalendarEnabled(true)
                             } else {

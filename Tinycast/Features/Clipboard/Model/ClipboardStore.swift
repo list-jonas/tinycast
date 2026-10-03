@@ -73,7 +73,7 @@ final class ClipboardStore {
                 ) f JOIN items i ON i.rowid = f.rowid ORDER BY f.rowid DESC
                 """
             case .deleteByID: "DELETE FROM items WHERE id = ?"
-            // Only ever sets a stamp: unpinning rewrites the whole row so it leads the history again.
+            // Only ever sets a stamp: unpinning rewrites the row so it leads the history again.
             case .pin: "UPDATE items SET pinned_at = ? WHERE id = ?"
             case .staleImages:
                 """

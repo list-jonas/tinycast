@@ -4,9 +4,7 @@ import Foundation
 /// Minimal scrypt (RFC 7914), so the import needs no third-party crypto dependency.
 enum Scrypt {
     /// Derive `dkLen` key bytes. For Raycast: `n=16384, r=8, p=1, dkLen=32`.
-    static func derive(
-        passphrase: [UInt8], salt: [UInt8], n: Int, r: Int, p: Int, dkLen: Int
-    ) -> [UInt8] {
+    static func derive(passphrase: [UInt8], salt: [UInt8], n: Int, r: Int, p: Int, dkLen: Int) -> [UInt8] {
         let blockLen = 128 * r
         var b = pbkdf2(password: passphrase, salt: salt, rounds: 1, dkLen: p * blockLen)
         for i in 0..<p {
@@ -19,9 +17,7 @@ enum Scrypt {
 
     // MARK: - PBKDF2-HMAC-SHA256
 
-    private static func pbkdf2(
-        password: [UInt8], salt: [UInt8], rounds: Int, dkLen: Int
-    ) -> [UInt8] {
+    private static func pbkdf2(password: [UInt8], salt: [UInt8], rounds: Int, dkLen: Int) -> [UInt8] {
         let hLen = 32
         let key = SymmetricKey(data: password)
         let blocks = (dkLen + hLen - 1) / hLen
