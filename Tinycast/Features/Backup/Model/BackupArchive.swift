@@ -4,8 +4,6 @@ import System
 
 /// Seals a `BackupBundle` directory into one `.tinycast` file, and opens one back up.
 enum BackupArchive {
-    static let fileExtension = "tinycast"
-
     enum ArchiveError: LocalizedError, Equatable {
         case cannotWrite
         case cannotRead
