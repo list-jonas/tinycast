@@ -96,26 +96,26 @@ struct MCPServerEditor: View {
 
             Form {
                 Section {
-                    field("Name") {
+                    SettingsEditorField("Name") {
                         TextField("Name", text: $name, prompt: Text("GitHub"))
                             .settingsEditorTextField()
                     }
-                    field("Handle") {
+                    SettingsEditorField("Handle") {
                         Text("@\(MCPSlug.normalize(name.isEmpty ? target.server.slug : name))")
                             .foregroundStyle(.secondary)
                     }
-                    field("Connection") {
+                    SettingsEditorField("Connection") {
                         SteadySegmentedPicker(
                             title: "Connection",
                             options: Kind.allCases.map { .init(value: $0, title: $0.title) },
                             selection: $kind)
                     }
                     if kind == .http {
-                        field("URL") {
+                        SettingsEditorField("URL") {
                             TextField("URL", text: $url, prompt: Text("https://example.com/mcp"))
                                 .settingsEditorTextField()
                         }
-                        field("Authentication") {
+                        SettingsEditorField("Authentication") {
                             Picker("Authentication", selection: $usesOAuth) {
                                 Text("Header").tag(false)
                                 Text("OAuth").tag(true)
@@ -125,11 +125,11 @@ struct MCPServerEditor: View {
                         if usesOAuth {
                             oauthFields
                         } else {
-                            field("Header") {
+                            SettingsEditorField("Header") {
                                 TextField("Header", text: $headerName, prompt: Text("Authorization"))
                                     .settingsEditorTextField()
                             }
-                            field("Value") {
+                            SettingsEditorField("Value") {
                                 RevealableSecureField(
                                     title: "Value", text: $headerValue, prompt: Text("Bearer …")
                                 )
@@ -137,18 +137,18 @@ struct MCPServerEditor: View {
                             }
                         }
                     } else {
-                        field("Command") {
+                        SettingsEditorField("Command") {
                             TextField("Command", text: $command, prompt: Text("npx"))
                                 .settingsEditorTextField()
                         }
-                        field("Arguments") {
+                        SettingsEditorField("Arguments") {
                             TextField(
                                 "Arguments", text: $argumentText,
                                 prompt: Text("-y @modelcontextprotocol/server-filesystem ~/Desktop")
                             )
                             .settingsEditorTextField()
                         }
-                        field("Environment") {
+                        SettingsEditorField("Environment") {
                             TextField(
                                 "Environment", text: $environmentText,
                                 prompt: Text("GITHUB_TOKEN=…"), axis: .vertical
@@ -172,7 +172,7 @@ struct MCPServerEditor: View {
 
                 Section {
                     Toggle("Offer this server's tools", isOn: $isEnabled)
-                    field("Trust") {
+                    SettingsEditorField("Trust") {
                         Picker("Trust", selection: $trust) {
                             ForEach(MCPTrust.allCases) { Text($0.title).tag($0) }
                         }
@@ -226,15 +226,15 @@ struct MCPServerEditor: View {
 
     private var oauthFields: some View {
         Group {
-            field("Client ID") {
+            SettingsEditorField("Client ID") {
                 TextField("Client ID", text: $clientID, prompt: Text("Optional — register automatically"))
                     .settingsEditorTextField()
             }
-            field("Client secret") {
+            SettingsEditorField("Client secret") {
                 RevealableSecureField(title: "Client secret", text: $clientSecret, prompt: Text("Optional"))
                     .settingsEditorTextField()
             }
-            field("Sign-in") {
+            SettingsEditorField("Sign-in") {
                 HStack(spacing: Theme.Spacing.lg) {
                     switch authenticationStatus {
                     case .signedIn: Button("Sign Out", action: signOut).disabled(operation != nil)
@@ -268,8 +268,7 @@ struct MCPServerEditor: View {
     }
 
     private func signIn() {
-        if let message = validate() { error = message; return }
-        error = nil
+        guard isValid() else { return }
         let draft = draft
         guard let credentials = draft.secrets.oauth else { return }
         operation = Task {
@@ -317,12 +316,6 @@ struct MCPServerEditor: View {
         }
     }
 
-    private func field<Content: View>(
-        _ label: String, @ViewBuilder content: () -> Content
-    ) -> some View {
-        SettingsEditorField(label, content: content)
-    }
-
     private var draft: (server: MCPServer, secrets: MCPSecretStore.Secrets) {
         var server = target.server
         server.name = name
@@ -364,11 +357,7 @@ struct MCPServerEditor: View {
 
     /// A real handshake, so a typo is caught here rather than in the middle of a conversation.
     private func test() {
-        guard validate() == nil else {
-            error = validate()
-            return
-        }
-        error = nil
+        guard isValid() else { return }
         probe = .running
         let draft = draft
         operation = Task {
@@ -385,15 +374,18 @@ struct MCPServerEditor: View {
     }
 
     private func save() {
-        if let message = validate() {
-            error = message
-            return
-        }
+        guard isValid() else { return }
         let draft = draft
         error = onSave(draft.server, draft.secrets)
     }
 
-    private func validate() -> String? {
+    /// Shows why a draft can't be used, or clears the last complaint when it can.
+    private func isValid() -> Bool {
+        error = validationError()
+        return error == nil
+    }
+
+    private func validationError() -> String? {
         switch kind {
         case .http:
             do {

@@ -1,5 +1,4 @@
 import Foundation
-import Observation
 
 /// MCP's action surface: what is running, what the model may call, and who is asked first.
 @MainActor
@@ -73,11 +72,9 @@ final class MCPCoordinator {
     /// What this turn may reach: everything enabled, or one server when `@slug` named it.
     func tools(scopedTo slug: String?) -> [AITool] {
         guard isActive else { return [] }
+        let refused = Set(store.servers.filter { $0.trust == .never }.map(\.id))
         return manager.tools
-            .filter { tool in
-                guard slug == nil || tool.serverSlug == slug else { return false }
-                return store.server(id: tool.serverID)?.trust != .never
-            }
+            .filter { (slug == nil || $0.serverSlug == slug) && !refused.contains($0.serverID) }
             .map(\.aiTool)
     }
 

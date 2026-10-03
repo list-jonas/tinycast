@@ -41,10 +41,10 @@ enum MCPToolName {
     static let maxLength = 64
 
     static func compose(slug: String, tool: String) -> String {
-        let tail = sanitize(tool)
-        let room = maxLength - separator.count - sanitize(slug).count
+        let head = sanitize(slug)
+        let room = maxLength - separator.count - head.count
         // The slug is what routes the call, so the tool's own name is the half that gives way.
-        return sanitize(slug) + separator + String(tail.suffix(max(room, 1)))
+        return head + separator + String(sanitize(tool).suffix(max(room, 1)))
     }
 
     /// Back to the slug that routes it; a name without the separator was never one of ours.
@@ -56,11 +56,10 @@ enum MCPToolName {
     }
 
     private static func sanitize(_ value: String) -> String {
-        let cleaned = value.map { character -> Character in
+        String(value.map { character -> Character in
             character.isASCII && (character.isLetter || character.isNumber || character == "-")
                 ? character : "_"
-        }
-        return String(cleaned)
+        })
     }
 }
 
