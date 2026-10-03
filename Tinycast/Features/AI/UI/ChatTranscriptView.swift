@@ -600,6 +600,7 @@ private struct ChatActivityRow: View {
     let symbol: String?
     var failed = false
     let label: String
+    var labelLineLimit: Int?
     var detail: String?
 
     init(search: ChatSearch) {
@@ -616,6 +617,7 @@ private struct ChatActivityRow: View {
         case .failed: "exclamationmark.triangle"
         }
         label = use.label
+        labelLineLimit = 1
     }
 
     var body: some View {
@@ -628,7 +630,7 @@ private struct ChatActivityRow: View {
             } else {
                 ProgressView().controlSize(.small)
             }
-            Text(label).lineLimit(1)
+            Text(label).lineLimit(labelLineLimit)
             if let detail {
                 Text("· \(detail)")
                     .foregroundStyle(Theme.Colors.textTertiary)

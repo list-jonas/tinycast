@@ -188,13 +188,15 @@ final class ChatHistoryStore {
     func loadSession(id: UUID) async -> ChatSession? {
         guard open() != nil else { return nil }
         let path = databaseURL.path
-        return await Task.detached(priority: .userInitiated) {
+        let loaded: ChatSession?? = await Task.detached(priority: .userInitiated) {
             var handle: OpaquePointer?
             defer { sqlite3_close(handle) }
             guard sqlite3_open_v2(path, &handle, SQLITE_OPEN_READONLY, nil) == SQLITE_OK, let handle
-            else { return nil }
-            return ChatDatabase(handle: handle).session(id: id)
+            else { return .none }
+            sqlite3_busy_timeout(handle, 1000)
+            return .some(ChatDatabase(handle: handle).session(id: id))
         }.value
+        return loaded ?? session(id: id)
     }
 
     func save(_ session: ChatSession) {
