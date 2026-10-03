@@ -27,9 +27,7 @@ struct ScheduleList: View {
         }
     }
 
-    private var firstRowSelected: Bool {
-        selectedID != nil && selectedID == results.first?.id
-    }
+    private var firstRowSelected: Bool { selectedID != nil && selectedID == results.first?.id }
 
     var body: some View {
         ScrollViewReader { proxy in

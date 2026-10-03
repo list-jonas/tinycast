@@ -55,9 +55,7 @@ final class CalendarCoordinator {
     var agenda: [MeetingEvent] { UpcomingWindow.agenda(from: store.events, now: Date()) }
 
     /// Plain icon until today's events run out, with a midnight grace for one about to start.
-    var hasUpcomingMenuBarEvent: Bool {
-        MenuBarSummary.hasUpcomingEvent(from: store.events, now: clock.now)
-    }
+    var hasUpcomingMenuBarEvent: Bool { MenuBarSummary.hasUpcomingEvent(from: store.events, now: clock.now) }
 
     /// The event the menu bar carries, or nil for the plain icon.
     var menuBarEvent: MeetingEvent? {
@@ -140,9 +138,7 @@ final class CalendarCoordinator {
     }
 
     /// Changing which days are read re-queries EventKit, so it goes through the store.
-    func applySpan() {
-        store.span = settings.calendarSpan
-    }
+    func applySpan() { store.span = settings.calendarSpan }
 
     /// The clock runs while something is watching it. With all three off an idle Mac owns no timer.
     func applyClock() {
@@ -358,9 +354,7 @@ final class CalendarCoordinator {
         MeetingLauncher.showInCalendar(meeting)
     }
 
-    func showSchedule() {
-        paletteCoordinator.togglePalette(mode: .schedule)
-    }
+    func showSchedule() { paletteCoordinator.togglePalette(mode: .schedule) }
 
     /// Loaded before the push, so the page's first frame is already filled.
     func showDetails(of meeting: MeetingEvent) {

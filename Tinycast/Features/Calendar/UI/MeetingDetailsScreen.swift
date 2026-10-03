@@ -11,9 +11,7 @@ struct MeetingDetailsScreen: PaletteScreen {
 
     var rows: [MeetingEvent] { meeting.map { [$0] } ?? [] }
 
-    var primaryActionTitle: String {
-        meeting?.link == nil ? "Open in Calendar" : "Join Meeting"
-    }
+    var primaryActionTitle: String { meeting?.link == nil ? "Open in Calendar" : "Join Meeting" }
 
     func actions(at selection: Int) -> PopoverMenuContent? {
         meeting.map { MeetingActionsMenu.content(meeting: $0, core: core, offersDetails: false) }
