@@ -108,24 +108,23 @@ extension WindowLayoutAnchor {
     /// How much of the plate the block covers: a pinned axis takes half, a spanned one all of it.
     fileprivate var coverage: CGSize {
         switch self {
-        case .topLeft, .topRight, .bottomLeft, .bottomRight, .center:
-            return CGSize(width: 0.5, height: 0.5)
-        case .top, .bottom: return CGSize(width: 1, height: 0.5)
-        case .left, .right: return CGSize(width: 0.5, height: 1)
+        case .topLeft, .topRight, .bottomLeft, .bottomRight, .center: CGSize(width: 0.5, height: 0.5)
+        case .top, .bottom: CGSize(width: 1, height: 0.5)
+        case .left, .right: CGSize(width: 0.5, height: 1)
         }
     }
 
     fileprivate var alignment: Alignment {
         switch self {
-        case .topLeft: return .topLeading
-        case .top: return .top
-        case .topRight: return .topTrailing
-        case .left: return .leading
-        case .center: return .center
-        case .right: return .trailing
-        case .bottomLeft: return .bottomLeading
-        case .bottom: return .bottom
-        case .bottomRight: return .bottomTrailing
+        case .topLeft: .topLeading
+        case .top: .top
+        case .topRight: .topTrailing
+        case .left: .leading
+        case .center: .center
+        case .right: .trailing
+        case .bottomLeft: .bottomLeading
+        case .bottom: .bottom
+        case .bottomRight: .bottomTrailing
         }
     }
 }

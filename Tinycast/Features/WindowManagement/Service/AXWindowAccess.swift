@@ -109,8 +109,7 @@ enum AXWindowAccess {
             canResize: isSettable(kAXSizeAttribute, on: window), canvas: canvas) != nil
     }
 
-    /// The one write sequence, so a stubborn app lands the same way from any caller.
-    /// See docs/features/window-management.md#applying-a-placement.
+    /// The one write sequence, so a stubborn app lands alike from any caller. window-management.md
     static func write(
         _ target: CGRect, anchor: WindowPlacementEngine.Anchor, to window: AXUIElement,
         current: CGRect, canResize: Bool, canvas: CGRect?
