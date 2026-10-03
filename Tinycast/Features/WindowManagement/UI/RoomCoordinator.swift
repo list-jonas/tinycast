@@ -14,7 +14,6 @@ final class RoomCoordinator {
     @ObservationIgnored private let references: WindowLibraryReferenceService
     @ObservationIgnored private let palette: PaletteState
     @ObservationIgnored private let paletteCoordinator: PaletteCoordinator
-    /// Dialog and message-HUD presentation. Never state this type owns.
     @ObservationIgnored private unowned let core: AppCore
     @ObservationIgnored private let preview = RoomPreviewController()
     /// Window work runs one at a time, in order: two passes at once would undo each other.

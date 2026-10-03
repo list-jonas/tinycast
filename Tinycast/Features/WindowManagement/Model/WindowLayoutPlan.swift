@@ -27,7 +27,6 @@ struct WindowLayoutPlan: Equatable, Sendable {
         case duplicateTarget
     }
 
-    /// Where the window for a placement comes from.
     enum Source: Equatable, Sendable {
         case existing(handle: Int)
         /// Open it, then take the window that appears.
@@ -60,7 +59,6 @@ struct WindowLayoutPlan: Equatable, Sendable {
     /// One open per launching placement; the plan already guarantees they are distinct.
     var opens: [Placement] { placements.filter { $0.source == .launch } }
 
-    /// The HUD's second clause, derived here so the coordinator stays declarative.
     var skippedSummary: String? {
         guard !skipped.isEmpty else { return nil }
         let displays = Set(

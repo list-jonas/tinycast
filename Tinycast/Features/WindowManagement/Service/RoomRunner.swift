@@ -42,8 +42,6 @@ enum RoomRunner {
         var isBlockedOnPermission = false
     }
 
-    // MARK: - Entering
-
     static func enter(_ room: Room, context: Context) async -> Outcome {
         guard Permissions.ensureAccessibility() else { return Outcome(isBlockedOnPermission: true) }
         let apps = appsInOrder(of: room)
@@ -116,8 +114,6 @@ enum RoomRunner {
         return returned.count
     }
 
-    // MARK: - Planning
-
     private static func makePlan(
         _ room: Room, in snapshot: RoomWindowSweep.Snapshot, context: Context
     ) -> RoomPlan? {
@@ -162,8 +158,6 @@ enum RoomRunner {
             try? await Task.sleep(for: interval, tolerance: interval)
         }
     }
-
-    // MARK: - Placing
 
     /// No `await` between windows, so the room lands in one visible step.
     private static func place(
@@ -255,8 +249,6 @@ enum RoomRunner {
         return width && height && abs(actual.minX - wanted.minX) <= slack
             && abs(actual.minY - wanted.minY) <= slack
     }
-
-    // MARK: - Stepping back
 
     /// A window without an ID, or whose way back failed to write, stays put rather than risk loss.
     private static func park(

@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct RoomPickerList: View {
-    @Environment(\.metrics) private var metrics
     let rows: [RoomPickerRow]
     /// Room order; a member's place is its index plus one.
     let picked: [RoomSession.Pick]
@@ -9,30 +8,9 @@ struct RoomPickerList: View {
     let scroll: ScrollIntent
     let onActivate: (RoomPickerRow) -> Void
 
-    private var firstRowSelected: Bool { selectedID != nil && selectedID == rows.first?.id }
-
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(rows) { row in
-                        RoomPickerRowView(
-                            row: row, place: picked.firstIndex(of: row.pick).map { $0 + 1 },
-                            selected: row.id == selectedID
-                        )
-                        .selectionFrame(row.id == selectedID)
-                        .contentShape(Rectangle())
-                        .onTapGesture { onActivate(row) }
-                    }
-                }
-                .padding(.horizontal, metrics.spacing.md)
-                .padding(.vertical, metrics.spacing.md)
-                .hideNativeScrollers()
-                .scrollOriginAnchor()
-            }
-            .edgeDissolve()
-            .thinScrollbar()
-            .scrollFollowsSelection(scroll, row: selectedID, atOrigin: firstRowSelected, proxy: proxy)
+        RoomList(rows: rows, selectedID: selectedID, scroll: scroll, onActivate: onActivate) { row, selected in
+            RoomPickerRowView(row: row, place: picked.firstIndex(of: row.pick).map { $0 + 1 }, selected: selected)
         }
     }
 }
@@ -43,19 +21,11 @@ private struct RoomPickerRowView: View {
     /// Its place in the room, 1 being the main window; nil when it is not in the room.
     let place: Int?
     let selected: Bool
-    @State private var hovered = false
-
-    private var fill: Color {
-        if selected { return Theme.Colors.selection }
-        if hovered { return Theme.Colors.rowHover }
-        return .clear
-    }
 
     private var title: String {
         switch row {
         case .window(let window):
-            window.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                ? window.appName : window.title
+            window.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? window.appName : window.title
         case .app(let app):
             app.name
         }
@@ -80,7 +50,7 @@ private struct RoomPickerRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: metrics.spacing.lg) {
+        RoomListRow(selected: selected) {
             badge
             Group {
                 if let appURL {
@@ -100,16 +70,8 @@ private struct RoomPickerRowView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
-        .padding(.horizontal, metrics.spacing.md)
-        .padding(.vertical, metrics.spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous).fill(fill)
-        )
-        .armedHover($hovered)
-        .accessibilityElement(children: .combine)
         .accessibilityLabel(title)
         .accessibilityValue(place.map { "\(trailing), number \($0) in the room" } ?? trailing)
-        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private var badge: some View {

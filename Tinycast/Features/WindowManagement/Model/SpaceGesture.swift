@@ -1,6 +1,5 @@
 import Foundation
 
-/// Which adjacent Space a switch command moves to.
 enum SpaceDirection: Sendable {
     case previous
     case next
@@ -47,8 +46,6 @@ enum SpaceGesture {
     /// The serialization version `CGEventCreateData` emits; the splice only knows this layout.
     static let dataVersion: [UInt8] = [0, 0, 0, 2]
 
-    // MARK: - Fields
-
     /// The gesture fields for one phase. `augmented` selects the macOS 27 encoding.
     static func fields(
         phase: Phase, direction: SpaceDirection, augmented: Bool, timestamp: UInt64
@@ -78,8 +75,6 @@ enum SpaceGesture {
         }
         return fields
     }
-
-    // MARK: - IOHID payload
 
     /// The record header `CGEventCreateData` frames a field with: big-endian size, then tag and id.
     static func payloadRecordHeader(payloadCount: Int) -> [UInt8] {

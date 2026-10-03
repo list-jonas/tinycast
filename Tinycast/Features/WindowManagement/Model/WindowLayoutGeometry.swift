@@ -28,7 +28,6 @@ enum WindowLayoutGeometry {
         return WindowPlacementEngine.rounded(WindowPlacementEngine.clamped(placed, into: box))
     }
 
-    /// What `resolve` needs to reproduce an observed frame.
     struct Capture: Equatable, Sendable {
         var widthFraction: CGFloat
         var heightFraction: CGFloat
@@ -74,8 +73,6 @@ enum WindowLayoutGeometry {
             bundleID: bundleID, display: display, widthFraction: capture.widthFraction,
             heightFraction: capture.heightFraction, anchor: capture.anchor, offset: capture.offset)
     }
-
-    // MARK: - Primitives
 
     /// `place` derives each axis from its own axis alone, so the nearest of nine is 3 + 3.
     private static func nearestAxis(

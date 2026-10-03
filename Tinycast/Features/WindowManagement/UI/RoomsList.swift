@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct RoomsList: View {
-    @Environment(\.metrics) private var metrics
     let rows: [RoomRow]
     let selectedID: RoomRow.ID?
     let scroll: ScrollIntent
@@ -9,31 +8,11 @@ struct RoomsList: View {
     let layout: (Room) -> RoomLayoutKind
     let onActivate: (RoomRow) -> Void
 
-    private var firstRowSelected: Bool { selectedID != nil && selectedID == rows.first?.id }
-
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(rows) { row in
-                        RoomRowView(
-                            row: row, selected: row.id == selectedID,
-                            isCurrent: row.room?.id == currentRoomID,
-                            layout: row.room.map(layout)
-                        )
-                        .selectionFrame(row.id == selectedID)
-                        .contentShape(Rectangle())
-                        .onTapGesture { onActivate(row) }
-                    }
-                }
-                .padding(.horizontal, metrics.spacing.md)
-                .padding(.vertical, metrics.spacing.md)
-                .hideNativeScrollers()
-                .scrollOriginAnchor()
-            }
-            .edgeDissolve()
-            .thinScrollbar()
-            .scrollFollowsSelection(scroll, row: selectedID, atOrigin: firstRowSelected, proxy: proxy)
+        RoomList(rows: rows, selectedID: selectedID, scroll: scroll, onActivate: onActivate) { row, selected in
+            RoomRowView(
+                row: row, selected: selected, isCurrent: row.room?.id == currentRoomID,
+                layout: row.room.map(layout))
         }
     }
 }
@@ -45,13 +24,6 @@ private struct RoomRowView: View {
     let isCurrent: Bool
     /// Nil for the rows that make or edit a room rather than enter one.
     let layout: RoomLayoutKind?
-    @State private var hovered = false
-
-    private var fill: Color {
-        if selected { return Theme.Colors.selection }
-        if hovered { return Theme.Colors.rowHover }
-        return .clear
-    }
 
     private var title: String {
         switch row {
@@ -83,7 +55,7 @@ private struct RoomRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: metrics.spacing.lg) {
+        RoomListRow(selected: selected) {
             EntryIconView(source: .symbol(symbol))
                 .frame(width: metrics.size.resultRowIcon, height: metrics.size.resultRowIcon)
             VStack(alignment: .leading, spacing: 0) {
@@ -106,16 +78,8 @@ private struct RoomRowView: View {
                 }
             }
         }
-        .padding(.horizontal, metrics.spacing.md)
-        .padding(.vertical, metrics.spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous).fill(fill)
-        )
-        .armedHover($hovered)
-        .accessibilityElement(children: .combine)
         .accessibilityLabel(title)
         .accessibilityValue(layout.map { "\(subtitle), \($0.title) layout" } ?? subtitle)
-        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
