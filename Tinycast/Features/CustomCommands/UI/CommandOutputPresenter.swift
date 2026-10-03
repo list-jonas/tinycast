@@ -30,13 +30,23 @@ struct CommandRun: Identifiable, Sendable {
     var outcome: CommandOutcome?
 
     var isRunning: Bool { outcome == nil }
+
+    /// Past `limit` the head is dropped: the tail is where a command says how it went.
+    mutating func append(_ text: String, limit: Int) {
+        log += text
+        delta = text
+        revision += 1
+        guard log.utf8.count > limit else { return }
+        log = String(log.suffix(limit / 2))
+        // The delta no longer describes the change, so the view is told to redraw instead.
+        generation += 1
+    }
 }
 
 /// One window, reused: a second run replaces what it shows and never cancels the first.
 @MainActor
 @Observable
 final class CommandOutputPresenter {
-    /// Past this the head is dropped: the tail is where a command says how it went.
     private static let logLimit = 256 * 1024
 
     private(set) var run: CommandRun?
@@ -70,26 +80,16 @@ final class CommandOutputPresenter {
         return run.id
     }
 
+    /// Mutates in place, so a long log is not copied on every streamed chunk.
     func append(_ text: String, to id: UUID) {
-        guard var run, run.id == id else { return }
-        run.log += text
-        run.delta = text
-        run.revision += 1
-        if run.log.utf8.count > Self.logLimit {
-            run.log = String(run.log.suffix(Self.logLimit / 2))
-            // The delta no longer describes the change, so the view is told to redraw instead.
-            run.generation += 1
-        }
-        self.run = run
+        guard run?.id == id else { return }
+        run?.append(text, limit: Self.logLimit)
     }
 
     func finish(_ outcome: CommandOutcome, for id: UUID) {
-        guard var run, run.id == id else { return }
-        run.outcome = outcome
-        self.run = run
+        guard run?.id == id else { return }
+        run?.outcome = outcome
     }
-
-    // MARK: - Actions the window offers
 
     func runAgain() {
         guard let run else { return }

@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import Synchronization
 
 /// How a run ended. `launchFailed` means the shell never started, so nothing was captured.
 enum ShellCommandTermination: Sendable, Equatable {
@@ -27,8 +28,8 @@ struct ShellCommandSession: Sendable {
 struct ShellCommandResult: Sendable, Equatable {
     let termination: ShellCommandTermination
     /// Kept short: all it feeds is the one-line report a finished command shows.
-    let standardOutput: String?
-    let standardError: String?
+    var standardOutput: String?
+    var standardError: String?
 
     var succeeded: Bool { termination.succeeded }
 
@@ -38,15 +39,6 @@ struct ShellCommandResult: Sendable, Equatable {
             .split(whereSeparator: \.isNewline).last
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .flatMap { $0.isEmpty ? nil : $0 }
-    }
-
-    init(
-        termination: ShellCommandTermination, standardOutput: String? = nil,
-        standardError: String? = nil
-    ) {
-        self.termination = termination
-        self.standardOutput = standardOutput
-        self.standardError = standardError
     }
 }
 
@@ -124,8 +116,6 @@ enum ShellCommandRunner {
             standardOutput: output?.readSuffix(limit: standardOutputLimit),
             standardError: errors?.readSuffix(limit: standardErrorLimit))
     }
-
-    // MARK: - Streaming
 
     /// Runs under a pseudo-terminal; see `PseudoTerminal` for why a pipe cannot do this.
     nonisolated static func stream(
@@ -210,21 +200,10 @@ enum ShellCommandRunner {
     }
 
     /// Set from the main actor and read on the drain queue, so the flag carries its own lock.
-    private final class StopFlag: @unchecked Sendable {
-        private let lock = NSLock()
-        private var value = false
-
-        var isSet: Bool {
-            lock.lock()
-            defer { lock.unlock() }
-            return value
-        }
-
-        func mark() {
-            lock.lock()
-            value = true
-            lock.unlock()
-        }
+    private final class StopFlag: Sendable {
+        private let value = Atomic(false)
+        var isSet: Bool { value.load(ordering: .acquiring) }
+        func mark() { value.store(true, ordering: .releasing) }
     }
 
     /// Whole lines only: a newline is a scalar boundary, so no read decodes mid-character.
@@ -292,14 +271,9 @@ enum ShellCommandRunner {
     }
 
     /// A temp file, not a `Pipe`: nothing drains a pipe until the command exits.
-    private final class StreamCapture: @unchecked Sendable {
+    private struct StreamCapture {
         let url: URL
         let handle: FileHandle
-
-        init(url: URL, handle: FileHandle) {
-            self.url = url
-            self.handle = handle
-        }
 
         func readSuffix(limit: Int) -> String? {
             try? handle.synchronize()
@@ -309,9 +283,9 @@ enum ShellCommandRunner {
             guard let data = try? handle.readToEnd(), !data.isEmpty else { return nil }
             // A byte-offset tail can open mid-scalar; dropping the orphans avoids a leading U+FFFD.
             let body = start > 0 ? data.drop { $0 & 0xC0 == 0x80 } : data[...]
-            return String(decoding: body, as: UTF8.self)
+            let text = String(decoding: body, as: UTF8.self)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-                .nilIfEmpty
+            return text.isEmpty ? nil : text
         }
 
         func remove() {
@@ -334,8 +308,4 @@ enum ShellCommandRunner {
                 handle: FileHandle(fileDescriptor: descriptor, closeOnDealloc: true))
         }
     }
-}
-
-extension String {
-    fileprivate var nilIfEmpty: String? { isEmpty ? nil : self }
 }

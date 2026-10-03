@@ -91,11 +91,6 @@ struct CustomCommand: Codable, Hashable, Identifiable, Sendable {
     }
 
     // Hand-written, so an added field keeps stored commands and older backups readable.
-    private enum CodingKeys: String, CodingKey {
-        case id, name, command, isEnabled, loadsShellEnvironment, requiresConfirmation
-        case showsConfirmation, arguments, showsOutput, workingDirectory, iconSymbol
-    }
-
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
@@ -113,6 +108,17 @@ struct CustomCommand: Codable, Hashable, Identifiable, Sendable {
         showsOutput = try container.decodeIfPresent(Bool.self, forKey: .showsOutput) ?? false
         workingDirectory = try container.decodeIfPresent(String.self, forKey: .workingDirectory)
         iconSymbol = try container.decodeIfPresent(String.self, forKey: .iconSymbol)
+    }
+
+    /// Copy-and-clean rather than rebuild, so a new option can never be dropped on import.
+    fileprivate var cleaned: CustomCommand {
+        var value = self
+        value.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        value.command = command.trimmingCharacters(in: .whitespacesAndNewlines)
+        value.arguments = CustomCommandArgument.sanitized(arguments)
+        value.workingDirectory = workingDirectory?.cleanedPathComponent
+        value.iconSymbol = iconSymbol?.cleanedPathComponent
+        return value
     }
 }
 
@@ -132,10 +138,10 @@ enum CustomCommandValidationError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .emptyName: return "Enter a name for the command."
-        case .emptyCommand: return "Enter a command to run."
-        case .duplicateName: return "A custom command with this name already exists."
-        case .invalidCharacter: return "Names and commands cannot contain null characters."
+        case .emptyName: "Enter a name for the command."
+        case .emptyCommand: "Enter a command to run."
+        case .duplicateName: "A custom command with this name already exists."
+        case .invalidCharacter: "Names and commands cannot contain null characters."
         }
     }
 }
@@ -225,12 +231,7 @@ final class CustomCommandStore {
     private func validated(
         _ draft: CustomCommand, against existing: [CustomCommand]
     ) throws -> CustomCommand {
-        var value = draft
-        value.name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        value.command = draft.command.trimmingCharacters(in: .whitespacesAndNewlines)
-        value.arguments = CustomCommandArgument.sanitized(draft.arguments)
-        value.workingDirectory = draft.workingDirectory?.cleanedPathComponent
-        value.iconSymbol = draft.iconSymbol?.cleanedPathComponent
+        let value = draft.cleaned
         guard !value.name.isEmpty else { throw CustomCommandValidationError.emptyName }
         guard !value.command.isEmpty else { throw CustomCommandValidationError.emptyCommand }
         guard !value.name.contains("\0"), !value.command.contains("\0") else {
@@ -262,13 +263,7 @@ final class CustomCommandStore {
         var names = Set<String>()
         var result: [CustomCommand] = []
         for value in values {
-            // Copy-and-clean rather than rebuild, so a new option can never be dropped on import.
-            var cleaned = value
-            cleaned.name = value.name.trimmingCharacters(in: .whitespacesAndNewlines)
-            cleaned.command = value.command.trimmingCharacters(in: .whitespacesAndNewlines)
-            cleaned.arguments = CustomCommandArgument.sanitized(value.arguments)
-            cleaned.workingDirectory = value.workingDirectory?.cleanedPathComponent
-            cleaned.iconSymbol = value.iconSymbol?.cleanedPathComponent
+            let cleaned = value.cleaned
             let foldedName = cleaned.name.folding(options: [.caseInsensitive], locale: .current)
             guard !cleaned.name.isEmpty, !cleaned.command.isEmpty, !cleaned.name.contains("\0"),
                 !cleaned.command.contains("\0"), ids.insert(cleaned.id).inserted,

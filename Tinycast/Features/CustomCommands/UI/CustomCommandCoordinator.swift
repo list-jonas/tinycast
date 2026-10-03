@@ -55,14 +55,10 @@ final class CustomCommandCoordinator {
         self.core = core
     }
 
-    // MARK: - Feature presence
-
     func applyCustomCommandsPresence() {
         let visible = settings.customCommandsEnabled && settings.customCommandsShowInLauncher
         appIndex.setCustomCommands(visible ? store.commands : [])
     }
-
-    // MARK: - Library
 
     @discardableResult
     func addCustomCommand(_ draft: CustomCommand) throws -> CustomCommand {
@@ -95,8 +91,6 @@ final class CustomCommandCoordinator {
         return count
     }
 
-    // MARK: - Importing
-
     /// Adds a folder of Raycast script commands, skipping any name already in the library.
     func importScriptDirectory() async {
         guard let directory = chooseScriptDirectory() else { return }
@@ -104,26 +98,23 @@ final class CustomCommandCoordinator {
             RaycastScriptImport.scan(directory: directory)
         }.value
         guard !drafts.isEmpty else {
-            await core.showNotice(
-                title: "Nothing to Import",
-                message: "No Raycast script commands were found in this folder.",
-                symbol: CustomCommand.sfSymbol, tone: .neutral)
-            return
+            return await notice("No Raycast script commands were found in this folder.")
         }
         guard await confirmScriptImport(count: drafts.count) else { return }
         let added = store.add(contentsOf: drafts)
         // Everything offered was already here, so say so rather than "0 imported".
         guard added > 0 else {
-            await core.showNotice(
-                title: "Nothing to Import",
-                message: "Every script in this folder is already in your library.",
-                symbol: CustomCommand.sfSymbol, tone: .neutral)
-            return
+            return await notice("Every script in this folder is already in your library.")
         }
-        await core.showNotice(
-            title: "Scripts Imported",
-            message: importSummary(added: added, offered: drafts.count),
-            symbol: CustomCommand.sfSymbol, tone: .success)
+        await notice(
+            importSummary(added: added, offered: drafts.count), title: "Scripts Imported",
+            tone: .success)
+    }
+
+    private func notice(
+        _ message: String, title: String = "Nothing to Import", tone: DialogTone = .neutral
+    ) async {
+        await core.showNotice(title: title, message: message, symbol: CustomCommand.sfSymbol, tone: tone)
     }
 
     /// An accessory app must activate first, or the panel opens behind the frontmost app.
@@ -154,8 +145,6 @@ final class CustomCommandCoordinator {
         guard offered > added else { return imported }
         return imported + " Skipped \(offered - added) already in your library."
     }
-
-    // MARK: - Running
 
     /// The one funnel, so no entry point skips a required value or the confirmation.
     func runCustomCommand(id: UUID, values: [String: String] = [:]) {
@@ -266,8 +255,6 @@ final class CustomCommandCoordinator {
         }
     }
 
-    // MARK: - Reporting
-
     /// A window that already says how the run ended must not raise a dialog saying it again.
     private func report(_ command: CustomCommand, result: ShellCommandResult) async {
         guard !result.succeeded else {
@@ -289,10 +276,10 @@ final class CustomCommandCoordinator {
 
     private func summary(of result: ShellCommandResult) -> String {
         switch result.termination {
-        case .launchFailed: return "The shell could not be started."
-        case .stopped: return "Stopped"
+        case .launchFailed: "The shell could not be started."
+        case .stopped: "Stopped"
         case .exited(let status):
-            return status == 0 ? "Finished successfully." : "The command exited with status \(status)."
+            status == 0 ? "Finished successfully." : "The command exited with status \(status)."
         }
     }
 
