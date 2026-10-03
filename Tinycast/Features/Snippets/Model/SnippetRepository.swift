@@ -76,11 +76,7 @@ struct SnippetRepository: Sendable {
     }
 
     enum RepositoryError: Error, LocalizedError, Sendable, Equatable {
-        case conflict(
-            fileURL: URL,
-            expected: SnippetSourceRevision,
-            actual: SnippetSourceRevision?
-        )
+        case conflict(fileURL: URL, expected: SnippetSourceRevision, actual: SnippetSourceRevision?)
         case fileNotFound(URL)
         case invalidFileLocation(URL)
         case io(fileURL: URL, message: String)
@@ -88,14 +84,13 @@ struct SnippetRepository: Sendable {
         var errorDescription: String? {
             switch self {
             case .conflict(let fileURL, _, _):
-                return
-                    "The snippet changed on disk. Reload it before saving or deleting. (\(fileURL.lastPathComponent))"
+                "The snippet changed on disk. Reload it before saving or deleting. (\(fileURL.lastPathComponent))"
             case .fileNotFound(let fileURL):
-                return "The snippet file no longer exists. (\(fileURL.lastPathComponent))"
+                "The snippet file no longer exists. (\(fileURL.lastPathComponent))"
             case .invalidFileLocation(let fileURL):
-                return "The snippet file is outside this Tinycast channel. (\(fileURL.path))"
+                "The snippet file is outside this Tinycast channel. (\(fileURL.path))"
             case .io(let fileURL, let message):
-                return "Could not access \(fileURL.path): \(message)"
+                "Could not access \(fileURL.path): \(message)"
             }
         }
     }
@@ -110,16 +105,12 @@ struct SnippetRepository: Sendable {
     init(
         bundleIdentifier: String = Bundle.main.bundleIdentifier ?? "com.tinycast.app",
         applicationSupportRoot: URL = FileManager.default.urls(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask
-        )[0],
+            for: .applicationSupportDirectory, in: .userDomainMask)[0],
         snippetsDirectory: URL? = nil,
         mutationHooks: MutationHooks = MutationHooks()
     ) {
         self.bundleIdentifier = bundleIdentifier
-        let channelDirectory = applicationSupportRoot.appendingPathComponent(
-            bundleIdentifier,
-            isDirectory: true)
+        let channelDirectory = applicationSupportRoot.appendingPathComponent(bundleIdentifier, isDirectory: true)
         self.channelDirectory = channelDirectory
         let snippetsDirectory =
             snippetsDirectory ?? channelDirectory.appendingPathComponent("Snippets", isDirectory: true)
@@ -139,14 +130,8 @@ struct SnippetRepository: Sendable {
                 for fileURL in files {
                     do {
                         let content = try String(contentsOf: fileURL, encoding: .utf8)
-                        let snippet = try SnippetMarkdownSerializer.parse(
-                            content: content,
-                            fileURL: fileURL)
-                        records.append(
-                            StoredSnippet(
-                                fileURL: fileURL,
-                                snippet: snippet,
-                                sourceRevision: SnippetSourceRevision(content: content)))
+                        let snippet = try SnippetMarkdownSerializer.parse(content: content, fileURL: fileURL)
+                        records.append(StoredSnippet(fileURL: fileURL, snippet: snippet, content: content))
                     } catch {
                         issues.append(Issue(fileURL: fileURL, message: error.localizedDescription))
                     }
@@ -160,12 +145,7 @@ struct SnippetRepository: Sendable {
     }
 
     func create(_ snippet: Snippet) throws(RepositoryError) -> StoredSnippet {
-        try directoryLock.withLock { () throws(RepositoryError) -> StoredSnippet in
-            try mappedError(at: snippetsDirectory) {
-                try ensureSnippetsDirectory()
-                return try createUnlocked(snippet)
-            }
-        }
+        try create([snippet])[0]
     }
 
     func create(_ snippets: [Snippet]) throws(RepositoryError) -> [StoredSnippet] {
@@ -198,62 +178,54 @@ struct SnippetRepository: Sendable {
                 let fileURL = try validatedFileURL(fileURL)
                 let content = SnippetMarkdownSerializer.serialize(snippet)
                 return try coordinatedMutation(at: fileURL, options: .forReplacing) { coordinatedURL in
-                    mutationHooks.beforeRevalidation(.save, coordinatedURL)
-                    let mutationURL = try validatedFileURL(coordinatedURL)
-                    let actualRevision = try revision(at: mutationURL)
-                    guard actualRevision == expectedRevision else {
-                        throw RepositoryError.conflict(
-                            fileURL: fileURL,
-                            expected: expectedRevision,
-                            actual: actualRevision)
-                    }
+                    let mutationURL = try revalidate(
+                        .save, coordinatedURL, fileURL: fileURL, expectedRevision: expectedRevision)
                     try Data(content.utf8).write(to: mutationURL, options: .atomic)
-                    return StoredSnippet(
-                        fileURL: fileURL,
-                        snippet: snippet,
-                        sourceRevision: SnippetSourceRevision(content: content))
+                    return StoredSnippet(fileURL: fileURL, snippet: snippet, content: content)
                 }
             }
         }
     }
 
-    func delete(
-        fileURL: URL,
-        expectedRevision: SnippetSourceRevision
-    ) throws(RepositoryError) {
+    func delete(fileURL: URL, expectedRevision: SnippetSourceRevision) throws(RepositoryError) {
         try directoryLock.withLock { () throws(RepositoryError) in
             try mappedError(at: fileURL) {
                 let fileURL = try validatedFileURL(fileURL)
                 try coordinatedMutation(at: fileURL, options: .forDeleting) { coordinatedURL in
-                    mutationHooks.beforeRevalidation(.delete, coordinatedURL)
-                    let mutationURL = try validatedFileURL(coordinatedURL)
-                    let actualRevision = try revision(at: mutationURL)
-                    guard actualRevision == expectedRevision else {
-                        throw RepositoryError.conflict(
-                            fileURL: fileURL,
-                            expected: expectedRevision,
-                            actual: actualRevision)
-                    }
-                    try FileManager.default.removeItem(at: mutationURL)
+                    try FileManager.default.removeItem(
+                        at: try revalidate(
+                            .delete, coordinatedURL, fileURL: fileURL, expectedRevision: expectedRevision))
                 }
             }
         }
     }
 
+    /// Runs beside the write itself, so a cooperative writer turns into a conflict, not a loss.
+    private func revalidate(
+        _ mutation: Mutation, _ coordinatedURL: URL, fileURL: URL, expectedRevision: SnippetSourceRevision
+    ) throws -> URL {
+        mutationHooks.beforeRevalidation(mutation, coordinatedURL)
+        let mutationURL = try validatedFileURL(coordinatedURL)
+        guard FileManager.default.fileExists(atPath: mutationURL.path) else {
+            throw RepositoryError.fileNotFound(mutationURL)
+        }
+        let actualRevision = SnippetSourceRevision(content: try String(contentsOf: mutationURL, encoding: .utf8))
+        guard actualRevision == expectedRevision else {
+            throw RepositoryError.conflict(fileURL: fileURL, expected: expectedRevision, actual: actualRevision)
+        }
+        return mutationURL
+    }
+
     /// Only has to guarantee the folder exists; intermediates cover the channel directory too.
     private func ensureSnippetsDirectory() throws {
-        try FileManager.default.createDirectory(
-            at: snippetsDirectory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: snippetsDirectory, withIntermediateDirectories: true)
     }
 
     private func markdownFiles(in directory: URL) throws -> [URL] {
         try FileManager.default.contentsOfDirectory(
-            at: directory,
-            includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles]
+            at: directory, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]
         )
-        .filter { $0.pathExtension.lowercased() == "md" }
-        .filter(Self.isLoadableFile)
+        .filter { $0.pathExtension.lowercased() == "md" && Self.isLoadableFile($0) }
         .sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 
@@ -267,25 +239,17 @@ struct SnippetRepository: Sendable {
 
     private func createUnlocked(_ snippet: Snippet) throws -> StoredSnippet {
         let content = SnippetMarkdownSerializer.serialize(snippet)
+        let base = SnippetMarkdownSerializer.slug(for: snippet.name)
         var suffix = 1
-
         while true {
-            let fileURL = uniqueFileURL(
-                for: snippet.name,
-                suffix: suffix,
-                in: snippetsDirectory)
+            let fileURL = snippetsDirectory.appendingPathComponent(
+                suffix == 1 ? "\(base).md" : "\(base)-\(suffix).md")
             do {
                 try writeNewFileAtomically(Data(content.utf8), to: fileURL)
-                return StoredSnippet(
-                    fileURL: fileURL,
-                    snippet: snippet,
-                    sourceRevision: SnippetSourceRevision(content: content))
+                return StoredSnippet(fileURL: fileURL, snippet: snippet, content: content)
             } catch {
-                if FileManager.default.fileExists(atPath: fileURL.path) {
-                    suffix += 1
-                    continue
-                }
-                throw error
+                guard FileManager.default.fileExists(atPath: fileURL.path) else { throw error }
+                suffix += 1
             }
         }
     }
@@ -302,30 +266,14 @@ struct SnippetRepository: Sendable {
         }
     }
 
-    private func uniqueFileURL(for name: String, suffix: Int, in directory: URL) -> URL {
-        let base = SnippetMarkdownSerializer.slug(for: name)
-        let filename = suffix == 1 ? "\(base).md" : "\(base)-\(suffix).md"
-        return directory.appendingPathComponent(filename)
-    }
-
     private func validatedFileURL(_ fileURL: URL) throws -> URL {
         let standardized = fileURL.standardizedFileURL
         let parentPath = standardized.deletingLastPathComponent().resolvingSymlinksInPath().path
         let snippetsPath = snippetsDirectory.standardizedFileURL.resolvingSymlinksInPath().path
-        guard parentPath == snippetsPath,
-            standardized.pathExtension.lowercased() == "md"
-        else {
+        guard parentPath == snippetsPath, standardized.pathExtension.lowercased() == "md" else {
             throw RepositoryError.invalidFileLocation(fileURL)
         }
         return standardized
-    }
-
-    private func revision(at fileURL: URL) throws -> SnippetSourceRevision {
-        guard FileManager.default.fileExists(atPath: fileURL.path) else {
-            throw RepositoryError.fileNotFound(fileURL)
-        }
-        let content = try String(contentsOf: fileURL, encoding: .utf8)
-        return SnippetSourceRevision(content: content)
     }
 
     private func recordOrder(_ lhs: StoredSnippet, _ rhs: StoredSnippet) -> Bool {
@@ -342,12 +290,8 @@ struct SnippetRepository: Sendable {
         let fileCoordinator = NSFileCoordinator(filePresenter: nil)
         var coordinationError: NSError?
         var result: Result<Value, Error>?
-        fileCoordinator.coordinate(
-            writingItemAt: fileURL,
-            options: options,
-            error: &coordinationError
-        ) { coordinatedURL in
-            result = Result { try mutation(coordinatedURL) }
+        fileCoordinator.coordinate(writingItemAt: fileURL, options: options, error: &coordinationError) { url in
+            result = Result { try mutation(url) }
         }
         if let result { return try result.get() }
         if let coordinationError { throw coordinationError }
@@ -366,5 +310,4 @@ struct SnippetRepository: Sendable {
             throw .io(fileURL: fileURL, message: error.localizedDescription)
         }
     }
-
 }
