@@ -191,6 +191,8 @@ final class AIChatState {
     /// The line shown in the empty streaming bubble while nothing has arrived yet.
     var liveStatus: String? { isThinking ? "Thinking…" : nil }
 
+    var canRegenerate: Bool { !isStreaming && session.messages.last?.role == .assistant }
+
     var lastAssistantText: String? {
         session.messages.last(where: { $0.role == .assistant && !$0.text.isEmpty })?.text
     }
