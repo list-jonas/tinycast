@@ -126,9 +126,7 @@ final class AIChatWindowChrome: NSObject, WindowChrome, NSToolbarDelegate, NSSea
     }
 
     /// Return walks the matches, ⇧↩ walks back, as Find does in every Mac app.
-    func control(
-        _ control: NSControl, textView: NSTextView, doCommandBy selector: Selector
-    ) -> Bool {
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
         guard selector == #selector(NSResponder.insertNewline(_:)) else { return false }
         let backwards = NSApp.currentEvent?.modifierFlags.contains(.shift) == true
         find.step(backwards ? -1 : 1, in: chat.session.messages)
@@ -202,8 +200,7 @@ final class AIChatWindowChrome: NSObject, WindowChrome, NSToolbarDelegate, NSSea
         case ([.command], "v"):
             // The search and rename fields take a paste as text, whatever the board holds.
             guard (window.firstResponder as? NSTextView)?.isFieldEditor != true else { return false }
-            return coordinator.attachPastedFile(
-                files: PasteboardFiles.urls(on: .general), to: chat)
+            return coordinator.attachPastedFile(files: PasteboardFiles.urls(on: .general), to: chat)
         default:
             return false
         }
@@ -273,8 +270,7 @@ enum AIChatActionsMenu {
                 })
         }
         menu.addItem(.separator())
-        menu.addItem(
-            ClosureMenuItem("Find in Chat", symbol: "magnifyingglass", key: "f", findInChat))
+        menu.addItem(ClosureMenuItem("Find in Chat", symbol: "magnifyingglass", key: "f", findInChat))
         menu.addItem(
             ClosureMenuItem(
                 "AI Settings", symbol: "slider.horizontal.3", key: ",", modifiers: [.command, .option]

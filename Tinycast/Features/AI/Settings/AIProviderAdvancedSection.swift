@@ -148,8 +148,7 @@ struct AIProviderAdvancedSection: View {
         do {
             try settings.setEnvironment(
                 variables.map {
-                    InstalledAIVariable(
-                        name: $0.name.trimmingCharacters(in: .whitespaces), value: $0.value)
+                    InstalledAIVariable(name: $0.name.trimmingCharacters(in: .whitespaces), value: $0.value)
                 }, for: kind)
             saveFailed = false
         } catch {

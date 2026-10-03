@@ -40,9 +40,7 @@ struct AIToolLoopProvider: AIProvider {
         }
     }
 
-    private func run(
-        _ request: AIRequest, into continuation: AIProviderStream.Continuation
-    ) async throws {
+    private func run(_ request: AIRequest, into continuation: AIProviderStream.Continuation) async throws {
         var messages = request.messages
         var spent = 0
         var carried = 0
@@ -55,8 +53,7 @@ struct AIToolLoopProvider: AIProvider {
                 continuation.yield(.finished)
                 return
             }
-            messages.append(
-                AIMessage(role: .assistant, text: round.text, toolCalls: round.calls))
+            messages.append(AIMessage(role: .assistant, text: round.text, toolCalls: round.calls))
             carried += round.text.utf8.count + round.calls.reduce(0) { $0 + $1.arguments.utf8.count }
             for call in round.calls {
                 try Task.checkCancellation()

@@ -36,8 +36,7 @@ final class InstalledAIManager {
     }
 
     init(supportDirectory: URL = AppPaths.applicationSupport()) {
-        workspace = supportDirectory.appending(
-            path: "InstalledAI/Workspace", directoryHint: .isDirectory)
+        workspace = supportDirectory.appending(path: "InstalledAI/Workspace", directoryHint: .isDirectory)
         let workspace = workspace
         let launch = Date()
         Task.detached(priority: .utility) {
@@ -46,9 +45,7 @@ final class InstalledAIManager {
     }
 
     /// A turn deletes its own files as it ends, so any older than this launch outlived a crash.
-    nonisolated private static func removeStaleTurnFiles(
-        in workspace: URL, olderThan launch: Date
-    ) {
+    nonisolated private static func removeStaleTurnFiles(in workspace: URL, olderThan launch: Date) {
         let fileManager = FileManager.default
         guard
             let files = try? fileManager.contentsOfDirectory(
@@ -227,8 +224,7 @@ final class InstalledAIManager {
             guard auth.status == 0, loggedIn else {
                 return (
                     kind,
-                    InstalledAIStatus(
-                        phase: .signInRequired, version: version, executable: executable)
+                    InstalledAIStatus(phase: .signInRequired, version: version, executable: executable)
                 )
             }
             // No prompt follows the request, so the CLI answers and exits without calling a model.
@@ -279,8 +275,7 @@ final class InstalledAIManager {
             guard auth.status == 0, loggedIn else {
                 return (
                     kind,
-                    InstalledAIStatus(
-                        phase: .signInRequired, version: version, executable: executable)
+                    InstalledAIStatus(phase: .signInRequired, version: version, executable: executable)
                 )
             }
             let models = await InstalledAIProbe.run(
@@ -292,8 +287,7 @@ final class InstalledAIManager {
                 InstalledAIStatus(
                     phase: models.status == 0 && !catalog.isEmpty
                         ? .ready
-                        : .failed(
-                            "Cursor returned no models."),
+                        : .failed("Cursor returned no models."),
                     version: version, executable: executable, models: catalog)
             )
         case .codex:

@@ -129,9 +129,7 @@ enum AIModelDiscovery {
             .map(\.element)
     }
 
-    private static func catalogURL(
-        provider: AIProviderKind, baseURL: URL, usesNativeGemini: Bool
-    ) -> URL? {
+    private static func catalogURL(provider: AIProviderKind, baseURL: URL, usesNativeGemini: Bool) -> URL? {
         guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
             return nil
         }

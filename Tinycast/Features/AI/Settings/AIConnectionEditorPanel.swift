@@ -34,9 +34,7 @@ struct AIConnectionEditorPanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            SettingsEditorHeader(
-                title: target.isNew ? "Add API Connection" : "Edit API Connection"
-            )
+            SettingsEditorHeader(title: target.isNew ? "Add API Connection" : "Edit API Connection")
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Theme.Spacing.dialogInset)
             .padding(.top, Theme.Spacing.dialogInset)
@@ -45,9 +43,7 @@ struct AIConnectionEditorPanel: View {
             Form {
                 Section {
                     editorField("Name") {
-                        TextField(
-                            "Name", text: $connection.name, prompt: Text("Optional label")
-                        )
+                        TextField("Name", text: $connection.name, prompt: Text("Optional label"))
                         .settingsEditorTextField()
                     }
                     editorField("Provider") {
@@ -167,10 +163,7 @@ struct AIConnectionEditorPanel: View {
                 manualModelField
             } else {
                 editorField("Find a model") {
-                    TextField(
-                        "Find a model", text: $modelQuery,
-                        prompt: Text(modelSearchPlaceholder)
-                    )
+                    TextField("Find a model", text: $modelQuery, prompt: Text(modelSearchPlaceholder))
                     .settingsEditorTextField()
                     .onSubmit { addExactMatch(from: models) }
                 }
@@ -286,11 +279,8 @@ struct AIConnectionEditorPanel: View {
             ? "Search by model or company" : "Search available models"
     }
 
-    private func matchingModels(
-        in models: [AIModelDiscovery.Model]
-    ) -> [AIModelDiscovery.Model] {
-        AIModelDiscovery.search(
-            models, query: modelQuery, excluding: Set(connection.models), limit: 12)
+    private func matchingModels(in models: [AIModelDiscovery.Model]) -> [AIModelDiscovery.Model] {
+        AIModelDiscovery.search(models, query: modelQuery, excluding: Set(connection.models), limit: 12)
     }
 
     private func addExactMatch(from models: [AIModelDiscovery.Model]) {
@@ -363,9 +353,7 @@ struct AIConnectionEditorPanel: View {
     }
 
     private func addModel(_ model: AIModelDiscovery.Model) {
-        addModel(
-            model.id, acceptsImages: model.acceptsImages,
-            reasoningOptions: model.reasoningOptions)
+        addModel(model.id, acceptsImages: model.acceptsImages, reasoningOptions: model.reasoningOptions)
     }
 
     private func addModel(

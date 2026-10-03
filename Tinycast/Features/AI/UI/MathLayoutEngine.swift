@@ -135,9 +135,7 @@ struct MathLayoutEngine {
         [-3, 3, -4, -5, -3, 0, -3, -3]
     ]
 
-    private func space(
-        between left: MathNode.Kind, and right: MathNode.Kind, _ environment: Environment
-    )
+    private func space(between left: MathNode.Kind, and right: MathNode.Kind, _ environment: Environment)
         -> CGFloat
     {
         let mu = Self.spacing[left.tableIndex][right.tableIndex]
@@ -231,9 +229,7 @@ struct MathLayoutEngine {
         return false
     }
 
-    private func limits(
-        _ nucleus: MathBox, over: MathNode?, under: MathNode?, _ environment: Environment
-    )
+    private func limits(_ nucleus: MathBox, over: MathNode?, under: MathNode?, _ environment: Environment)
         -> MathBox
     {
         let font = font(environment)

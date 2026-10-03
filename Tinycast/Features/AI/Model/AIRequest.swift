@@ -34,9 +34,7 @@ enum AIAttachmentBudget {
     }
 
     /// The longest leading run that fits; images first, never dropped for a document behind them.
-    static func bounded(
-        _ images: [AIImage], _ documents: [AIDocument]
-    )
+    static func bounded(_ images: [AIImage], _ documents: [AIDocument])
         -> (images: [AIImage], documents: [AIDocument])
     {
         var total = 0

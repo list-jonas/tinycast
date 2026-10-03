@@ -74,8 +74,7 @@ struct AIChatSidebarView: View {
                 }
             }
             .onDeleteCommand {
-                guard let id = selection.wrappedValue, history.conversation(id: id) != nil
-                else { return }
+                guard let id = selection.wrappedValue, history.conversation(id: id) != nil else { return }
                 Task { await coordinator.deleteChat(id: id) }
             }
         }
@@ -108,8 +107,7 @@ struct AIChatSidebarView: View {
                     if !focused { commitRename(conversation.id) }
                 }
         } else {
-            ChatSidebarRow(
-                conversation: conversation, isAnswering: isAnswering, isSelected: isSelected)
+            ChatSidebarRow(conversation: conversation, isAnswering: isAnswering, isSelected: isSelected)
         }
     }
 

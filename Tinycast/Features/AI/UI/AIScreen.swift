@@ -72,9 +72,7 @@ struct AIScreen: PaletteScreen {
                 coordinator.showHistory()
             })
         items.append(
-            PopoverMenuItem(
-                title: "AI Settings", systemImage: "slider.horizontal.3", shortcut: "⌥⌘,"
-            ) {
+            PopoverMenuItem(title: "AI Settings", systemImage: "slider.horizontal.3", shortcut: "⌥⌘,") {
                 chatCoordinator.showSettings()
             })
         return PopoverMenuContent(header: chatCoordinator.title(of: chat), items: items)
@@ -110,9 +108,7 @@ struct AIScreen: PaletteScreen {
         !chat.isStreaming && chat.session.messages.last?.role == .assistant
     }
 
-    func headerAccessory(
-        at selection: Int, focus: FocusState<String?>.Binding
-    ) -> PaletteHeaderAccessory? {
+    func headerAccessory(at selection: Int, focus: FocusState<String?>.Binding) -> PaletteHeaderAccessory? {
         let attachments = chat.pendingAttachments
         let addressed = chatCoordinator.addressedServer(in: vm.query)
         guard !attachments.isEmpty || addressed != nil else { return nil }
@@ -191,9 +187,7 @@ private struct AttachmentsPill: View {
     static func width(for attachments: [ChatAttachment], _ metrics: InterfaceMetrics) -> CGFloat {
         let pill = metrics.size.chatAttachmentInset * 2 + metrics.size.chatAttachmentThumb
         guard let others = others(attachments) else { return pill }
-        let text = (others as NSString).size(
-            withAttributes: [.font: metrics.typography.chipNSFont]
-        ).width
+        let text = (others as NSString).size(withAttributes: [.font: metrics.typography.chipNSFont]).width
         return pill + metrics.spacing.xs + text + metrics.spacing.xs
     }
 

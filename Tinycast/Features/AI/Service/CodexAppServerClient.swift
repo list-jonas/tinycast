@@ -143,16 +143,13 @@ final class CodexAppServerClient {
             throw ClientError.launchFailed("Two MCP servers' secrets would share one variable.")
         }
         do {
-            try FileManager.default.createDirectory(
-                at: workspace, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
             if let codexHome {
-                try FileManager.default.createDirectory(
-                    at: codexHome, withIntermediateDirectories: true)
+                try FileManager.default.createDirectory(at: codexHome, withIntermediateDirectories: true)
                 try FileManager.default.setAttributes(
                     [.posixPermissions: 0o700], ofItemAtPath: codexHome.path)
             }
-            try FileManager.default.setAttributes(
-                [.posixPermissions: 0o700], ofItemAtPath: workspace.path)
+            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: workspace.path)
         } catch {
             throw ClientError.launchFailed("Its private support folder could not be prepared.")
         }
@@ -346,8 +343,7 @@ final class CodexAppServerClient {
                 let action: CodexElicitation.Action =
                     await onElicitation(elicitation) ? .accept : .decline
                 // `persist` is never answered: only Settings may change a standing decision.
-                try? self?.send(
-                    CodexAppServerProtocol.response(id: id, result: ["action": action.rawValue]))
+                try? self?.send(CodexAppServerProtocol.response(id: id, result: ["action": action.rawValue]))
             }
             elicitations.append((elicitation.threadID, task))
         case .invalid:

@@ -19,9 +19,7 @@ struct AISettingsView: View {
                         anchor: .aiAI, title: "Enable AI",
                         subtitle: "Nothing is loaded or sent while it is off.")
                 }
-                SettingsRow(
-                    title: "Providers", subtitle: providerSummary, anchor: .aiProviders
-                ) {
+                SettingsRow(title: "Providers", subtitle: providerSummary, anchor: .aiProviders) {
                     Button("Manage…") { providersPresented = true }
                 }
             } header: {

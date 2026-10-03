@@ -84,9 +84,7 @@ struct AttachmentChip: View {
                 .font(metrics.typography.chip)
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(Theme.Colors.textSecondary)
-                .frame(
-                    width: metrics.size.chatAttachmentThumb,
-                    height: metrics.size.chatAttachmentThumb)
+                .frame(width: metrics.size.chatAttachmentThumb, height: metrics.size.chatAttachmentThumb)
         }
     }
 }

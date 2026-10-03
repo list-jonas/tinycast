@@ -51,9 +51,7 @@ struct ChatComposerTextView: NSViewRepresentable {
     }
 
     /// Measured from the text rather than the text view, whose width lags the proposal by a pass.
-    func sizeThatFits(
-        _ proposal: ProposedViewSize, nsView: NSScrollView, context: Context
-    ) -> CGSize? {
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSScrollView, context: Context) -> CGSize? {
         guard let width = proposal.width, width > 0 else { return nil }
         let font = Self.font
         let lineHeight = (font.ascender - font.descender + font.leading).rounded(.up)
@@ -63,9 +61,7 @@ struct ChatComposerTextView: NSViewRepresentable {
             with: CGSize(width: width, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font]
         ).height.rounded(.up)
-        return CGSize(
-            width: width,
-            height: min(max(lineHeight, height), Theme.Size.aiChatComposerMaxHeight))
+        return CGSize(width: width, height: min(max(lineHeight, height), Theme.Size.aiChatComposerMaxHeight))
     }
 
     @MainActor

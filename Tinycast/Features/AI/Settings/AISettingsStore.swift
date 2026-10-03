@@ -101,8 +101,7 @@ final class AISettingsStore {
             AIOpensTo(rawValue: defaults.integer(forKey: AppSettingsKey.aiOpensTo.rawValue))
             ?? .recent
         newChatAfter =
-            AINewChatAfter(
-                rawValue: defaults.integer(forKey: AppSettingsKey.aiNewChatAfter.rawValue))
+            AINewChatAfter(rawValue: defaults.integer(forKey: AppSettingsKey.aiNewChatAfter.rawValue))
             ?? .fiveMinutes
         toolRounds =
             AIToolRounds(rawValue: defaults.integer(forKey: AppSettingsKey.aiToolRounds.rawValue))
@@ -110,8 +109,7 @@ final class AISettingsStore {
         shownModels =
             defaults.dictionary(forKey: AppSettingsKey.aiShownModels.rawValue) as? [String: [String]]
             ?? [:]
-        disabledRoutes = Set(
-            defaults.stringArray(forKey: AppSettingsKey.aiDisabledRoutes.rawValue) ?? [])
+        disabledRoutes = Set(defaults.stringArray(forKey: AppSettingsKey.aiDisabledRoutes.rawValue) ?? [])
         enabledInstalledProviders = Set(decoded(.aiInstalledProviders) as [InstalledAIKind]? ?? [])
         if case .api(let connection, let model, _) = defaultModel,
             !connections.contains(where: { $0.id == connection && $0.models.contains(model) })
@@ -173,15 +171,11 @@ final class AISettingsStore {
             return
         }
         guard let replacement = models.first(where: \.isDefault) ?? models.first else { return }
-        defaultModel = .codex(
-            model: replacement.id, effort: replacement.resolvedEffort(nil))
+        defaultModel = .codex(model: replacement.id, effort: replacement.resolvedEffort(nil))
     }
 
-    func reconcile(
-        installed kind: InstalledAIKind, models: [InstalledAIModel], isUnavailable: Bool
-    ) {
-        guard kind != .codex, let selected = defaultModel, selected.source == kind.source
-        else { return }
+    func reconcile(installed kind: InstalledAIKind, models: [InstalledAIModel], isUnavailable: Bool) {
+        guard kind != .codex, let selected = defaultModel, selected.source == kind.source else { return }
         let selectedModel = selected.model
         if isUnavailable {
             defaultModel = firstAvailableSelection()
@@ -194,8 +188,7 @@ final class AISettingsStore {
             return
         }
         guard let replacement = models.first else { return }
-        defaultModel = .installed(
-            kind, model: replacement.id, effort: replacement.resolvedEffort(nil))
+        defaultModel = .installed(kind, model: replacement.id, effort: replacement.resolvedEffort(nil))
     }
 
     /// Nothing chosen yet takes the route that needs no account, leaving a real stored selection.
@@ -229,9 +222,7 @@ final class AISettingsStore {
     }
 
     /// `available` is the route's whole list, needed the first time one model is hidden from it.
-    func setModel(
-        _ model: String, shown: Bool, in source: AIModelSource, available: [String]
-    ) {
+    func setModel(_ model: String, shown: Bool, in source: AIModelSource, available: [String]) {
         var shownList = shownModels[source.storageKey] ?? available
         shownList.removeAll { $0 == model }
         if shown { shownList.append(model) }
@@ -285,8 +276,7 @@ final class AISettingsStore {
             InstalledAILaunch.isVariableName($0.name) && seen.insert($0.name).inserted
         }
         guard try kept != environment(for: kind) else { return }
-        try environmentStore.save(
-            Dictionary(uniqueKeysWithValues: kept.map { ($0.name, $0.value) }), kind)
+        try environmentStore.save(Dictionary(uniqueKeysWithValues: kept.map { ($0.name, $0.value) }), kind)
         var override = override(for: kind)
         override.environmentNames = kept.map(\.name)
         installedOverrides[kind] = override.isEmpty ? nil : override
@@ -321,8 +311,7 @@ final class AISettingsStore {
     }
 
     private func persistInstalledOverrides() {
-        let keyed = Dictionary(
-            uniqueKeysWithValues: installedOverrides.map { ($0.key.rawValue, $0.value) })
+        let keyed = Dictionary(uniqueKeysWithValues: installedOverrides.map { ($0.key.rawValue, $0.value) })
         guard !keyed.isEmpty, let data = try? JSONEncoder().encode(keyed) else {
             defaults.removeObject(forKey: AppSettingsKey.aiInstalledOverrides.rawValue)
             return

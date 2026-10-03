@@ -56,8 +56,7 @@ nonisolated enum ChatAttachmentReader {
             }
             return .staged(
                 Staged(
-                    payload: .document(
-                        AIDocument(data: Data(decoded.utf8), mimeType: mimeType, name: name)),
+                    payload: .document(AIDocument(data: Data(decoded.utf8), mimeType: mimeType, name: name)),
                     name: name, preview: nil))
         }
     }

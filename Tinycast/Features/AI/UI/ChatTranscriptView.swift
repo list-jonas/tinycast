@@ -590,11 +590,8 @@ private struct ChatToolRun: View {
                     }
                 }
             }
-            .animation(
-                reduceMotion ? nil : .easeOut(duration: Theme.Duration.chatFooter), value: uses
-            )
-            .animation(
-                reduceMotion ? nil : .easeOut(duration: Theme.Duration.chatFooter), value: isExpanded)
+            .animation(reduceMotion ? nil : .easeOut(duration: Theme.Duration.chatFooter), value: uses)
+            .animation(reduceMotion ? nil : .easeOut(duration: Theme.Duration.chatFooter), value: isExpanded)
         }
     }
 }

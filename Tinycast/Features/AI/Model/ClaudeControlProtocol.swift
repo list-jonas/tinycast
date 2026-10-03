@@ -19,8 +19,7 @@ enum ClaudeControlProtocol {
             let name = request["tool_name"] as? String,
             let call = ClaudeMCPLaunch.route(name)
         else { return nil }
-        return Request(
-            id: id, call: call, input: JSONValue(request["input"] ?? [String: Any]()))
+        return Request(id: id, call: call, input: JSONValue(request["input"] ?? [String: Any]()))
     }
 
     /// The answer; never `updatedPermissions`, which would have the CLI write its own settings.

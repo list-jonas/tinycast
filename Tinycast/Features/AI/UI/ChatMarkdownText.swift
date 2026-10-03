@@ -73,8 +73,7 @@ final class ChatSelectableTextView: NSTextView {
         let storage = NSTextStorage()
         let layout = NSLayoutManager()
         storage.addLayoutManager(layout)
-        let container = NSTextContainer(
-            size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
+        let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
         container.widthTracksTextView = true
         container.lineFragmentPadding = 0
         layout.addTextContainer(container)

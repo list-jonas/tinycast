@@ -196,9 +196,7 @@ private struct MathTable {
     }
 
     /// An italics-correction or top-accent table: a coverage, then one value record per glyph.
-    private static func values(
-        _ bytes: BigEndianBytes, at base: Int, table offset: Int
-    )
+    private static func values(_ bytes: BigEndianBytes, at base: Int, table offset: Int)
         -> [CGGlyph: Int16]
     {
         guard offset > 0 else { return [:] }

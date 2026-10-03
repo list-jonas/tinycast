@@ -129,8 +129,7 @@ final class CodexTurnRunner {
             case "webSearch": continuation.yield(.searched(item["query"]?.stringValue))
             case "mcpToolCall":
                 guard let id = item["id"]?.stringValue else { return }
-                continuation.yield(
-                    .toolResult(id: id, isError: item["status"]?.stringValue != "completed"))
+                continuation.yield(.toolResult(id: id, isError: item["status"]?.stringValue != "completed"))
             default: break
             }
         case "turn/started":
@@ -148,8 +147,7 @@ final class CodexTurnRunner {
                         completed["error"]?.objectValue?["message"]?.stringValue
                             ?? "Codex could not finish the response."))
             default:
-                continuation.finish(
-                    throwing: AIProviderError.responseFailed("The response was interrupted."))
+                continuation.finish(throwing: AIProviderError.responseFailed("The response was interrupted."))
             }
             clear(key)
         case "error":
@@ -206,9 +204,7 @@ final class CodexTurnRunner {
     }
 
     /// A thread Stop already dropped, watched only for the turn ID that Stop lacked.
-    private func handleArmed(
-        method: String, params: [String: JSONValue], threadID: String
-    ) {
+    private func handleArmed(method: String, params: [String: JSONValue], threadID: String) {
         switch method {
         case "turn/started":
             guard let id = params["turn"]?.objectValue?["id"]?.stringValue else { return }
@@ -235,8 +231,7 @@ final class CodexTurnRunner {
                         || !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             })
         else {
-            continuation.finish(
-                throwing: AIProviderError.unavailable("There is no user message to send."))
+            continuation.finish(throwing: AIProviderError.unavailable("There is no user message to send."))
             return
         }
         let key = ObjectIdentifier(token)
@@ -248,8 +243,7 @@ final class CodexTurnRunner {
             // Discovery swallows errors, so a Stop that landed inside connect resurfaces here.
             try Task.checkCancellation()
             guard !model.isEmpty else {
-                throw AIProviderError.unavailable(
-                    "No Codex model is available for this account.")
+                throw AIProviderError.unavailable("No Codex model is available for this account.")
             }
             let turn = Turn(continuation: continuation, servers: servers, session: toolServers)
             turns[key] = turn
@@ -271,14 +265,12 @@ final class CodexTurnRunner {
                     "ephemeral": true,
                     // Thread-scoped, so this never writes the user's saved web-search choice.
                     "config": ["web_search": request.webSearch ? "live" : "disabled"],
-                    "developerInstructions": developerInstructions(
-                        for: request, hasTools: !servers.isEmpty)
+                    "developerInstructions": developerInstructions(for: request, hasTools: !servers.isEmpty)
                 ])
             guard let thread = threadResponse["thread"]?.objectValue,
                 let threadID = thread["id"]?.stringValue
             else {
-                throw CodexAppServerClient.ClientError.requestFailed(
-                    "Codex returned no generation thread.")
+                throw CodexAppServerClient.ClientError.requestFailed("Codex returned no generation thread.")
             }
             // A thread claimed after Stop would route events to a stream nobody reads.
             guard turns[key] === turn, !Task.isCancelled else { return }
@@ -300,8 +292,7 @@ final class CodexTurnRunner {
             ]
             if let effort { turnParameters["effort"] = effort }
             let turnTask = Task { [client] in
-                try await client.request(
-                    method: "turn/start", params: turnParameters)
+                try await client.request(method: "turn/start", params: turnParameters)
             }
             let turnID = try await turnTask.value["turn"]?.objectValue?["id"]?.stringValue
             guard turns[key] === turn, !Task.isCancelled else {

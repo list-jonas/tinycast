@@ -353,10 +353,7 @@ private struct AIToolsPicker: View {
         }
         .composerPill()
         .disabled(!takesTools)
-        .help(
-            takesTools
-                ? "Choose the tools this chat may call"
-                : "This model can't call tools")
+        .help(takesTools ? "Choose the tools this chat may call" : "This model can't call tools")
     }
 }
 
@@ -479,10 +476,7 @@ private struct ContextCard: View {
                     row("Input", input(usage))
                     row("Output", output(usage))
                     if let cost = usage.costUSD {
-                        row(
-                            "Cost",
-                            cost.formatted(
-                                .currency(code: "USD").precision(.significantDigits(2))))
+                        row("Cost", cost.formatted(.currency(code: "USD").precision(.significantDigits(2))))
                     }
                 } else {
                     row("Last reply", "Not reported yet")
@@ -496,9 +490,7 @@ private struct ContextCard: View {
                 }
                 row("System prompt", report.systemPrompt ? "On" : "Off")
                 row("Web search", report.webSearch ? "On" : "Off")
-                row(
-                    "MCP servers",
-                    report.toolServers == 0 ? "None" : "\(report.toolServers) in reach")
+                row("MCP servers", report.toolServers == 0 ? "None" : "\(report.toolServers) in reach")
             }
             .font(.callout)
         }

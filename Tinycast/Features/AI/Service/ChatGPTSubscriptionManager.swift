@@ -97,9 +97,7 @@ final class ChatGPTSubscriptionManager {
     }
 
     @discardableResult
-    private func runOperation(
-        _ operation: @escaping @MainActor () async -> Void
-    )
+    private func runOperation(_ operation: @escaping @MainActor () async -> Void)
         -> Task<Void, Never>
     {
         operationTask?.cancel()
@@ -156,8 +154,7 @@ final class ChatGPTSubscriptionManager {
                     guard let raw = effort.objectValue,
                         let id = raw["reasoningEffort"]?.stringValue
                     else { return nil }
-                    return ChatGPTSubscription.Effort(
-                        id: id, detail: raw["description"]?.stringValue)
+                    return ChatGPTSubscription.Effort(id: id, detail: raw["description"]?.stringValue)
                 }
                 return ChatGPTSubscription.Model(
                     id: id,
@@ -200,8 +197,7 @@ final class ChatGPTSubscriptionManager {
     }
 
     private func restoreAccess() async throws -> Bool {
-        let response = try await client.request(
-            method: "account/read", params: ["refreshToken": false])
+        let response = try await client.request(method: "account/read", params: ["refreshToken": false])
         if let rawAccount = response["account"]?.objectValue {
             let type = rawAccount["type"]?.stringValue ?? "unknown"
             access = .account(

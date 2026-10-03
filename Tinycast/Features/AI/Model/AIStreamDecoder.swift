@@ -74,8 +74,7 @@ struct AIStreamDecoder: Sendable {
         partialToolCalls.removeAll()
         return calls.compactMap { call in
             guard !call.name.isEmpty else { return nil }
-            return .toolCallRequested(
-                AIToolCall(id: call.id, name: call.name, arguments: call.arguments))
+            return .toolCallRequested(AIToolCall(id: call.id, name: call.name, arguments: call.arguments))
         }
     }
 

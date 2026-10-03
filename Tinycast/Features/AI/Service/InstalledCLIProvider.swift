@@ -104,8 +104,7 @@ private final class InstalledCLITurnRunner {
                         || !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             })
         else {
-            continuation.finish(
-                throwing: AIProviderError.unavailable("There is no user message to send."))
+            continuation.finish(throwing: AIProviderError.unavailable("There is no user message to send."))
             return
         }
         let resolvedExecutable: URL?
@@ -138,8 +137,7 @@ private final class InstalledCLITurnRunner {
         cancelActiveTurn()
         do {
             try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
-            try FileManager.default.setAttributes(
-                [.posixPermissions: 0o700], ofItemAtPath: workspace.path)
+            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: workspace.path)
         } catch {
             continuation.finish(
                 throwing: AIProviderError.unavailable(
@@ -564,8 +562,7 @@ private final class InstalledCLITurnRunner {
         guard let workspaces = try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
         else { return }
         for workspace in workspaces {
-            try? fm.removeItem(
-                at: workspace.appending(path: sessionID, directoryHint: .isDirectory))
+            try? fm.removeItem(at: workspace.appending(path: sessionID, directoryHint: .isDirectory))
         }
     }
 

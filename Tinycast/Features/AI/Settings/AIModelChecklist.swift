@@ -75,9 +75,7 @@ struct AIModelChecklist: NSViewRepresentable {
             list?.items.count ?? 0
         }
 
-        func tableView(
-            _ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int
-        ) -> NSView? {
+        func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
             guard let list else { return nil }
             let reused = tableView.makeView(withIdentifier: ChecklistCellView.reuseID, owner: nil)
             let cell = reused as? ChecklistCellView ?? ChecklistCellView()

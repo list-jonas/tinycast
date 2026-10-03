@@ -95,10 +95,7 @@ struct AIProvidersPanel: View {
         .settingsEditorPanelSurface(controlsOnGlass: false)
         .releasesFocusOnOutsideClick()
         .settingsEditorPanel(item: $editor) { target in
-            AIConnectionEditorPanel(
-                target: target,
-                onSave: saveConnection,
-                onCancel: { editor = nil })
+            AIConnectionEditorPanel(target: target, onSave: saveConnection, onCancel: { editor = nil })
         }
         .confirmationDialog(
             pendingRemoval.map { "Remove “\($0.title)”?" } ?? "Remove connection?",
@@ -489,9 +486,7 @@ struct AIProvidersPanel: View {
         }
     }
 
-    private func usageRow(
-        _ window: ChatGPTSubscription.UsageWindow, fallbackTitle: String
-    ) -> some View {
+    private func usageRow(_ window: ChatGPTSubscription.UsageWindow, fallbackTitle: String) -> some View {
         LabeledContent {
             HStack(spacing: Theme.Spacing.md) {
                 ProgressView(value: Double(window.remainingPercent), total: 100)
@@ -519,9 +514,7 @@ struct AIProvidersPanel: View {
     // MARK: API connections
 
     @ViewBuilder
-    private func connectionSections(
-        _ connection: AIConnection, tab: AIProviderTab
-    ) -> some View {
+    private func connectionSections(_ connection: AIConnection, tab: AIProviderTab) -> some View {
         if !settings.isRouteEnabled(.api(connection.id)) { turnedOffSection() }
         if tab == .models {
             modelsSection(
@@ -602,8 +595,7 @@ struct AIProvidersPanel: View {
                                 isLocked: isDefault(model.id, route: route))
                         },
                         onToggle: { id, isOn in
-                            settings.setModel(
-                                id, shown: isOn, in: source, available: models.map(\.id))
+                            settings.setModel(id, shown: isOn, in: source, available: models.map(\.id))
                         })
                 }
             } footer: {
@@ -743,9 +735,7 @@ struct AIProvidersPanel: View {
     }
 
     private var removalPresented: Binding<Bool> {
-        Binding(
-            get: { pendingRemoval != nil },
-            set: { if !$0 { pendingRemoval = nil } })
+        Binding(get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } })
     }
 
     private func keyIsMissing(_ connection: AIConnection) -> Bool {
@@ -764,9 +754,7 @@ struct AIProvidersPanel: View {
             isNew: false)
     }
 
-    private func saveConnection(
-        _ connection: AIConnection, key: String, isNew: Bool
-    ) -> String? {
+    private func saveConnection(_ connection: AIConnection, key: String, isNew: Bool) -> String? {
         let outcome = AIConnectionKeyPolicy.resolve(
             enteredKey: key, connection: connection, saved: settings.connection(id: connection.id),
             hasStoredKey: keyStatuses[connection.id] == true)
@@ -807,9 +795,7 @@ struct AIProvidersPanel: View {
         core.showMessage("Copied \(kind.signInCommand)")
     }
 
-    private func usageTitle(
-        _ window: ChatGPTSubscription.UsageWindow, fallback: String
-    ) -> String {
+    private func usageTitle(_ window: ChatGPTSubscription.UsageWindow, fallback: String) -> String {
         guard let minutes = window.durationMinutes else { return fallback }
         if minutes >= 1_440 { return "\(minutes / 1_440)-day window" }
         if minutes >= 60 { return "\(minutes / 60)-hour window" }
@@ -847,8 +833,7 @@ private struct AIProviderTile: View {
             .padding(Theme.Spacing.xs * scale)
             .background(
                 Theme.Colors.controlSurface,
-                in: RoundedRectangle(
-                    cornerRadius: Theme.Radius.thumbnail * scale, style: .continuous)
+                in: RoundedRectangle(cornerRadius: Theme.Radius.thumbnail * scale, style: .continuous)
             )
             .accessibilityHidden(true)
     }

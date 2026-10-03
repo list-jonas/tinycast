@@ -19,8 +19,7 @@ struct ChatHistoryScreen: PaletteScreen {
 
     func actions(at selection: Int) -> PopoverMenuContent? {
         guard let conversation = conversation(at: selection) else { return nil }
-        return ChatHistoryActionsMenu.content(
-            conversation: conversation, coordinator: coordinator)
+        return ChatHistoryActionsMenu.content(conversation: conversation, coordinator: coordinator)
     }
 
     func activate(at selection: Int) {
@@ -97,9 +96,7 @@ enum ChatHistoryActionsMenu {
         PopoverMenuContent(
             header: conversation.displayTitle,
             items: [
-                PopoverMenuItem(
-                    title: "Open Chat", systemImage: "sparkles", shortcut: "↵"
-                ) {
+                PopoverMenuItem(title: "Open Chat", systemImage: "sparkles", shortcut: "↵") {
                     coordinator.openChat(id: conversation.id)
                 },
                 PopoverMenuItem(

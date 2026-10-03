@@ -56,9 +56,7 @@ final class AIChatCoordinator {
     }
 
     func applyRetention() {
-        guard settings.aiEnabled,
-            let cutoff = core.aiSettings.retention.cutoff(from: Date())
-        else { return }
+        guard settings.aiEnabled, let cutoff = core.aiSettings.retention.cutoff(from: Date()) else { return }
         core.chatHistory.prune(before: cutoff)
     }
 
@@ -198,8 +196,7 @@ final class AIChatCoordinator {
         let selection = model(for: chat)
         let servers = titleServers(for: chat, on: selection)
         naming[session.id] = Task {
-            let title = await self.title(
-                describing: description, with: selection, servers: servers)
+            let title = await self.title(describing: description, with: selection, servers: servers)
             // Whoever cancelled already cleared the entry, which may now be a newer request's.
             guard !Task.isCancelled else { return }
             naming[session.id] = nil
