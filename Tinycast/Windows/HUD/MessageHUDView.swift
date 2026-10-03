@@ -95,15 +95,12 @@ struct MessageHUDView: View {
                 Image(systemName: "xmark")
                     .font(metrics.typography.menuIcon.weight(.semibold))
                     .foregroundStyle(Theme.Colors.textSecondary)
-                    .frame(width: metrics.size.menuIcon, height: metrics.size.menuIcon)
-                    .transition(.opacity)
             } else {
-                symbol
-                    .font(metrics.typography.menuIcon)
-                    .frame(width: metrics.size.menuIcon, height: metrics.size.menuIcon)
-                    .transition(.opacity)
+                symbol.font(metrics.typography.menuIcon)
             }
         }
+        .frame(width: metrics.size.menuIcon, height: metrics.size.menuIcon)
+        .transition(.opacity)
     }
 
     @ViewBuilder
@@ -125,9 +122,9 @@ struct MessageHUDView: View {
 extension DialogTone {
     fileprivate var hudSymbol: String {
         switch self {
-        case .neutral: return "info"
-        case .success: return "checkmark"
-        case .danger: return "exclamationmark"
+        case .neutral: "info"
+        case .success: "checkmark"
+        case .danger: "exclamationmark"
         }
     }
 }
