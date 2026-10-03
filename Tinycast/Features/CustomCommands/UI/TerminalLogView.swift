@@ -158,7 +158,8 @@ struct ANSIInterpreter {
 
     /// Deletes back to the start of the last line, which is what a bare carriage return means.
     private func rewindLine(in storage: NSTextStorage) {
-        let text = storage.string as NSString
+        // `mutableString` is the live backing store; `string` would copy the whole log per frame.
+        let text = storage.mutableString
         guard text.length > 0 else { return }
         let lineStart = text.range(
             of: "\n", options: .backwards, range: NSRange(location: 0, length: text.length))
