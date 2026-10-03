@@ -34,25 +34,9 @@ struct ExtensionDeepLink: Sendable, Equatable {
         segments += url.pathComponents.filter { $0 != "/" }
         segments = segments.map { $0.removingPercentEncoding ?? $0 }
         guard segments.count >= 3, segments[0].lowercased() == "extensions" else { return nil }
-        let body = Array(segments.dropFirst())
-        guard body.count >= 2 else { return nil }
-        let ownerOrAuthor: String?
-        let extensionName: String
-        let commandName: String
-        switch body.count {
-        case 2:
-            ownerOrAuthor = nil
-            extensionName = body[0]
-            commandName = body[1]
-        case 3:
-            ownerOrAuthor = body[0]
-            extensionName = body[1]
-            commandName = body[2]
-        default:
-            ownerOrAuthor = body.dropLast(2).joined(separator: "/")
-            extensionName = body[body.count - 2]
-            commandName = body[body.count - 1]
-        }
+        let body = segments.dropFirst()
+        let ownerOrAuthor = body.count > 2 ? body.dropLast(2).joined(separator: "/") : nil
+        let (extensionName, commandName) = (body[body.endIndex - 2], body[body.endIndex - 1])
         guard !extensionName.isEmpty, !commandName.isEmpty else { return nil }
         let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
         var arguments: [String: String] = [:]

@@ -114,7 +114,9 @@ struct SymbolCatalog: Sendable {
             symbols: symbols,
             categories: [.suggested, .bundled, .all] + ordered,
             byCategory: byCategory,
-            searchTerms: search.merging(bundledTerms) { system, _ in system })
+            // Lowered once here, so a keystroke never lowers eight thousand symbols' terms again.
+            searchTerms: search.merging(bundledTerms) { system, _ in system }
+                .mapValues { $0.map { $0.lowercased() } })
     }
 
     func symbols(in category: SymbolCategory) -> [String] {
@@ -133,10 +135,9 @@ struct SymbolCatalog: Sendable {
         // A search is a search: it looks through everything unless the user narrowed to a category.
         let pool = category.id == SymbolCategory.suggested.id ? symbols : symbols(in: category)
         return pool.filter { symbol in
-            let haystack = symbol.replacingOccurrences(of: ".", with: " ")
-            return words.allSatisfy { word in
-                haystack.contains(word)
-                    || (searchTerms[symbol] ?? []).contains { $0.lowercased().contains(word) }
+            // A word holds no dot, so matching the raw name equals matching it split on its dots.
+            words.allSatisfy { word in
+                symbol.contains(word) || (searchTerms[symbol] ?? []).contains { $0.contains(word) }
             }
         }
     }
