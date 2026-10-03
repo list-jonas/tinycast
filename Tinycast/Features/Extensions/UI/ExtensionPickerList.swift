@@ -78,8 +78,7 @@ struct ExtensionPickerList: View {
                     .padding(searchPlaceholder == nil ? 0 : menuListInset)
                 }
                 .frame(
-                    height: form.popoverListHeight(
-                        rows: items.count, headers: headerCount)
+                    height: form.popoverListHeight(rows: items.count, headers: headerCount)
                         + (searchPlaceholder == nil ? 0 : menuListInset * 2)
                 )
                 .scrollBounceBehavior(
@@ -89,9 +88,7 @@ struct ExtensionPickerList: View {
                 )
                 // `never`, not `hidden`: hidden still lets AppKit claim the scroller's gutter.
                 .scrollIndicators(.never)
-                .overflowFade(
-                    band: form.popoverFadeBand, includingTop: searchPlaceholder == nil
-                )
+                .overflowFade(band: form.popoverFadeBand, includingTop: searchPlaceholder == nil)
                 .onChange(of: selection, initial: true) { proxy.scrollTo(selection) }
             }
         }

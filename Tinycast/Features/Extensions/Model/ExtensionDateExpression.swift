@@ -20,15 +20,13 @@ enum ExtensionDateExpression {
         let offsets: [(String, Int)] = [("Today", 0), ("Tomorrow", 1), ("Yesterday", -1)]
         for (title, days) in offsets {
             guard let date = calendar.date(byAdding: .day, value: days, to: today) else { continue }
-            rows.append(
-                Suggestion(title: title, date: date, detail: detail(for: date, calendar: calendar)))
+            rows.append(Suggestion(title: title, date: date, detail: detail(for: date, calendar: calendar)))
         }
         // The next four weekdays, so a whole week is reachable without typing a date.
         for offset in 2...5 {
             guard let date = calendar.date(byAdding: .day, value: offset, to: today) else { continue }
             let name = weekdayName(date, calendar: calendar)
-            rows.append(
-                Suggestion(title: name, date: date, detail: detail(for: date, calendar: calendar)))
+            rows.append(Suggestion(title: name, date: date, detail: detail(for: date, calendar: calendar)))
         }
         _ = includesTime
         return rows
@@ -66,8 +64,7 @@ enum ExtensionDateExpression {
         let (dayPhrase, time) = splitTime(lowered, calendar: calendar)
         guard let day = parseDay(dayPhrase, now: now, calendar: calendar) else { return nil }
         guard let time else { return day }
-        return calendar.date(
-            bySettingHour: time.hour, minute: time.minute, second: 0, of: day)
+        return calendar.date(bySettingHour: time.hour, minute: time.minute, second: 0, of: day)
     }
 
     // MARK: - Days
@@ -124,9 +121,7 @@ enum ExtensionDateExpression {
     }
 
     /// A bare day and month means the next one of those, so "5 jan" in December is next year.
-    private static func date(
-        day: Int, month: Int, onOrAfter today: Date, calendar: Calendar
-    ) -> Date? {
+    private static func date(day: Int, month: Int, onOrAfter today: Date, calendar: Calendar) -> Date? {
         var components = calendar.dateComponents([.year], from: today)
         components.month = month
         components.day = day
@@ -227,9 +222,7 @@ enum ExtensionDateExpression {
     }
 
     /// How a resolved date reads in the picker's trailing column.
-    static func detail(
-        for date: Date, calendar: Calendar, includesTime: Bool = false
-    ) -> String {
+    static func detail(for date: Date, calendar: Calendar, includesTime: Bool = false) -> String {
         var format = Date.FormatStyle(date: .abbreviated, time: .omitted)
         format.calendar = calendar
         format.timeZone = calendar.timeZone

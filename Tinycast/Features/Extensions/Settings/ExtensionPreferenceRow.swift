@@ -76,8 +76,7 @@ struct ExtensionPreferenceRow: View {
             Toggle(schema.label ?? "", isOn: $flag)
                 .labelsHidden()
                 .onChange(of: flag) { _, value in
-                    storage.setPreference(
-                        extension: extensionName, key: schema.name, value: .bool(value))
+                    storage.setPreference(extension: extensionName, key: schema.name, value: .bool(value))
                 }
         case .dropdown:
             Picker("", selection: $text) {

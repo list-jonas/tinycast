@@ -191,8 +191,7 @@ private struct ExtensionActionRow: View {
     var body: some View {
         Button(action: onActivate) {
             HStack(spacing: metrics.spacing.md) {
-                ExtensionIconView(
-                    resolved: item.icon, size: metrics.size.menuIcon, usesMenuSymbolStyle: true)
+                ExtensionIconView(resolved: item.icon, size: metrics.size.menuIcon, usesMenuSymbolStyle: true)
                 Text(item.title)
                     .font(metrics.typography.menuRow)
                     .foregroundStyle(item.isDestructive ? Color.red : Color.primary)

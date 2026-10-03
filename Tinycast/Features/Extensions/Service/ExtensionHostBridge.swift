@@ -174,8 +174,7 @@ final class ExtensionHostBridge: ExtensionHostAPI {
         case "copy", "paste":
             let content = arguments.first?.objectValue ?? [:]
             let options = arguments[safe: 1]?.objectValue ?? [:]
-            let concealed =
-                options["concealed"]?.boolValue == true
+            let concealed = options["concealed"]?.boolValue == true
                 || options["transient"]?.boolValue == true
             // A file goes on the pasteboard as a file, so it pastes as the picture it is.
             if let path = content["file"]?.stringValue, !path.isEmpty {
@@ -246,8 +245,7 @@ final class ExtensionHostBridge: ExtensionHostAPI {
         pasteboard.setData(Data(), forType: Self.concealedPasteboardType)
     }
 
-    private static let concealedPasteboardType = NSPasteboard.PasteboardType(
-        "org.nspasteboard.ConcealedType")
+    private static let concealedPasteboardType = NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")
 
     // MARK: - LocalStorage
 
@@ -432,8 +430,7 @@ final class ExtensionHostBridge: ExtensionHostAPI {
     }
 
     private func open(target: String, application: String?) {
-        let url =
-            URL(string: target).flatMap { $0.scheme == nil ? nil : $0 }
+        let url = URL(string: target).flatMap { $0.scheme == nil ? nil : $0 }
             ?? URL(fileURLWithPath: (target as NSString).expandingTildeInPath)
         // Extensions address Raycast by scheme; handing that to the workspace would launch Raycast.
         if ExtensionDeepLink.claims(url) {
@@ -444,8 +441,7 @@ final class ExtensionHostBridge: ExtensionHostAPI {
             NSWorkspace.shared.open(url)
             return
         }
-        let appURL =
-            appIdentifier.hasPrefix("/")
+        let appURL = appIdentifier.hasPrefix("/")
             ? URL(fileURLWithPath: appIdentifier)
             : NSWorkspace.shared.urlForApplication(withBundleIdentifier: appIdentifier)
         guard let appURL else {
@@ -529,8 +525,7 @@ final class ExtensionHostBridge: ExtensionHostAPI {
             guard let urlString = arguments.first?.stringValue, let url = URL(string: urlString) else {
                 throw ExtensionHostError.unsupported("authorize requires url")
             }
-            let options = ExtensionOAuthAuthorizeOptions(
-                url: url, state: arguments[safe: 1]?.stringValue)
+            let options = ExtensionOAuthAuthorizeOptions(url: url, state: arguments[safe: 1]?.stringValue)
             let result = try await context.authorizeOAuth(options: options)
             var dict: [String: Any] = ["authorizationCode": result.authorizationCode]
             if let token = result.accessToken { dict["accessToken"] = token }

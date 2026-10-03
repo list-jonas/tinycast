@@ -247,8 +247,7 @@ final class ExtensionRuntime: @unchecked Sendable {
         hostTasks[callId] = Task { @MainActor [weak self] in
             guard !Task.isCancelled else { return }
             do {
-                let json = try await hostAPI.perform(
-                    api: api, method: method, arguments: arguments)
+                let json = try await hostAPI.perform(api: api, method: method, arguments: arguments)
                 await self?.settle(callId: callId, generation: generation, ok: true, payload: json)
             } catch {
                 await self?.settle(
@@ -367,8 +366,7 @@ final class ExtensionRuntime: @unchecked Sendable {
     static func jsonString(from value: Any?) -> String {
         guard let value, !(value is NSNull) else { return "" }
         guard
-            let data = try? JSONSerialization.data(
-                withJSONObject: value, options: [.fragmentsAllowed])
+            let data = try? JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed])
         else { return "" }
         return String(decoding: data, as: UTF8.self)
     }

@@ -91,8 +91,7 @@ struct ExtensionDeepLink: Sendable, Equatable {
                     out[key] = number.boolValue ? "true" : "false"
                 } else {
                     let double = number.doubleValue
-                    out[key] =
-                        double == double.rounded() && double.magnitude < 1e15
+                    out[key] = double == double.rounded() && double.magnitude < 1e15
                         ? String(number.int64Value) : String(double)
                 }
             } else if value is NSNull {

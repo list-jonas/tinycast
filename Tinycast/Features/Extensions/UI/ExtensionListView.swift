@@ -82,9 +82,7 @@ struct ExtensionListView: View {
         }
     }
 
-    private func scrolling<Content: View>(
-        atOrigin: Bool, @ViewBuilder content: () -> Content
-    ) -> some View {
+    private func scrolling<Content: View>(atOrigin: Bool, @ViewBuilder content: () -> Content) -> some View {
         let content = content()
         return ScrollViewReader { proxy in
             ScrollView {
@@ -101,9 +99,7 @@ struct ExtensionListView: View {
         }
     }
 
-    private func interactive<Content: View>(
-        _ index: Int, @ViewBuilder content: () -> Content
-    ) -> some View {
+    private func interactive<Content: View>(_ index: Int, @ViewBuilder content: () -> Content) -> some View {
         content()
             .contentShape(Rectangle())
             .onTapGesture {
@@ -200,14 +196,11 @@ private struct ExtensionItemRow: View {
             }
             Spacer(minLength: metrics.spacing.sm)
             // Raycast draws the accessories it is given, and a quota row's signal is all in them.
-            ExtensionAccessoriesView(
-                accessories: node.array("accessories"), assetsPath: assetsPath)
+            ExtensionAccessoriesView(accessories: node.array("accessories"), assetsPath: assetsPath)
         }
         .padding(.horizontal, metrics.spacing.md)
         .padding(.vertical, metrics.spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous).fill(fill)
-        )
+        .background(RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous).fill(fill))
         .armedHover($hovered)
     }
 }
@@ -262,8 +255,7 @@ struct ExtensionAccessoriesView: View {
     @ViewBuilder
     private func tagView(_ tag: RenderValue) -> some View {
         let fields = tag.objectValue
-        let text =
-            ExtensionAccessoriesView.label(fields?["value"] ?? tag)
+        let text = ExtensionAccessoriesView.label(fields?["value"] ?? tag)
             ?? ExtensionAccessoriesView.date(fields?["value"] ?? tag).map {
                 $0.formatted(date: .abbreviated, time: .omitted)
             }
@@ -274,10 +266,7 @@ struct ExtensionAccessoriesView: View {
                 .foregroundStyle(color)
                 .padding(.horizontal, metrics.spacing.xs)
                 .padding(.vertical, 1)
-                .background(
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(color.opacity(0.16))
-                )
+                .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(color.opacity(0.16)))
                 .lineLimit(1)
         }
     }

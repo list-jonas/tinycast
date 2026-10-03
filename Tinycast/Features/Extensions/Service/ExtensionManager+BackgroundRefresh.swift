@@ -162,10 +162,8 @@ extension ExtensionManager {
         let context = makeLaunchContext(
             owner: owner, command: command, arguments: [:], supportPath: supportPath,
             launchType: .background)
-        await runtime.start(
-            session: session, code: code, file: bundle, mode: command.mode, context: context)
-        succeeded = await waitForBackgroundResult(
-            timeout: ExtensionRefreshPolicy.timeout(interval: interval))
+        await runtime.start(session: session, code: code, file: bundle, mode: command.mode, context: context)
+        succeeded = await waitForBackgroundResult(timeout: ExtensionRefreshPolicy.timeout(interval: interval))
         // An abort already tore the session down; stopping here would kill the manual run's context.
         guard backgroundSessionID == session else { return }
         await runtime.stop(session: session)

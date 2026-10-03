@@ -176,8 +176,7 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
         let reference = owner.reference(for: command)
         let info = metadata(reference)
         // A dropped `interval` retires the dot with it, however stale the stored flag is.
-        let schedulable = ExtensionRefreshPolicy.isSchedulable(
-            mode: command.mode, interval: command.interval)
+        let schedulable = ExtensionRefreshPolicy.isSchedulable(mode: command.mode, interval: command.interval)
         return AppEntry(
             id: reference.entryID,
             name: command.title,
@@ -441,8 +440,7 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
             fallbackText: fallbackText,
             launchType: command.mode == .view ? .userInitiated : launchType,
             launchContext: launchContext)
-        await runtime.start(
-            session: session, code: code, file: bundle, mode: command.mode, context: context)
+        await runtime.start(session: session, code: code, file: bundle, mode: command.mode, context: context)
     }
 
     /// A bundle is a few hundred KB, so the read stays off the main actor.
@@ -516,8 +514,7 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
     /// Raycast reports a dropdown's opening choice through `onChange`; a filtering extension waits on it.
     private func seedSearchBarAccessory(in tree: RenderTree) {
         guard
-            let accessory = ExtensionSearchAccessory(
-                node: tree.activeRoot?.node("searchBarAccessory")),
+            let accessory = ExtensionSearchAccessory(node: tree.activeRoot?.node("searchBarAccessory")),
             accessory.controlledValue == nil, accessoryValues[accessory.nodeID] == nil,
             let value = accessory.initialValue(stored: storedAccessoryValue(accessory))
         else { return }
@@ -548,8 +545,7 @@ final class ExtensionManager: ExtensionRuntimeDelegate, ExtensionHostContext {
         nextToastID += 1
         // A no-view command's toast has no palette to appear in, so show a HUD.
         guard coordinator?.isPaletteVisible == true else {
-            coordinator?.showHUD(
-                [toast.title, toast.message].compactMap { $0 }.joined(separator: " — "))
+            coordinator?.showHUD([toast.title, toast.message].compactMap { $0 }.joined(separator: " — "))
             return stamped.id
         }
         toasts = [stamped]

@@ -181,9 +181,7 @@ struct ExtensionToastPill: View {
             .frame(width: Theme.Size.hairline, height: metrics.size.menuIcon * 0.7)
     }
 
-    private func button(
-        action: @escaping () -> Void, @ViewBuilder label: () -> some View
-    ) -> some View {
+    private func button(action: @escaping () -> Void, @ViewBuilder label: () -> some View) -> some View {
         Button(action: action, label: label)
             .buttonStyle(.plain)
             .fontWeight(.semibold)

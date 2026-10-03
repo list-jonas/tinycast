@@ -77,10 +77,7 @@ final class ExtensionOAuthSession {
         return ExtensionOAuthAuthorizeResult(authorizationCode: code, accessToken: token, state: state)
     }
 
-    func authorize(
-        url: URL,
-        expectedState: String? = nil
-    ) async throws -> [String: String] {
+    func authorize(url: URL, expectedState: String? = nil) async throws -> [String: String] {
         if continuation != nil {
             cancel()
         }

@@ -20,12 +20,9 @@ final class ExtensionStorage {
         /// store — API keys included — down with it, since a failed decode resets the file.
         init(from decoder: Decoder) throws {
             let store = try decoder.container(keyedBy: CodingKeys.self)
-            localStorage =
-                try store.decodeIfPresent([String: StoredValue].self, forKey: .localStorage) ?? [:]
-            caches =
-                try store.decodeIfPresent([String: [String: String]].self, forKey: .caches) ?? [:]
-            preferences =
-                try store.decodeIfPresent([String: StoredValue].self, forKey: .preferences) ?? [:]
+            localStorage = try store.decodeIfPresent([String: StoredValue].self, forKey: .localStorage) ?? [:]
+            caches = try store.decodeIfPresent([String: [String: String]].self, forKey: .caches) ?? [:]
+            preferences = try store.decodeIfPresent([String: StoredValue].self, forKey: .preferences) ?? [:]
             accessoryValues =
                 try store.decodeIfPresent([String: String].self, forKey: .accessoryValues) ?? [:]
         }
@@ -186,8 +183,7 @@ final class ExtensionStorage {
 
     private func store(for name: String) -> Store {
         if let existing = stores[name] { return existing }
-        let loaded =
-            (try? Data(contentsOf: fileURL(for: name)))
+        let loaded = (try? Data(contentsOf: fileURL(for: name)))
             .flatMap { try? JSONDecoder().decode(Store.self, from: $0) } ?? Store()
         stores[name] = loaded
         return loaded

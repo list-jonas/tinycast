@@ -88,9 +88,7 @@ struct ExtensionFormMetrics {
     }
 
     /// Below the control when it fits, else above it; clamped so it can never leave the container.
-    func placement(
-        anchor: CGRect, popoverHeight: CGFloat, containerHeight: CGFloat
-    ) -> Placement {
+    func placement(anchor: CGRect, popoverHeight: CGFloat, containerHeight: CGFloat) -> Placement {
         let below = anchor.maxY + popoverGap
         let above = anchor.minY - popoverGap - popoverHeight
         // Preferred, exactly as a menu does: open downward unless the bottom would cut it off.

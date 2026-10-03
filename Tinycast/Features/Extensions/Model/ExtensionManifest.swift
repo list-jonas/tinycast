@@ -115,8 +115,7 @@ enum ExtensionPreferenceValue: Sendable, Hashable {
         case let value as String:
             self = .string(value)
         case let value as NSNumber:
-            self =
-                CFGetTypeID(value) == CFBooleanGetTypeID()
+            self = CFGetTypeID(value) == CFBooleanGetTypeID()
                 ? .bool(value.boolValue) : .number(value.doubleValue)
         case let value as [String: Any]:
             // Platform-keyed default; Tinycast is macOS-only.

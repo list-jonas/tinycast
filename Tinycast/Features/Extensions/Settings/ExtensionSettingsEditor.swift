@@ -49,8 +49,7 @@ struct ExtensionSettingsEditorButtonStyle: ButtonStyle {
     var fillsWidth = true
 
     func makeBody(configuration: Configuration) -> some View {
-        ExtensionSettingsEditorButtonBody(
-            configuration: configuration, role: role, fillsWidth: fillsWidth)
+        ExtensionSettingsEditorButtonBody(configuration: configuration, role: role, fillsWidth: fillsWidth)
     }
 }
 

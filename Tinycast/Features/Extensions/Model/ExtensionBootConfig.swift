@@ -21,8 +21,7 @@ struct ExtensionBootConfig: Sendable {
         #endif
         // A GUI app inherits a bare environment; extensions shelling out expect a login-ish PATH.
         var variables = info.environment
-        variables["PATH"] =
-            (variables["PATH"].map { $0 + ":" } ?? "")
+        variables["PATH"] = (variables["PATH"].map { $0 + ":" } ?? "")
             + "/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
         variables["HOME"] = FileManager.default.homeDirectoryForCurrentUser.path
 

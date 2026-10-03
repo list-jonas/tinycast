@@ -21,8 +21,7 @@ struct ExtensionSearchAccessoryButton: View {
         BarButton(chrome: .rounded, action: action) {
             HStack(spacing: metrics.spacing.sm) {
                 if let icon {
-                    ExtensionIconView(
-                        resolved: icon, size: metrics.size.menuIcon, usesMenuSymbolStyle: true)
+                    ExtensionIconView(resolved: icon, size: metrics.size.menuIcon, usesMenuSymbolStyle: true)
                 }
                 Text(accessory.title(for: value) ?? "")
                     .font(metrics.typography.bar)
@@ -37,7 +36,6 @@ struct ExtensionSearchAccessoryButton: View {
     }
 
     private var icon: ExtensionImage.Resolved? {
-        ExtensionImage.resolve(
-            accessory.item(for: value)?.iconValue, assetsPath: assetsPath, isDark: isDark)
+        ExtensionImage.resolve(accessory.item(for: value)?.iconValue, assetsPath: assetsPath, isDark: isDark)
     }
 }

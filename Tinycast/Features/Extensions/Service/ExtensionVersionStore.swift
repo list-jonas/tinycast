@@ -13,8 +13,7 @@ final class ExtensionVersionStore {
 
     init(fileURL: URL) {
         self.fileURL = fileURL
-        entries =
-            (try? Data(contentsOf: fileURL))
+        entries = (try? Data(contentsOf: fileURL))
             .flatMap { try? JSONDecoder().decode([String: Entry].self, from: $0) } ?? [:]
     }
 

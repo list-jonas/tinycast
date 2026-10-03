@@ -170,8 +170,7 @@ private struct ExtensionListPanelModifier<List: View, Revision: Equatable>: View
 
     private func sync() {
         guard open, let host, anchor.width > 0,
-            let placement = ExtensionListPlacement(
-                anchor: anchor, in: host, height: height, form: form)
+            let placement = ExtensionListPlacement(anchor: anchor, in: host, height: height, form: form)
         else {
             controller.hide()
             return

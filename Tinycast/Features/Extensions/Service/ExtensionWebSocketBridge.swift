@@ -157,9 +157,7 @@ final class ExtensionWebSocketBridge: NSObject, Sendable, URLSessionWebSocketDel
 
     /// The only place a failed handshake surfaces: `receive` is never reached when one fails.
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        finishOpening(
-            id: task.taskIdentifier,
-            result: .failure(error ?? SocketError.closed))
+        finishOpening(id: task.taskIdentifier, result: .failure(error ?? SocketError.closed))
     }
 
     private func finishOpening(id: Int, result: Result<String, Error>) {

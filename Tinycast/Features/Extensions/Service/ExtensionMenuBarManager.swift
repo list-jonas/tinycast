@@ -177,8 +177,7 @@ final class ExtensionMenuBarManager: ExtensionRuntimeDelegate {
             extension: owner.manifest.name,
             schemas: owner.manifest.preferences + command.preferences)
         guard missing.isEmpty, let bundle = owner.bundleURL(for: command) else {
-            let message =
-                missing.isEmpty
+            let message = missing.isEmpty
                 ? ExtensionLaunchError.notBuilt(command.title).localizedDescription
                 : ExtensionLaunchError.missingPreferences(missing).localizedDescription
             controllers[entryID]?.showError(message)
@@ -238,8 +237,7 @@ final class ExtensionMenuBarManager: ExtensionRuntimeDelegate {
                 return
             }
             let queued = self.requests.firstIndex { $0.reference == reference && !$0.scheduled }
-            let request =
-                queued.map { self.requests.remove(at: $0) }
+            let request = queued.map { self.requests.remove(at: $0) }
                 ?? Request(reference: reference, type: .userInitiated)
             self.requests.removeAll { $0.reference == reference && $0.scheduled }
             self.requests.insert(request, at: 0)

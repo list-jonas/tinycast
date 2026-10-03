@@ -95,9 +95,7 @@ struct ExtensionStorePanel: View {
             Spacer()
             // Escape, not Return: Return belongs to the search field while typing.
             Button("Done", action: onClose)
-                .buttonStyle(
-                    ExtensionSettingsEditorButtonStyle(role: .cancel, fillsWidth: false)
-                )
+                .buttonStyle(ExtensionSettingsEditorButtonStyle(role: .cancel, fillsWidth: false))
                 .keyboardShortcut(.cancelAction)
         }
     }

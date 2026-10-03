@@ -120,8 +120,7 @@ struct ExtensionScreen: Equatable {
             let sectionType = root.type == "Grid" ? "Grid.Section" : "List.Section"
             let emptyType = root.type == "Grid" ? "Grid.EmptyView" : "List.EmptyView"
             emptyView = root.children.first { $0.type == emptyType }
-            let needle = FuzzyMatch.Query(
-                filtersLocally ? query.trimmingCharacters(in: .whitespaces) : "")
+            let needle = FuzzyMatch.Query(filtersLocally ? query.trimmingCharacters(in: .whitespaces) : "")
             var rows: [Row] = []
             var items: [Item] = []
             // Numbering as rows are built keeps `selection` and the drawn order in step.

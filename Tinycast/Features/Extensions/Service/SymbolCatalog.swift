@@ -76,14 +76,11 @@ struct SymbolCatalog: Sendable {
 
     /// Reads and filters the system catalog. Off the main actor: it parses ~700 KB of plists.
     nonisolated static func load() -> SymbolCatalog {
-        let base = URL(
-            fileURLWithPath:
-                "/System/Library/CoreServices/CoreGlyphs.bundle/Contents/Resources")
+        let base = URL(fileURLWithPath: "/System/Library/CoreServices/CoreGlyphs.bundle/Contents/Resources")
 
         func plist<T>(_ name: String, as type: T.Type) -> T? {
             guard let data = try? Data(contentsOf: base.appendingPathComponent(name)),
-                let value = try? PropertyListSerialization.propertyList(
-                    from: data, options: [], format: nil)
+                let value = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil)
             else { return nil }
             return value as? T
         }
@@ -92,8 +89,7 @@ struct SymbolCatalog: Sendable {
             return fallback
         }
         // Apple reserves ~600 for its own products; labelling with one misuses the mark.
-        let restricted = Set(
-            (plist("symbol_restrictions.strings", as: [String: String].self) ?? [:]).keys)
+        let restricted = Set((plist("symbol_restrictions.strings", as: [String: String].self) ?? [:]).keys)
         let categoriesBySymbol = plist("symbol_categories.plist", as: [String: [String]].self) ?? [:]
         let search = plist("symbol_search.plist", as: [String: [String]].self) ?? [:]
 

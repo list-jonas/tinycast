@@ -25,7 +25,6 @@ struct ExtensionCommandMetadata: Codable, Sendable, Equatable {
         lastError = try record.decodeIfPresent(String.self, forKey: .lastError)
         consecutiveFailures = try record.decodeIfPresent(Int.self, forKey: .consecutiveFailures) ?? 0
         menuBarEnabled = try record.decodeIfPresent(Bool.self, forKey: .menuBarEnabled) ?? false
-        menuBarSnapshot = try record.decodeIfPresent(
-            ExtensionMenuBarSnapshot.self, forKey: .menuBarSnapshot)
+        menuBarSnapshot = try record.decodeIfPresent(ExtensionMenuBarSnapshot.self, forKey: .menuBarSnapshot)
     }
 }

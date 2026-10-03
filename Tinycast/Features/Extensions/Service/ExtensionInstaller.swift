@@ -147,9 +147,7 @@ struct ExtensionInstaller: Sendable {
         // `ray` directly, `-o` never the source: a dev install would clear it.
         let build = try await run(
             ray,
-            arguments: [
-                "build", "-e", environment(for: source), "-o", output.path, "--non-interactive"
-            ],
+            arguments: ["build", "-e", environment(for: source), "-o", output.path, "--non-interactive"],
             in: source, node: node)
         guard build.status == 0 else {
             throw ExtensionStoreError.buildFailed(build.trimmedOutput)
@@ -171,8 +169,7 @@ struct ExtensionInstaller: Sendable {
 
     private func validated(_ directory: URL) throws -> URL {
         guard
-            FileManager.default.fileExists(
-                atPath: directory.appendingPathComponent("package.json").path)
+            FileManager.default.fileExists(atPath: directory.appendingPathComponent("package.json").path)
         else { throw ExtensionStoreError.notAnExtension }
         return directory
     }

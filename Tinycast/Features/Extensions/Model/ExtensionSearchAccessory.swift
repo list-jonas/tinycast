@@ -25,8 +25,7 @@ struct ExtensionSearchAccessory: Equatable {
         controlledValue = node.string("value")
         defaultValue = node.string("defaultValue")
         // Raycast keys the stored pick by the dropdown's own id; one per command needs no id.
-        storageKey =
-            node.bool("storeValue") == true ? (node.string("id") ?? "searchBarAccessory") : nil
+        storageKey = node.bool("storeValue") == true ? (node.string("id") ?? "searchBarAccessory") : nil
         placeholder = node.string("placeholder")
         tooltip = node.string("tooltip")
     }

@@ -18,8 +18,7 @@ struct ExtensionDateField: View {
 
     private var label: String {
         guard let value else { return "No Date" }
-        return ExtensionDateExpression.detail(
-            for: value, calendar: .current, includesTime: includesTime)
+        return ExtensionDateExpression.detail(for: value, calendar: .current, includesTime: includesTime)
     }
 
     /// What the control does, then whatever the extension explains about the field.
