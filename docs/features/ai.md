@@ -165,9 +165,9 @@ bottom with the model picker. ⌘J hands a Quick AI conversation to the window.
   search, so `boundedContext` can never separate a stored call from its result.
 - **Every HTTP request uses a private ephemeral `URLSession` with no URL cache.** Provider traffic must
   not create a second credential or response cache on disk.
-- **`Model/` stays Foundation-only.** `ai-provider-test` compiles the shipped provider models and pins
-  endpoints, request bodies, stream parsing, persistence repair, Codex protocol framing and both
-  CLI routes' MCP launch encodings. Request
+- **`Model/` stays Foundation-only.** `ai-provider-test`, `ai-stream-test` and `ai-cli-mcp-test`
+  compile the shipped provider models and pin endpoints and persistence repair, request bodies,
+  stream parsing and Codex protocol framing, and both CLI routes' MCP launch encodings. Request
   bodies are `AIRequestBody`'s, in `Model/`, precisely so a wrong shape fails a harness rather than a
   conversation. `installed-ai-test` runs the Claude, Grok, OpenCode and Cursor adapters against real
   subprocess stubs and pins their safety boundaries.
@@ -346,7 +346,7 @@ or `InstalledCLIProvider`. A consumer should hold neither settings nor credentia
 `selection` and `guardrails` overload lets Quick Actions pick its own route and ask for permissive
 content transformations without a second factory.
 
-`AIModelOption.groupedCatalog` is the Settings picker catalog for both AI and Quick Actions. Provider
+`AIModelOption.availableGroups` is the Settings picker catalog for both AI and Quick Actions. Provider
 sections, ordering and model labels therefore cannot drift between the panes. Each route stores its
 own complete `AIModelSelection`, including the selected reasoning effort for installed models and
 OpenRouter models that offer one.
@@ -584,13 +584,14 @@ window, and every chat action either surface sends — is the nineteenth feature
 - Drop a PDF on the pane with a text-only model selected: the HUD refuses it, as a paste would.
 - Collapse the sidebar with the toolbar button; ⌘N and ⌘Q (Close Window) still work, and ⌘Q with
   Settings in front closes Settings instead.
-- Harnesses: `ai-provider-test` (endpoints, request bodies, stream decoding including leading
-  think tags across content and SSE splits, persistence repair,
-  Codex framing, on-device routing, the two MCP launch encodings and the two consent channels, the
+- Harnesses: `ai-provider-test` (endpoints, persistence repair, on-device routing, the
   shown-model and switched-off-route rules, and a tool's override from settings to launch),
-  `ai-chat-test` (`ChatSession`, `MarkdownBlock` with its math delimiters, LaTeX subset and
-  mid-stream hold-back, `ChatHistoryStore` with renames and pins,
-  `AIToolLoopProvider`, regenerate, and `AIChatSurfacesState`'s one-live-place rule),
+  `ai-stream-test` (request bodies, stream decoding including leading think tags across content
+  and SSE splits, Codex framing and tool turns), `ai-cli-mcp-test` (the two MCP launch encodings
+  and the two consent channels), `chat-model-test` (`ChatSession`, `MarkdownBlock` with its math
+  delimiters, LaTeX subset and mid-stream hold-back), `chat-history-test` (`ChatHistoryStore` with
+  renames and pins), `ai-chat-test` (`AIToolLoopProvider`, regenerate, and
+  `AIChatSurfacesState`'s one-live-place rule),
   `codex-turn-test` (the Stop path, driven against a stub app-server stalled where Stop races the
   turn ID, plus the MCP launch boundary, one launch for concurrent starts, the elicitation, the
   rows, the call cap and a custom provider's access without an account),
@@ -752,7 +753,7 @@ guessed at, and a file past `AIAttachmentBudget.maxInlinedTextBytes` is refused 
 truncated — a silently truncated CSV is a lie the model then answers confidently.
 
 `AIAttachmentPolicy` is the one place deciding what may be attached and as what. It is pure and
-Foundation-only, so `ai-chat-test` pins it. It uses **extension allowlists rather than
+Foundation-only, so `chat-model-test` pins it. It uses **extension allowlists rather than
 `UTType.conforms(to:)`**: a machine's installed apps declare types, so a conformance answer differs
 between two Macs and would make a harness machine-dependent — the exact environment coupling
 `Model/` exists to keep out. Adding a type is a one-line change; a type answer that differs per Mac

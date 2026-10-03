@@ -488,9 +488,10 @@ private struct ChatDocumentChip: View {
     }
 }
 
-/// Decoded once per image off the render path; a streaming transcript re-renders every flush.
-struct ChatImageThumbnail: View {
+/// Downsampled off-main to the tile, so a transcript never holds a photo's full-size bitmap.
+private struct ChatImageThumbnail: View {
     @Environment(\.metrics) private var metrics
+    @Environment(\.displayScale) private var displayScale
     let image: AIImage
     let edge: CGFloat
     @State private var decoded: NSImage?
@@ -507,7 +508,32 @@ struct ChatImageThumbnail: View {
         }
         .frame(width: edge, height: edge)
         .clipShape(RoundedRectangle(cornerRadius: metrics.radius.row, style: .continuous))
-        .task(id: image) { decoded = NSImage(data: image.data) }
+        .task(id: image) {
+            let data = image.data
+            let pixels = edge * displayScale
+            let thumbnail = await Task.detached(priority: .userInitiated) {
+                Self.thumbnail(of: data, filling: pixels)
+            }.value
+            decoded = thumbnail.map { NSImage(cgImage: $0, size: .zero) } ?? NSImage(data: data)
+        }
+    }
+
+    /// The tile is filled, so the short side, not the long one, must reach the pixel size.
+    nonisolated private static func thumbnail(of data: Data, filling pixels: CGFloat) -> CGImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+            let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+            let width = properties[kCGImagePropertyPixelWidth] as? CGFloat,
+            let height = properties[kCGImagePropertyPixelHeight] as? CGFloat,
+            min(width, height) > 0
+        else { return nil }
+        let longest = max(width, height) * min(1, pixels / min(width, height))
+        return CGImageSourceCreateThumbnailAtIndex(
+            source, 0,
+            [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceThumbnailMaxPixelSize: longest.rounded(.up)
+            ] as CFDictionary)
     }
 }
 

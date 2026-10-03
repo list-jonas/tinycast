@@ -113,7 +113,7 @@ final class ChatSelectableTextView: NSTextView {
         needsDisplay = true
     }
 
-    /// `nil` is the ideal width. SwiftUI asks the same width repeatedly, so the last answer is kept.
+    /// `nil` is the ideal width. SwiftUI asks one width repeatedly, so the last answer is kept.
     func measure(width: CGFloat?) -> CGSize {
         if let measured, measured.width == width { return measured.size }
         measuringContainer.size = CGSize(

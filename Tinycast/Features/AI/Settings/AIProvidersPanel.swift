@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// One entry of the Providers list: the on-device model, an installed command, or an API connection.
+/// A Providers list entry: the on-device model, an installed command, or an API connection.
 enum AIProviderRoute: Hashable {
     case appleIntelligence
     case installed(InstalledAIKind)
@@ -367,18 +367,9 @@ struct AIProvidersPanel: View {
                 Text(modelCount(subscription.models.count) + " available")
             }
             if let account = subscription.account {
-                LabeledContent {
-                    Text(account.planTitle == "API key" ? "Codex API key" : "ChatGPT \(account.planTitle)")
-                        .foregroundStyle(.secondary)
-                } label: {
-                    Text("Account")
-                    if let email = account.email {
-                        RedactedText(
-                            value: email,
-                            revealHelp: "Click to reveal the signed-in account",
-                            hideHelp: "Click to hide the signed-in account")
-                    }
-                }
+                accountRow(
+                    email: account.email,
+                    plan: account.planTitle == "API key" ? "Codex API key" : "ChatGPT \(account.planTitle)")
             }
             if let limits = subscription.rateLimits {
                 if let primary = limits.primary { usageRow(primary, fallbackTitle: "Primary window") }
@@ -388,15 +379,8 @@ struct AIProvidersPanel: View {
             }
             if let executable = subscription.executable { commandRow(executable) }
         case .unavailable(let message):
-            LabeledContent {
-                HStack(spacing: Theme.Spacing.sm) {
-                    Button("Install Codex CLI…") { NSWorkspace.shared.open(InstalledAIKind.codex.installURL) }
-                    Button("Check Again") { subscription.refresh() }
-                }
-                .fixedSize()
-            } label: {
-                Text("Not installed")
-                Text(message)
+            notInstalledRow(.codex, install: "Install Codex CLI…", detail: message) {
+                subscription.refresh()
             }
         case .failed(let message):
             failedRow(message, retry: { subscription.refresh() })
@@ -416,24 +400,34 @@ struct AIProvidersPanel: View {
                 Text("Ready")
                 Text(modelCount(status.models.count) + " available")
             }
-            if let account = status.account { accountRow(account, kind: kind) }
+            if let account = status.account {
+                accountRow(email: account.email, plan: account.planTitle.map { "\(kind.title) \($0)" })
+            }
         case .signInRequired:
             signInRow(kind, check: { installedAI.refresh(kind: kind) })
         case .notInstalled:
-            LabeledContent {
-                HStack(spacing: Theme.Spacing.sm) {
-                    Button("Install…") { NSWorkspace.shared.open(kind.installURL) }
-                    Button("Check Again") { installedAI.refresh(kind: kind) }
-                }
-                .fixedSize()
-            } label: {
-                Text("Not installed")
-                Text("Tinycast could not find the \(kind.command) command.")
-            }
+            notInstalledRow(
+                kind, install: "Install…", detail: "Tinycast could not find the \(kind.command) command."
+            ) { installedAI.refresh(kind: kind) }
         case .failed(let message):
             failedRow(message, retry: { installedAI.refresh(kind: kind) })
         }
         if let executable = status.executable { commandRow(executable) }
+    }
+
+    private func notInstalledRow(
+        _ kind: InstalledAIKind, install: String, detail: String, check: @escaping () -> Void
+    ) -> some View {
+        LabeledContent {
+            HStack(spacing: Theme.Spacing.sm) {
+                Button(install) { NSWorkspace.shared.open(kind.installURL) }
+                Button("Check Again", action: check)
+            }
+            .fixedSize()
+        } label: {
+            Text("Not installed")
+            Text(detail)
+        }
     }
 
     private func commandRow(_ executable: URL) -> some View {
@@ -447,14 +441,12 @@ struct AIProvidersPanel: View {
         }
     }
 
-    private func accountRow(_ account: InstalledAIAccount, kind: InstalledAIKind) -> some View {
+    private func accountRow(email: String?, plan: String?) -> some View {
         LabeledContent {
-            if let plan = account.planTitle {
-                Text("\(kind.title) \(plan)").foregroundStyle(.secondary)
-            }
+            if let plan { Text(plan).foregroundStyle(.secondary) }
         } label: {
             Text("Account")
-            if let email = account.email {
+            if let email {
                 RedactedText(
                     value: email,
                     revealHelp: "Click to reveal the signed-in account",
@@ -520,14 +512,8 @@ struct AIProvidersPanel: View {
             ?? "Uses the \(kind.command) command signed in on this Mac. Its keys are never stored."
     }
 
-    private func installedModels(_ kind: InstalledAIKind) -> [ProviderModel] {
-        if kind == .codex {
-            guard subscription.isConnected else { return [] }
-            return subscription.models.map { ProviderModel(id: $0.id, name: $0.name) }
-        }
-        let status = installedAI.status(for: kind)
-        guard status.isReady else { return [] }
-        return status.models.map { ProviderModel(id: $0.id, name: $0.name) }
+    private func installedModels(_ kind: InstalledAIKind) -> [InstalledAIModel] {
+        AIModelOption.models(of: kind, subscription: subscription, installedAI: installedAI)
     }
 
     // MARK: API connections
@@ -540,7 +526,7 @@ struct AIProvidersPanel: View {
         if tab == .models {
             modelsSection(
                 route: .api(connection.id),
-                models: connection.models.map { ProviderModel(id: $0, name: $0) })
+                models: connection.models.map { InstalledAIModel(id: $0, name: $0) })
         } else {
             connectionSection(connection)
         }
@@ -578,7 +564,7 @@ struct AIProvidersPanel: View {
     // MARK: Models
 
     @ViewBuilder
-    private func modelsSection(route: AIProviderRoute, models: [ProviderModel]) -> some View {
+    private func modelsSection(route: AIProviderRoute, models: [InstalledAIModel]) -> some View {
         if models.isEmpty {
             Section {
                 Text("Models are listed here once \(title(for: route)) is ready.")
@@ -634,7 +620,7 @@ struct AIProvidersPanel: View {
     /// Past a screenful, OpenCode alone lists hundreds, so the list gets the Settings filter row.
     private static let filterThreshold = 8
 
-    private func filtered(_ models: [ProviderModel]) -> [ProviderModel] {
+    private func filtered(_ models: [InstalledAIModel]) -> [InstalledAIModel] {
         let query = modelQuery.trimmingCharacters(in: .whitespaces)
         guard !query.isEmpty else { return models }
         return models.filter {
@@ -713,15 +699,11 @@ struct AIProvidersPanel: View {
     private func icon(for route: AIProviderRoute) -> PopoverMenuIcon {
         switch route {
         case .appleIntelligence: return AIModelOption.appleIntelligenceIcon
-        case .installed(.codex): return .asset(AIBrand.openAI.assetName)
-        case .installed(.claude): return .asset(AIBrand.claude.assetName)
-        case .installed(.grok): return .asset(AIBrand.grok.assetName)
-        case .installed(.openCode): return .asset(AIBrand.openCode.assetName)
-        case .installed(.cursor): return AIModelOption.cursorIcon
+        case .installed(let kind): return AIModelOption.icon(for: kind)
         case .api(let id):
             guard let connection = settings.connection(id: id) else { return .symbol("sparkles") }
-            // OpenRouter is its own brand; resolving by model would show whichever vendor came first.
-            if connection.provider == .openRouter { return .asset(AIBrand.openRouter.assetName) }
+            // OpenRouter is its own brand; resolving by model shows whichever vendor came first.
+            if connection.provider == .openRouter { return AIModelOption.icon(.openRouter) }
             return AIModelOption.icon(
                 AIBrand.resolve(provider: connection.provider, model: connection.models.first ?? ""))
         }
@@ -847,12 +829,6 @@ struct AIProvidersPanel: View {
             keyError = true
         }
     }
-}
-
-/// A model row's content, whichever of the three catalogue shapes it came from.
-private struct ProviderModel: Identifiable {
-    let id: String
-    let name: String
 }
 
 /// The list and header glyph: a brand mark or symbol on the tile `SettingsTabIcon` draws.

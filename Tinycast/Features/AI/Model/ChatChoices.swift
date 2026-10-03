@@ -25,7 +25,7 @@ enum ChatChoices {
         return (prose, Array(choices.prefix(maxCount)))
     }
 
-    /// The on-device model's fenceless form: a lone `choices` line, then only list items to the end.
+    /// The on-device model's fenceless form: a lone `choices` line, then only list items after.
     private static func labelled(_ text: String) -> (text: String, choices: [String])? {
         var lines = text.components(separatedBy: "\n")
         while let last = lines.last, last.trimmingCharacters(in: .whitespaces).isEmpty { lines.removeLast() }

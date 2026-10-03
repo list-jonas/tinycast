@@ -373,13 +373,9 @@ final class AIChatCoordinator {
         case .appleIntelligence?: return .appleIntelligence
         case .codex?: return .codex
         case .claude?: return .claudeCommand
-        case .grok?, .openCode?, .cursor?:
-            return AIModelCapabilities(
-                images: false, documents: false, webSearch: false, tools: false)
         case .api(let connection, let model, _)?:
-            return core.aiSettings.connection(id: connection)?.capabilities(for: model)
-                ?? AIModelCapabilities.none
-        case nil: return AIModelCapabilities.none
+            return core.aiSettings.connection(id: connection)?.capabilities(for: model) ?? .none
+        case .grok?, .openCode?, .cursor?, nil: return .none
         }
     }
 
@@ -414,7 +410,7 @@ final class AIChatCoordinator {
     /// ⌘V stages a file, read off-main; false hands the chord back to the field editor.
     func attachPastedFile(files: [URL], to chat: AIChatState) -> Bool {
         let pasteboard = NSPasteboard.general
-        // A copied text selection often carries a TIFF too; only a board with no string is a picture.
+        // A copied selection often carries a TIFF too; only a board with no string is a picture.
         let pasted =
             files.isEmpty && pasteboard.string(forType: .string) == nil
             ? pasteboard.availableType(from: [.png, .tiff]).flatMap { pasteboard.data(forType: $0) }
@@ -592,22 +588,8 @@ final class AIChatCoordinator {
         modelIcon(of: model(for: chat))
     }
 
-    /// From the selection, not the loaded list: the list arrives after the picker first paints.
     func modelIcon(of selected: AIModelSelection?) -> PopoverMenuIcon {
-        switch selected {
-        case .appleIntelligence?: return AIModelOption.appleIntelligenceIcon
-        case .codex?: return .asset(AIBrand.openAI.assetName)
-        case .claude?: return .asset(AIBrand.claude.assetName)
-        case .grok?: return .asset(AIBrand.grok.assetName)
-        case .cursor?: return AIModelOption.cursorIcon
-        case .openCode(let model, _)?: return AIModelOption.icon(AIBrand.resolve(model: model))
-        case .api(let connection, let model, _)?:
-            return AIModelOption.icon(
-                core.aiSettings.connection(id: connection).flatMap {
-                    AIBrand.resolve(provider: $0.provider, model: model)
-                })
-        case nil: return AIModelOption.icon(nil)
-        }
+        AIModelOption.icon(of: selected, settings: core.aiSettings)
     }
 
     /// What entering chat costs once: the model list resolved, and the servers connected.

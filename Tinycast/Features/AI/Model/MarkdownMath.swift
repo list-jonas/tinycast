@@ -100,7 +100,7 @@ enum MarkdownMath {
     {
         var index = start
         while index + closer.count <= characters.count, characters[index] != "`" {
-            if Array(characters[index..<index + closer.count]) == closer { return index }
+            if characters[index..<index + closer.count].elementsEqual(closer) { return index }
             index += characters[index] == "\\" ? 2 : 1
         }
         return nil

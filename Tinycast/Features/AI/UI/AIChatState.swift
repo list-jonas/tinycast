@@ -165,8 +165,12 @@ final class AIChatState {
     }
 
     func startNewChat() {
+        replace(with: ChatSession())
+    }
+
+    private func replace(with session: ChatSession) {
         cancel()
-        session = ChatSession()
+        self.session = session
         notice = nil
         clearStaging()
     }
@@ -176,20 +180,12 @@ final class AIChatState {
     func open(id: UUID) -> Bool {
         if session.id == id, !session.messages.isEmpty { return true }
         guard let loaded = history.session(id: id) else { return false }
-        cancel()
-        session = loaded
-        notice = nil
-        clearStaging()
+        replace(with: loaded)
         return true
     }
 
     func delete(id: UUID) {
-        if session.id == id {
-            cancel()
-            session = ChatSession()
-            notice = nil
-            clearStaging()
-        }
+        if session.id == id { startNewChat() }
         history.remove(id: id)
     }
 
@@ -228,44 +224,50 @@ final class AIChatState {
             scheduleFlush()
         case .searching(let query):
             flushPendingText()
-            guard var message = session.messages.last, message.role == .assistant else { return }
-            isThinking = false
-            message.searches.append(
-                ChatSearch(
-                    query: query, isComplete: false, textOffset: message.text.count,
-                    sequence: message.nextSequence))
-            session.replaceLast(with: message)
+            updateReply { message in
+                isThinking = false
+                message.searches.append(
+                    ChatSearch(
+                        query: query, isComplete: false, textOffset: message.text.count,
+                        sequence: message.nextSequence))
+            }
         case .searched(let query):
             flushPendingText()
-            guard var message = session.messages.last, message.role == .assistant else { return }
-            if let index = message.searches.lastIndex(where: { !$0.isComplete }) {
-                message.searches[index].query = message.searches[index].query ?? query
+            updateReply { message in
+                if let index = message.searches.lastIndex(where: { !$0.isComplete }) {
+                    message.searches[index].query = message.searches[index].query ?? query
+                }
+                message.searches = message.searches.map { Self.completed($0) }
             }
-            message.searches = message.searches.map { Self.completed($0) }
-            session.replaceLast(with: message)
         case .toolCall(let id, let origin, let title):
             flushPendingText()
-            guard var message = session.messages.last, message.role == .assistant else { return }
-            isThinking = false
-            message.toolUses.append(
-                ChatToolUse(
-                    callID: id, origin: origin, title: title, state: .running,
-                    textOffset: message.text.count, sequence: message.nextSequence))
-            session.replaceLast(with: message)
+            updateReply { message in
+                isThinking = false
+                message.toolUses.append(
+                    ChatToolUse(
+                        callID: id, origin: origin, title: title, state: .running,
+                        textOffset: message.text.count, sequence: message.nextSequence))
+            }
         case .toolResult(let id, let isError):
-            guard var message = session.messages.last, message.role == .assistant else { return }
-            guard let index = message.toolUses.lastIndex(where: { $0.callID == id }) else { return }
-            message.toolUses[index].state = isError ? .failed : .completed
-            session.replaceLast(with: message)
+            guard session.messages.last?.toolUses.contains(where: { $0.callID == id }) == true
+            else { return }
+            updateReply { message in
+                guard let index = message.toolUses.lastIndex(where: { $0.callID == id }) else { return }
+                message.toolUses[index].state = isError ? .failed : .completed
+            }
         case .toolCallRequested:
             break
         case .usage(let usage):
-            guard var message = session.messages.last, message.role == .assistant else { return }
-            message.usage = usage
-            session.replaceLast(with: message)
+            updateReply { $0.usage = usage }
         case .finished:
             finishLast(state: .complete, fallback: "No response")
         }
+    }
+
+    private func updateReply(_ change: (inout ChatMessage) -> Void) {
+        guard var message = session.messages.last, message.role == .assistant else { return }
+        change(&message)
+        session.replaceLast(with: message)
     }
 
     /// A due leading flush keeps the first token instant; the trailing task coalesces the rest.

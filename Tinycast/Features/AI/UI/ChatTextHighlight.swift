@@ -46,7 +46,7 @@ extension View {
 
 extension EnvironmentValues {
     @Entry var chatTextHighlight: ChatTextHighlight?
-    /// Where the enclosing view sits in its message, built the way `ChatFindIndex.leaves` builds it.
+    /// Where the enclosing view sits in its message, built as `ChatFindIndex.leaves` builds it.
     @Entry var chatFindPath: [Int] = []
     /// A reply's source numbers by URL key; empty everywhere but a finished reply with sources.
     @Entry var chatCitations: [String: Int] = [:]

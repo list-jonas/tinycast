@@ -236,7 +236,7 @@ final class InstalledAIManager {
                 executable: executable, arguments: claudeControlArguments, workspace: workspace,
                 environment: environment,
                 input: Data(InstalledAIModel.claudeInitializeRequest.utf8),
-                // The reader's SessionStart hooks run before the CLI answers, however slow they are.
+                // The reader's SessionStart hooks run before the CLI answers, however slow.
                 timeout: .seconds(30))
             let models = InstalledAIModel.claudeCatalog(catalog.output)
             return (

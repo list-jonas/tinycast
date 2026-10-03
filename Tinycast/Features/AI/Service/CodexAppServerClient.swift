@@ -192,7 +192,7 @@ final class CodexAppServerClient {
         process.currentDirectoryURL = workspace
         var environment = ExecutableLocator.environment(
             running: executable, adding: secrets, inherited: inherited)
-        // Tests can isolate app-server state; production deliberately inherits the user's Codex home.
+        // Tests can isolate app-server state; production inherits the user's own Codex home.
         if let codexHome { environment["CODEX_HOME"] = codexHome.path }
         process.environment = environment
         process.standardInput = stdin

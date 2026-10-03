@@ -8,119 +8,40 @@ struct AIModelOption: Identifiable {
 
     static let appleIntelligenceIcon = PopoverMenuIcon.symbol("apple.intelligence")
 
+    /// Every route the Mac can reach, on-device first: it is the one an unconfigured Mac has.
     @MainActor
     static func availableGroups(
         settings: AISettingsStore, subscription: ChatGPTSubscriptionManager,
         installedAI: InstalledAIManager
     ) -> [AIModelOptionGroup] {
-        let enabled = settings.enabledInstalledProviders
-        let claude = installedAI.status(for: .claude)
-        let grok = installedAI.status(for: .grok)
-        let openCode = installedAI.status(for: .openCode)
-        let cursor = installedAI.status(for: .cursor)
         // The default stays listed even when unticked, or the picker could not show what it holds.
         func shown(_ model: String, _ source: AIModelSource) -> Bool {
             settings.isModelShown(model, in: source)
                 || (settings.defaultModel?.source == source && settings.defaultModel?.model == model)
         }
-        func shown(_ models: [InstalledAIModel], _ source: AIModelSource) -> [InstalledAIModel] {
-            models.filter { shown($0.id, source) }
-        }
-        return groupedCatalog(
-            appleIntelligence: settings.isAppleIntelligenceAvailable()
-                && settings.isRouteEnabled(.appleIntelligence),
-            codex: enabled.contains(.codex) && subscription.isConnected
-                ? subscription.models.filter { shown($0.id, .codex) } : [],
-            claude: enabled.contains(.claude) && claude.isReady ? shown(claude.models, .claude) : [],
-            grok: enabled.contains(.grok) && grok.isReady ? shown(grok.models, .grok) : [],
-            openCode: enabled.contains(.openCode) && openCode.isReady
-                ? shown(openCode.models, .openCode) : [],
-            cursor: enabled.contains(.cursor) && cursor.isReady ? shown(cursor.models, .cursor) : [],
-            connections: settings.connections.compactMap { connection in
-                guard settings.isRouteEnabled(.api(connection.id)) else { return nil }
-                var trimmed = connection
-                trimmed.models.removeAll { !shown($0, .api(connection.id)) }
-                return trimmed
-            })
-    }
-
-    /// An unrecognised model keeps the generic sparkle rather than borrowing someone's mark.
-    static func icon(_ brand: AIBrand?) -> PopoverMenuIcon {
-        brand.map { .asset($0.assetName) } ?? .symbol("sparkles")
-    }
-
-    static let cursorIcon = PopoverMenuIcon.asset(AIBrand.cursor.assetName)
-
-    /// Every route the Mac can reach, on-device first: it is the one an unconfigured Mac has.
-    private static func catalog(
-        appleIntelligence: Bool,
-        codex: [ChatGPTSubscription.Model],
-        claude: [InstalledAIModel],
-        grok: [InstalledAIModel],
-        openCode: [InstalledAIModel],
-        cursor: [InstalledAIModel],
-        connections: [AIConnection]
-    ) -> [AIModelOption] {
-        let onDevice =
-            appleIntelligence
-            ? [
+        var options: [AIModelOption] = []
+        func add(_ selection: AIModelSelection, _ title: String, _ sourceTitle: String) {
+            options.append(
                 AIModelOption(
-                    selection: .appleIntelligence, title: AppleIntelligence.title,
-                    sourceTitle: "On device", menuIcon: appleIntelligenceIcon)
-            ] : []
-        let codex = codex.map { model in
-            AIModelOption(
-                selection: .codex(model: model.id, effort: nil),
-                title: model.name,
-                sourceTitle: "Codex",
-                menuIcon: .asset(AIBrand.openAI.assetName))
+                    selection: selection, title: title, sourceTitle: sourceTitle,
+                    menuIcon: icon(of: selection, settings: settings)))
         }
-        let claude = claude.map { model in
-            AIModelOption(
-                selection: .claude(model: model.id, effort: nil), title: model.name,
-                sourceTitle: "Claude", menuIcon: .asset(AIBrand.claude.assetName))
+        if settings.isAppleIntelligenceAvailable(), settings.isRouteEnabled(.appleIntelligence) {
+            add(.appleIntelligence, AppleIntelligence.title, "On device")
         }
-        let grok = grok.map { model in
-            AIModelOption(
-                selection: .grok(model: model.id, effort: nil), title: model.name,
-                sourceTitle: "Grok", menuIcon: .asset(AIBrand.grok.assetName))
-        }
-        let openCode = openCode.map { model in
-            AIModelOption(
-                selection: .openCode(model: model.id, effort: nil), title: model.name,
-                sourceTitle: "OpenCode", menuIcon: icon(AIBrand.resolve(model: model.id)))
-        }
-        let cursor = cursor.map { model in
-            AIModelOption(
-                selection: .cursor(model: model.id, effort: nil), title: model.name,
-                sourceTitle: "Cursor", menuIcon: cursorIcon)
-        }
-        let api = connections.flatMap { connection in
-            connection.models.map { model in
-                AIModelOption(
-                    selection: .api(connection: connection.id, model: model, effort: nil),
-                    title: model,
-                    sourceTitle: connection.title,
-                    menuIcon: icon(AIBrand.resolve(provider: connection.provider, model: model)))
+        for kind in InstalledAIKind.allCases where settings.enabledInstalledProviders.contains(kind) {
+            for model in models(of: kind, subscription: subscription, installedAI: installedAI)
+            where shown(model.id, kind.source) {
+                add(.installed(kind, model: model.id, effort: nil), model.name, kind.title)
             }
         }
-        return onDevice + codex + claude + grok + openCode + cursor + api
-    }
-
-    private static func groupedCatalog(
-        appleIntelligence: Bool,
-        codex: [ChatGPTSubscription.Model],
-        claude: [InstalledAIModel],
-        grok: [InstalledAIModel],
-        openCode: [InstalledAIModel],
-        cursor: [InstalledAIModel],
-        connections: [AIConnection]
-    ) -> [AIModelOptionGroup] {
+        for connection in settings.connections where settings.isRouteEnabled(.api(connection.id)) {
+            for model in connection.models where shown(model, .api(connection.id)) {
+                add(.api(connection: connection.id, model: model, effort: nil), model, connection.title)
+            }
+        }
         var groups: [AIModelOptionGroup] = []
-        for option in catalog(
-            appleIntelligence: appleIntelligence, codex: codex, claude: claude, grok: grok,
-            openCode: openCode, cursor: cursor, connections: connections)
-        {
+        for option in options {
             if groups.last?.id == option.selection.source {
                 groups[groups.count - 1].options.append(option)
             } else {
@@ -133,7 +54,52 @@ struct AIModelOption: Identifiable {
         return groups
     }
 
-    /// The model list only names a route; the effort it comes with is the one that route defaults to.
+    /// A route's catalogue while it is usable: Codex's from its app-server, the rest from a probe.
+    @MainActor
+    static func models(
+        of kind: InstalledAIKind, subscription: ChatGPTSubscriptionManager,
+        installedAI: InstalledAIManager
+    ) -> [InstalledAIModel] {
+        guard kind != .codex else {
+            guard subscription.isConnected else { return [] }
+            return subscription.models.map { InstalledAIModel(id: $0.id, name: $0.name) }
+        }
+        let status = installedAI.status(for: kind)
+        return status.isReady ? status.models : []
+    }
+
+    /// An unrecognised model keeps the generic sparkle rather than borrowing someone's mark.
+    static func icon(_ brand: AIBrand?) -> PopoverMenuIcon {
+        brand.map { .asset($0.assetName) } ?? .symbol("sparkles")
+    }
+
+    static func icon(for kind: InstalledAIKind) -> PopoverMenuIcon {
+        switch kind {
+        case .codex: return icon(.openAI)
+        case .claude: return icon(.claude)
+        case .grok: return icon(.grok)
+        case .openCode: return icon(.openCode)
+        case .cursor: return icon(.cursor)
+        }
+    }
+
+    /// From the selection, not the loaded list: the list arrives after the picker first paints.
+    @MainActor
+    static func icon(of selected: AIModelSelection?, settings: AISettingsStore) -> PopoverMenuIcon {
+        switch selected {
+        case .appleIntelligence?: return appleIntelligenceIcon
+        case .openCode(let model, _)?: return icon(AIBrand.resolve(model: model))
+        case .api(let connection, let model, _)?:
+            return icon(
+                settings.connection(id: connection).flatMap {
+                    AIBrand.resolve(provider: $0.provider, model: model)
+                })
+        case let selected?: return selected.source.installedKind.map(icon(for:)) ?? icon(nil)
+        case nil: return icon(nil)
+        }
+    }
+
+    /// The model list only names a route; the effort it comes with is that route's default.
     @MainActor
     static func withDefaultEffort(
         _ selection: AIModelSelection, settings: AISettingsStore,
