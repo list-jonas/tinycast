@@ -51,8 +51,6 @@ struct KeyShortcut: Hashable, Sendable {
         return carbon
     }
 
-    // MARK: - The Hyper chord
-
     /// ⌃⌥⌘, plus ⇧ when Include Shift is on — the one place the chord is spelled out.
     static func hyperChord(includesShift: Bool) -> NSEvent.ModifierFlags {
         includesShift ? [.control, .option, .shift, .command] : [.control, .option, .command]
@@ -94,8 +92,6 @@ struct KeyShortcut: Hashable, Sendable {
     }
 
     private static let allModifiers = cmdKey | optionKey | controlKey | shiftKey | kEventKeyModifierFnMask
-
-    // MARK: - Key glyph
 
     /// A fixed table for keys with no character, else translated through the current layout.
     @MainActor private var keyGlyph: String {

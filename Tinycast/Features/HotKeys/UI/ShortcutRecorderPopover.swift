@@ -97,8 +97,6 @@ struct ShortcutRecorderPopover: View {
     }
 }
 
-// MARK: - Host
-
 /// Draws the open recorder's callout over the pane, where the pane's `ScrollView` can't clip it.
 private struct ShortcutRecorderPopoverHost: ViewModifier {
     @Environment(HotKeyManager.self) private var hotKeys
