@@ -32,7 +32,7 @@ function SwitchGlyph({ isOn }: { isOn: boolean }) {
 function SwitchCard({ icon, name, note, isOn }: DefaultSwitch) {
   const Icon = featureIcons[icon];
   return (
-    <li className="flex flex-col rounded-xl bg-canvas p-4">
+    <li className="card-well flex flex-col rounded-[18px] p-4">
       <span className="flex items-center justify-between">
         <span
           className={cn(
@@ -59,7 +59,6 @@ export function Privacy() {
   return (
     <Section
       id="privacy"
-      index={3}
       label="Privacy"
       title="Off until you turn it on."
       intro="A new install has the launcher, the calculator and clipboard history. Everything else stays off until you enable it, and nothing needs an account."
@@ -68,15 +67,18 @@ export function Privacy() {
         {privacyStats.map((stat) => (
           <div
             key={stat.label}
-            className="flex flex-col-reverse rounded-xl bg-tint/4 px-5 py-4"
+            data-spotlight
+            className="card flex flex-col-reverse px-6 py-5"
           >
-            <dt className="text-small text-fg-muted">{stat.label}</dt>
-            <dd className="text-heading text-fg">{stat.value}</dd>
+            <dt className="mt-1 text-small text-fg-muted">{stat.label}</dt>
+            <dd className="text-stat tracking-[-0.04em] text-fg">
+              {stat.value}
+            </dd>
           </div>
         ))}
       </dl>
 
-      <figure className="mt-4 rounded-2xl bg-tint/4 p-2">
+      <figure className="card mt-4 p-2">
         <figcaption className="flex items-center justify-between gap-3 px-3 pb-3 pt-2.5">
           <span className="text-small font-medium text-fg">
             Default settings

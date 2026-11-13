@@ -6,7 +6,6 @@ export function Keyboard() {
   return (
     <Section
       id="keyboard"
-      index={4}
       label="Keyboard"
       title="Built for the keyboard."
       intro="Choose one shortcut to open the palette. Everything else has a key, and shortcuts follow key position, so they work with any keyboard layout."
@@ -15,19 +14,24 @@ export function Keyboard() {
         {shortcutRows.map((row) => (
           <div
             key={row.does}
-            className="flex flex-col gap-3 rounded-xl bg-tint/4 p-4"
+            data-spotlight
+            className="card group flex flex-col gap-5 p-5"
           >
-            <dt>
-              {/* The sans stack, not mono: no monospace face draws ⌘ ⌥ ⇧. */}
-              <kbd className="inline-flex h-7 min-w-9 items-center justify-center gap-1 whitespace-nowrap rounded-md border border-border bg-surface px-2 font-sans text-small font-medium text-fg shadow-cap">
-                {row.keys.join(" ")}
-              </kbd>
+            <dt className="flex gap-1.5">
+              {row.keys.map((key) => (
+                <kbd
+                  key={key}
+                  className="deck-key flex h-11 min-w-11 items-center justify-center rounded-[10px] px-3 text-small font-medium group-hover:translate-y-0.5"
+                >
+                  {key}
+                </kbd>
+              ))}
             </dt>
             <dd className="text-small text-fg-muted">{row.does}</dd>
           </div>
         ))}
       </dl>
-      <p className="mt-4 text-small text-fg-muted">
+      <p className="mt-6 text-small text-fg-muted">
         Every other key, one table per screen, is in{" "}
         <Link
           href="/docs/reference/shortcuts"

@@ -11,6 +11,7 @@ import { Support } from "../components/support";
 import { Switch } from "../components/switch";
 import { RevealOnScroll } from "../components/ui/reveal-on-scroll";
 import { ScrollTop } from "../components/ui/scroll-top";
+import { Spotlight } from "../components/ui/spotlight";
 
 export default function HomePage() {
   return (
@@ -18,7 +19,7 @@ export default function HomePage() {
       <Nav />
       {/* The hero's grid and the logo wall both reach the window edges and set
           their own inner width, so the page width lives on the group below. */}
-      <main>
+      <main id="main">
         <Hero />
         <LogoWall />
         <div className="mx-auto max-w-7xl">
@@ -36,6 +37,7 @@ export default function HomePage() {
       <Footer />
       <ScrollTop />
       <RevealOnScroll />
+      <Spotlight />
     </>
   );
 }

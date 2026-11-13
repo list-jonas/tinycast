@@ -78,7 +78,6 @@ Tinycast is **free, and it stays that way**. If you enjoy it, consider buying a 
 First, add the tap:
 
 ```sh
-brew trust --tap abue-ammar/tinycast   # required for third-party taps
 brew tap abue-ammar/tinycast
 ```
 

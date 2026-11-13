@@ -192,7 +192,7 @@ function ReleaseEntry({
             </a>
           </h2>
           {latest && (
-            <span className="rounded-full bg-violet/15 px-2 py-0.5 font-mono text-micro uppercase text-violet-bright">
+            <span className="rounded-full bg-violet/15 px-2 py-0.5 font-mono text-micro uppercase text-accent">
               {changelogCopy.latest}
             </span>
           )}
@@ -299,7 +299,7 @@ function EarlierReleases({ releases }: { releases: StableRelease[] }) {
 function Intro() {
   return (
     <header className="rise max-w-2xl">
-      <p className="font-mono text-eyebrow uppercase text-violet-bright">
+      <p className="text-small font-medium text-accent">
         {changelogHero.eyebrow}
       </p>
       <h1 className="mt-4 text-display text-fg">{changelogHero.title}</h1>

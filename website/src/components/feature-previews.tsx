@@ -3,17 +3,14 @@ import {
   Cpu,
   FileCode2,
   FileText,
-  Ghost,
   Image as ImageIcon,
   LayoutGrid,
-  Link2,
   Paperclip,
   Search,
 } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
 import type { FeaturePreview } from "../data/features";
 import { cn } from "../lib/cn";
-import { GitHubLogo } from "./ui/icon";
 
 // Small illustrations of each feature, drawn in HTML so they follow the theme.
 // Every label is a real string from the app or its docs.
@@ -27,18 +24,10 @@ function Caret() {
   );
 }
 
-function IconTile({
-  icon: Icon,
-  tint,
-}: {
-  icon: ComponentType<{ size?: number }>;
-  tint: string;
-}) {
+// A clipboard entry's type, on the neutral tile the app draws for it.
+function TypeTile({ icon: Icon }: { icon: ComponentType<{ size?: number }> }) {
   return (
-    <span
-      className="flex size-6 shrink-0 items-center justify-center rounded-md text-white"
-      style={{ background: tint }}
-    >
+    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-tint/8 text-fg-muted">
       <Icon size={13} />
     </span>
   );
@@ -46,31 +35,16 @@ function IconTile({
 
 function LauncherPreview() {
   const rows = [
-    {
-      name: "Ghostty",
-      kind: "Application",
-      icon: Ghost,
-      tint: "linear-gradient(160deg, #3d5afe, #0d1b6e)",
-    },
-    {
-      name: "GitHub Desktop",
-      kind: "Application",
-      icon: GitHubLogo,
-      tint: "linear-gradient(160deg, #a875ff, #5b12bd)",
-    },
-    {
-      name: "Search GitHub",
-      kind: "Quicklink",
-      icon: Link2,
-      tint: "linear-gradient(160deg, #47bfff, #1769aa)",
-    },
+    { name: "Terminal", icon: "/app-icons/terminal.webp" },
+    { name: "TextEdit", icon: "/app-icons/textedit.webp" },
+    { name: "TestFlight", icon: "/app-icons/testflight.webp" },
   ];
   return (
     <div className="flex h-full flex-col">
       <p className="flex items-center gap-2 px-2 pb-2 text-body text-fg">
         <Search size={15} className="text-fg-muted" aria-hidden="true" />
         <span>
-          gh
+          te
           <Caret />
         </span>
       </p>
@@ -79,14 +53,22 @@ function LauncherPreview() {
           <li
             key={row.name}
             className={cn(
-              "flex items-center gap-2.5 rounded-lg px-2 py-1.5",
+              "flex items-center gap-2.5 rounded-lg px-2 py-1",
               i === 0 && "bg-tint/8",
             )}
           >
-            <IconTile icon={row.icon} tint={row.tint} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={row.icon}
+              alt=""
+              width={28}
+              height={28}
+              loading="lazy"
+              className="size-7"
+            />
             <span className="text-small text-fg">{row.name}</span>
             <span className="ml-auto text-caption text-fg-subtle">
-              {row.kind}
+              Application
             </span>
           </li>
         ))}
@@ -102,7 +84,7 @@ function CalculatorPreview() {
       <p className="text-subheading font-semibold tracking-tight text-fg">
         347.9678677 mi
       </p>
-      <p className="mt-2 inline-flex w-fit rounded-full bg-violet/15 px-2.5 py-0.5 text-caption font-medium text-violet-bright">
+      <p className="mt-2 inline-flex w-fit rounded-full bg-violet/15 px-2.5 py-0.5 text-caption font-medium text-accent">
         Copy Answer ↵
       </p>
     </div>
@@ -113,7 +95,7 @@ function ClipboardPreview() {
   return (
     <ul className="flex h-full flex-col justify-center gap-1.5">
       <li className="flex items-center gap-2.5 rounded-lg bg-tint/8 px-2 py-1.5">
-        <IconTile icon={FileText} tint="rgb(120 120 128 / 0.6)" />
+        <TypeTile icon={FileText} />
         <span className="truncate font-mono text-caption text-fg">
           brew install --cask tinycast
         </span>
@@ -123,10 +105,7 @@ function ClipboardPreview() {
         <span className="font-mono text-caption text-fg">#863BFF</span>
       </li>
       <li className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
-        <IconTile
-          icon={ImageIcon}
-          tint="linear-gradient(135deg, #863bff, #47bfff)"
-        />
+        <TypeTile icon={ImageIcon} />
         <span className="text-caption text-fg">Image · 2148×1302</span>
       </li>
     </ul>
@@ -159,7 +138,7 @@ function QuickActionsPreview() {
   return (
     <div className="flex h-full flex-col justify-center gap-3 px-1">
       <p className="text-small text-fg">
-        <span className="rounded bg-violet/25 px-0.5">
+        <span className="rounded bg-violet/25 box-decoration-clone px-0.5">
           their shipping it tomorow
         </span>
       </p>

@@ -65,21 +65,12 @@ export function Gallery() {
   return (
     <Section
       id="gallery"
-      index={2}
       label="In action"
       title="Straight from the app."
       intro="The palette at the top of this page is a recreation. These screenshots and videos come from Tinycast itself. Click to enlarge an image or play a video."
     >
-      <div className="overflow-hidden rounded-xl border border-border/70 bg-surface shadow-xs">
-        <div className="flex min-h-11 items-center gap-3 border-b border-border/60 px-4 py-1.5 font-mono text-micro uppercase text-fg-muted">
-          <span
-            aria-hidden="true"
-            className="size-1.5 rounded-full bg-violet"
-          />
-          Captured in Tinycast
-          <span className="ml-auto hidden sm:inline">Click to view or play</span>
-        </div>
-        <div className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="card">
+        <div className="grid gap-x-3 gap-y-5 p-3 sm:grid-cols-2 lg:grid-cols-4">
           {galleryItems.map((item, i) => {
             return (
               <button
@@ -88,23 +79,23 @@ export function Gallery() {
                 onClick={() => open(i)}
                 className="group flex flex-col gap-2 text-left"
               >
-                <figure className="relative aspect-video w-full overflow-hidden rounded-lg ring-1 ring-border/60 transition-shadow duration-200 group-hover:ring-border-strong">
+                <figure className="relative aspect-video w-full overflow-hidden rounded-[14px] ring-1 ring-tint/8 transition-shadow duration-300 group-hover:ring-violet-bright/60">
                   <Image
                     src={tileImage(item)}
                     alt={item.title}
                     fill
                     sizes="(min-width: 1024px) 25vw, (min-width: 640px) 45vw, 90vw"
-                    className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                    className="object-cover transition-transform duration-500 ease-(--ease-settle) group-hover:scale-[1.04]"
                   />
                   {item.type === "video" && (
                     <span className="absolute inset-0 flex items-center justify-center">
-                      <span className="flex size-16 items-center justify-center rounded-full bg-fg text-canvas transition-transform duration-200 group-hover:scale-105">
+                      <span className="flex size-14 items-center justify-center rounded-full bg-black/35 text-white ring-1 ring-white/30 backdrop-blur-md transition-transform duration-300 group-hover:scale-110">
                         <Play size={24} fill="currentColor" />
                       </span>
                     </span>
                   )}
                 </figure>
-                <div>
+                <div className="px-1">
                   <h3 className="text-small font-medium text-fg">
                     {item.title}
                   </h3>

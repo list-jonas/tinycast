@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 function Intro() {
   return (
     <header>
-      <p className="font-mono text-eyebrow uppercase text-violet-bright">
+      <p className="text-small font-medium text-accent">
         {supportHero.eyebrow}
       </p>
       <h1 className="mt-4 text-display text-fg">{supportHero.title}</h1>
@@ -34,7 +34,10 @@ export default function SupportPage() {
   return (
     <div className="flex min-h-dvh flex-col">
       <Nav />
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-24 pt-12 sm:px-10 sm:pt-20">
+      <main
+        id="main"
+        className="mx-auto w-full max-w-7xl flex-1 px-4 pb-24 pt-12 sm:px-10 sm:pt-20"
+      >
         <SupportFlow intro={<Intro />} />
       </main>
       <Footer />

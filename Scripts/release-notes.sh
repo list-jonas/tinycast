@@ -52,7 +52,7 @@ CHANGELOG="$(printf '%s\n' "$GENERATED" | sed -E \
     if [ -n "$COMPARE_URL" ]; then printf ' [Full changelog](%s)' "$COMPARE_URL"; fi
     printf '\n\n'
     printf '%s\n' "**Recommended:** install via Homebrew — it clears the quarantine flag automatically on every install and update, so there's nothing to run by hand:"
-    printf '```sh\nbrew trust --tap abue-ammar/tinycast\nbrew install --cask abue-ammar/tinycast/%s\n```\n' "$CASK"
+    printf '```sh\nbrew install --cask abue-ammar/tinycast/%s\n```\n' "$CASK"
     # The stable DMG is arm64-only; macOS 26 is the last release that boots on Intel.
     if [ "$CHANNEL" = "stable" ]; then
         printf '%s\n' "On an **Intel** Mac, install \`abue-ammar/tinycast/tinycast-universal\` instead — same app, built with both slices."

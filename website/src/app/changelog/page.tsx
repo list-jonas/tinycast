@@ -23,7 +23,10 @@ export default async function ChangelogPage() {
   return (
     <>
       <Nav />
-      <main className="mx-auto max-w-7xl px-4 pb-24 pt-12 sm:px-10 sm:pt-20">
+      <main
+        id="main"
+        className="mx-auto max-w-7xl px-4 pb-24 pt-12 sm:px-10 sm:pt-20"
+      >
         <Changelog releases={releases} />
       </main>
       <Footer />

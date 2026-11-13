@@ -19,6 +19,8 @@ const instrumentSerif = Instrument_Serif({
   weight: "400",
   style: ["normal", "italic"],
   variable: "--font-instrument-serif",
+  // Far below the fold, so it shouldn't compete with the hero's fonts.
+  preload: false,
 });
 
 export const metadata: Metadata = {

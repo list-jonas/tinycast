@@ -30,11 +30,16 @@ export const hero = {
   // Two lines, the break between the two sentences at every width. The first
   // line opens on each of `swap` in turn, once, and settles on the first, so it
   // ends as written; none is wider than "Everything", so the line never rewraps.
-  // The second line ends bare, because the hero draws a caret after it.
   headline: {
-    swap: ["Everything", "Every app", "Every file", "Every window", "Every note"],
+    swap: [
+      "Everything",
+      "Every app",
+      "Every file",
+      "Every window",
+      "Every note",
+    ],
     rest: "on your Mac.",
-    second: "One keystroke away",
+    second: "One keystroke away.",
   },
   sub: "A small, native launcher for your apps, clipboard, snippets and windows. Free and open source, with no account and no telemetry.",
   // The mono line under the buttons. Each fact is stated in the docs.
@@ -48,9 +53,7 @@ export const nav = [
   { label: "Changelog", href: "/changelog" },
 ] as const;
 
-// The hero's two lines. Every other channel lives in docs/install.md, which is
-// where both install CTAs point.
-export const brewTrustCommand = "brew trust --tap abue-ammar/tinycast";
+// The hero's install line. Every other channel lives in docs/install.md.
 export const brewInstallCommand =
   "brew install --cask abue-ammar/tinycast/tinycast";
 

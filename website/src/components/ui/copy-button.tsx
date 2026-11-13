@@ -44,7 +44,11 @@ export function CopyButton({
       ) : (
         <Copy size={13} strokeWidth={2} />
       )}
-      {hasCopied ? "Copied" : "Copy"}
+      {/* Icon-only on phones, where the command needs the width more. */}
+      <span className="max-sm:hidden">{hasCopied ? "Copied" : "Copy"}</span>
+      <span role="status" className="sr-only">
+        {hasCopied ? "Copied to clipboard" : ""}
+      </span>
     </button>
   );
 }

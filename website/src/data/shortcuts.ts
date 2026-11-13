@@ -4,7 +4,7 @@
 export type ShortcutRow = { keys: string[]; does: string };
 
 export const shortcutRows: ShortcutRow[] = [
-  { keys: ["⌥", "Space"], does: "Open the palette (you choose the keys)" },
+  { keys: ["⌘", "Space"], does: "Open the palette (you choose the keys)" },
   { keys: ["return"], does: "Run the main action" },
   { keys: ["⌘", "return"], does: "Run the second action" },
   { keys: ["⌘", "K"], does: "Open the actions menu" },

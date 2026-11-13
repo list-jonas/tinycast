@@ -8,7 +8,6 @@ export function Switch() {
   return (
     <Section
       id="switch"
-      index={5}
       label="Moving over"
       title={migration.title}
       intro={migration.intro}
@@ -20,7 +19,7 @@ export function Switch() {
             <li key={step.title} className="flex gap-4">
               <span
                 aria-hidden="true"
-                className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-violet/15 text-caption font-semibold text-violet-bright"
+                className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-violet/15 text-caption font-semibold text-accent"
               >
                 {i + 1}
               </span>
@@ -32,13 +31,13 @@ export function Switch() {
           ))}
         </ol>
 
-        <div className="overflow-hidden rounded-2xl ring-1 ring-border">
+        <div className="card p-2">
           <Image
-            src="/import.png"
+            src="/import.webp"
             width={1800}
-            height={1192}
+            height={1166}
             alt="Tinycast's Backup settings pane with a Raycast export selected and a list of categories to import."
-            className="block h-auto w-full"
+            className="block h-auto w-full rounded-[18px]"
           />
         </div>
       </div>

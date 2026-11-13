@@ -1,38 +1,39 @@
 import { ArrowUpRight } from "lucide-react";
-import Link from "next/link";
 import { coreFeatures, moreFeatures, type Feature } from "../data/features";
 import { cn } from "../lib/cn";
 import { FeaturePreviewArt } from "./feature-previews";
 import { Button } from "./ui/button";
 import { featureIcons } from "./ui/feature-icons";
+import { Link } from "./ui/link";
 import { Section } from "./ui/section";
 
 function FeatureCard({ title, body, href, preview, isWide }: Feature) {
   return (
     <Link
       href={href}
+      data-spotlight
       className={cn(
-        "group flex min-w-0 flex-col rounded-2xl bg-tint/4 p-2 transition-colors hover:bg-tint/6",
+        "card group flex min-w-0 flex-col p-2",
         isWide && "sm:col-span-2",
       )}
     >
       {/* Decorative: the title and body below say the same thing in words. */}
       <div
         aria-hidden="true"
-        className="h-44 overflow-hidden rounded-xl bg-canvas p-4"
+        className="card-well h-48 overflow-hidden rounded-[18px] p-4 transition-transform duration-500 ease-(--ease-settle) group-hover:scale-[1.012]"
       >
         <FeaturePreviewArt preview={preview} />
       </div>
-      <div className="px-3 pb-3 pt-4">
-        <h3 className="flex items-center gap-1 text-body font-medium text-fg">
+      <div className="px-3 pb-3 pt-5">
+        <h3 className="flex items-center gap-1 text-body font-semibold tracking-[-0.01em] text-fg">
           {title}
           <ArrowUpRight
             size={15}
             aria-hidden="true"
-            className="text-fg-subtle opacity-0 transition-opacity group-hover:opacity-100"
+            className="-translate-x-1 text-fg-subtle opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100"
           />
         </h3>
-        <p className="mt-1 text-small text-fg-muted">{body}</p>
+        <p className="mt-1.5 text-small text-fg-muted">{body}</p>
       </div>
     </Link>
   );
@@ -42,7 +43,6 @@ export function Features() {
   return (
     <Section
       id="features"
-      index={1}
       label="Features"
       title="One palette for the things you do all day."
       intro="Most features are off until you turn them on, so Tinycast only runs what you use."
@@ -53,7 +53,7 @@ export function Features() {
         ))}
       </div>
 
-      <div className="mt-4 rounded-2xl bg-tint/4 p-5 sm:p-6">
+      <div className="card mt-4 p-5 sm:p-7" data-spotlight>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h3 className="text-body font-medium text-fg">Also included</h3>
           <Button href="/docs" variant="outline">
@@ -67,7 +67,7 @@ export function Features() {
               <li key={title}>
                 <Link
                   href={href}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-canvas px-3 py-1.5 text-small text-fg-muted transition-colors hover:text-fg"
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-small text-fg-muted shadow-key transition-[color,box-shadow] hover:text-fg hover:shadow-key-hover"
                 >
                   <Icon
                     size={13}

@@ -25,7 +25,7 @@
   --tc-badge: #e9eaec;
   --tc-fg: #0b0c0e;
   --tc-fg-muted: #55575c;
-  --tc-fg-subtle: #83858a;
+  --tc-fg-subtle: #6b6d72;
   --tc-action: #16181c;
   --tc-action-fg: #f7f7f8;
   --tc-border: #ededef;
@@ -52,6 +52,8 @@
   /* Keycaps carry the brand tint rather than the surface ramp, so a shortcut
      is findable when skimming a wall of prose. */
   --tc-kbd-fg: #5b12bd;
+  /* Violet text: the brand violet, deepened until small type clears 4.5:1. */
+  --tc-accent: #7a2ff0;
   --tc-kbd-bg: rgb(134 59 255 / 0.12);
 }
 
@@ -62,7 +64,7 @@
   --tc-badge: #1b1c1e;
   --tc-fg: #ffffff;
   --tc-fg-muted: #9c9c9d;
-  --tc-fg-subtle: #6a6b6c;
+  --tc-fg-subtle: #85868a;
   --tc-action: #e6e6e6;
   --tc-action-fg: #454647;
   --tc-border: #1b1c1e;
@@ -88,6 +90,7 @@
     rgb(0 0 0 / 0.8) 0px 0px 0px 0.5px;
 
   --tc-kbd-fg: #d9c6ff;
+  --tc-accent: #a875ff;
   --tc-kbd-bg: rgb(168 117 255 / 0.2);
 }
 
@@ -99,13 +102,18 @@
   --color-badge: var(--tc-badge); /* badge fill */
   --color-fg: var(--tc-fg); /* primary text, headings */
   --color-fg-muted: var(--tc-fg-muted); /* secondary text */
-  --color-fg-subtle: var(--tc-fg-subtle); /* muted text */
+  --color-fg-subtle: var(
+    --tc-fg-subtle
+  ); /* muted text, still 4.5:1 on canvas and wells */
   --color-action: var(--tc-action); /* the one filled-action surface */
   --color-action-fg: var(--tc-action-fg); /* text on action */
   --color-border: var(--tc-border); /* hairline borders */
   --color-border-strong: var(--tc-border-strong); /* hovered borders */
   --color-kbd: var(--tc-kbd-fg); /* keycap glyph */
   --color-kbd-bg: var(--tc-kbd-bg); /* keycap fill */
+  --color-accent: var(
+    --tc-accent
+  ); /* violet text, AA on canvas, wells and violet tints */
   /* Alpha overlays mix from this, so `bg-tint/5` inverts with the theme. */
   --color-tint: rgb(var(--tc-tint));
 
@@ -168,9 +176,9 @@
   --text-stat--line-height: 1;
   --text-stat--font-weight: 500;
 
-  --text-heading: clamp(1.875rem, 1.45rem + 1.8vw, 2.6rem); /* 30→42px — h2 */
-  --text-heading--line-height: 1.08;
-  --text-heading--letter-spacing: -0.03em;
+  --text-heading: clamp(2rem, 1.3rem + 2.6vw, 3.25rem); /* 32→52px — h2 */
+  --text-heading--line-height: 1.05;
+  --text-heading--letter-spacing: -0.04em;
   --text-heading--font-weight: 600;
 
   /* The hero palette at the app's own text styles, one point to one pixel. */
@@ -196,10 +204,10 @@
   --text-closing--letter-spacing: -0.04em;
   --text-closing--font-weight: 600;
 
-  /* Hero h1. Sized for the hero's left column, not the full page width, so
-     each headline line stays on one line beside the palette. */
-  --text-display: clamp(2.4rem, 1.4rem + 3.1vw, 3.6rem); /* 38→58px */
-  --text-display--line-height: 1.04;
+  /* Hero h1, centred over the desktop. Each line stays on one line from
+     tablet up, and on a 375px phone "One keystroke away." still fits. */
+  --text-display: clamp(2rem, 0.9rem + 5vw, 4.75rem); /* 32→76px */
+  --text-display--line-height: 1.02;
   --text-display--letter-spacing: -0.045em;
   --text-display--font-weight: 600;
 
@@ -282,7 +290,7 @@
 
   /* Anchor targets land below the sticky header instead of underneath it. */
   section[id] {
-    scroll-margin-top: 3.5rem;
+    scroll-margin-top: 5rem;
   }
 }
 
@@ -318,33 +326,6 @@
 /* Brand surfaces — the only places colour blooms. Kept in CSS so the
    gradients derive from the brand color tokens above. */
 @layer components {
-  /* A dot grid that fades out from the top, so the hero has texture without
-     noise. Tint-based, so the dots are ink on Light and light on Dark. */
-  .bg-grid {
-    background-image: radial-gradient(
-      circle,
-      rgb(var(--tc-tint) / 0.14) 1px,
-      transparent 1.5px
-    );
-    background-size: 24px 24px;
-    background-position: center top;
-    mask-image: radial-gradient(
-      ellipse 70% 60% at 50% 0%,
-      #000 30%,
-      transparent
-    );
-  }
-
-  /* The backdrop the demo palette sits on. Literal in both themes: it stands in
-     for a desktop picture, which has no light mode. */
-  .bg-brand-gradient {
-    background-image: linear-gradient(
-      150deg,
-      var(--color-violet),
-      var(--color-cyan)
-    );
-  }
-
   /* The bloom behind the closing mark. The stops are eased rather than the two
      a radial needs, because a straight colour-to-transparent ramp lands as a
      disc with a visible rim on flat ink; the blur softens what is left. */
@@ -361,126 +342,159 @@
     filter: blur(32px);
   }
 
-  /* Transparent over the hero, glass once the page moves. Browsers without
-     scroll timelines, and reduced motion, skip the fade and keep the glass. */
-  .header-veil {
-    background-color: color-mix(in srgb, var(--color-canvas) 78%, transparent);
-    backdrop-filter: blur(20px);
-  }
-
-  @supports (animation-timeline: scroll()) {
-    @media (prefers-reduced-motion: no-preference) {
-      .header-veil {
-        animation: header-veil linear both;
-        animation-timeline: scroll();
-        animation-range: 0 96px;
-      }
-    }
-  }
-
   /* The demo's text caret. */
   .demo-caret {
     animation: caret-blink 1.05s steps(1) infinite;
   }
 
-  /* ── Glass demo ────────────────────────────────────────────────────────
-     The hero's palette as macOS draws it: frosted material that blurs and
-     saturates the page behind it, with a hairline edge and a lit top. It
-     follows the theme the way Spotlight follows the system appearance. */
-  .glass-palette {
-    --glass-fill: rgb(246 246 248 / 0.62);
-    --glass-glint: rgb(255 255 255 / 0.7);
-    --glass-sheen: rgb(255 255 255 / 0.5);
-    --glass-edge-top: rgb(255 255 255 / 0.95);
-    --glass-edge-ring: rgb(255 255 255 / 0.35);
-    --glass-outline: rgb(0 0 0 / 0.1);
-    --glass-rim: rgb(255 255 255 / 1);
-    --glass-rim-far: rgb(255 255 255 / 0.5);
-    --glass-shadow: rgb(0 0 0 / 0.2);
-    --glass-grain: 0.09;
-    --glass-selection: rgb(0 0 0 / 0.09);
-    --glass-border: rgb(0 0 0 / 0.18);
-    --glass-control: rgb(255 255 255 / 0.45);
-    --glass-control-rim: rgb(255 255 255 / 0.8);
-    --glass-fg: #1d1d1f;
-    --glass-fg-muted: rgb(29 29 31 / 0.6);
+  /* ── Liquid Glass ──────────────────────────────────────────────────────
+     The material in three layers: a backdrop that is frosted, saturated and,
+     where the browser can, bent at the rim by an SVG lens (LiquidGlass sets
+     that inline); a tint over it; and a rim that catches light top-left and
+     again, fainter, bottom-right. Content sits above all three. */
+  .liquid-glass {
+    --glass-fill: rgb(250 250 252 / 0.42);
+    --glass-spec: rgb(255 255 255 / 0.95);
+    --glass-spec-far: rgb(255 255 255 / 0.55);
+    --glass-edge: rgb(255 255 255 / 0.28);
+    --glass-glow: rgb(255 255 255 / 0.22);
+    --glass-shade: rgb(0 0 0 / 0.06);
     position: relative;
     isolation: isolate;
-    overflow: hidden;
-    /* SF Pro wherever the visitor has it, as the app is set in it. */
-    font-family: -apple-system, BlinkMacSystemFont, var(--font-sans);
-    background:
-      radial-gradient(120% 90% at 0% 0%, var(--glass-glint), transparent 55%),
-      linear-gradient(180deg, var(--glass-sheen), transparent 38%),
-      var(--glass-fill);
-    backdrop-filter: blur(20px) saturate(1.8);
-    box-shadow:
-      inset 0 1px 0 var(--glass-edge-top),
-      inset 0 0 0 1px var(--glass-edge-ring),
-      0 0 0 1px var(--glass-outline),
-      0 2px 6px rgb(0 0 0 / 0.04),
-      0 36px 90px -30px var(--glass-shadow);
   }
 
-  .dark .glass-palette {
-    --glass-fill: rgb(38 38 42 / 0.5);
-    --glass-glint: rgb(255 255 255 / 0.09);
-    --glass-sheen: rgb(255 255 255 / 0.05);
-    --glass-edge-top: rgb(255 255 255 / 0.13);
-    --glass-edge-ring: rgb(255 255 255 / 0.04);
-    --glass-outline: rgb(0 0 0 / 0.6);
-    --glass-rim: rgb(255 255 255 / 0.32);
-    --glass-rim-far: rgb(255 255 255 / 0.1);
-    --glass-shadow: rgb(0 0 0 / 0.75);
-    --glass-grain: 0.14;
-    --glass-selection: rgb(255 255 255 / 0.1);
-    --glass-border: rgb(255 255 255 / 0.2);
-    --glass-control: rgb(255 255 255 / 0.05);
-    --glass-control-rim: rgb(255 255 255 / 0.14);
-    --glass-fg: #f5f5f7;
-    --glass-fg-muted: rgb(245 245 247 / 0.6);
+  .dark .liquid-glass {
+    --glass-fill: rgb(28 28 32 / 0.36);
+    --glass-spec: rgb(255 255 255 / 0.42);
+    --glass-spec-far: rgb(255 255 255 / 0.16);
+    --glass-edge: rgb(255 255 255 / 0.07);
+    --glass-glow: rgb(255 255 255 / 0.05);
+    --glass-shade: rgb(0 0 0 / 0.25);
   }
 
-  /* The frost: a fine grain inside the glass, as the real material has. */
-  .glass-grain {
+  .liquid-glass-material {
     position: absolute;
     inset: 0;
     z-index: -1;
-    opacity: var(--glass-grain);
-    mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    border-radius: inherit;
+    background-color: var(--glass-fill);
+    backdrop-filter: blur(var(--lg-blur, 14px))
+      saturate(var(--glass-saturate, 1.8));
+    -webkit-backdrop-filter: blur(var(--lg-blur, 14px))
+      saturate(var(--glass-saturate, 1.8));
   }
 
-  /* The rim: a 1px gradient border, brightest where light would catch the
-     top-left corner and again, fainter, at the bottom-right. */
-  .glass-palette::after {
+  .liquid-glass-content {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    transform: translateZ(0);
+  }
+
+  .liquid-glass-rim {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow:
+      inset 0 0 0 1px var(--glass-edge),
+      inset 0 1px 1px -0.5px var(--glass-spec),
+      inset 0 -1px 1px -0.5px var(--glass-spec-far),
+      inset 0 0 18px var(--glass-glow),
+      inset 0 -10px 24px -16px var(--glass-shade);
+  }
+
+  /* The lit edge: a hairline whose brightness follows the light around the corner. */
+  .liquid-glass-rim::before {
     content: "";
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(
-      140deg,
-      var(--glass-rim),
-      transparent 30%,
-      transparent 70%,
-      var(--glass-rim-far)
+    padding: 1.25px;
+    background: conic-gradient(
+      from 210deg,
+      transparent 0deg,
+      var(--glass-spec) 60deg,
+      transparent 120deg,
+      transparent 180deg,
+      var(--glass-spec-far) 240deg,
+      transparent 300deg
     );
     mask:
       linear-gradient(#000 0 0) content-box,
       linear-gradient(#000 0 0);
     mask-composite: exclude;
-    pointer-events: none;
   }
 
-  /* The footer's floating controls: clear glass over the rows passing under it. */
-  .glass-control {
-    background-color: var(--glass-control);
-    backdrop-filter: blur(12px) saturate(1.6);
+  /* The hero's palette, matched against the app over this same wallpaper: a
+     milky frost in Light, and in Dark a lightly frosted, dimmed pane that keeps
+     the wallpaper's shapes legible through it. */
+  .glass-palette {
+    --glass-fill: rgb(252 249 255 / 0.74);
+    --glass-spec: rgb(255 255 255 / 1);
+    --glass-edge: rgb(255 255 255 / 0.45);
+    --glass-fg: #1d1d1f;
+    --glass-fg-muted: rgb(29 29 31 / 0.55);
+    --glass-fg-faint: rgb(29 29 31 / 0.4);
+    --glass-selection: rgb(60 20 100 / 0.1);
+    --glass-key: rgb(60 20 100 / 0.08);
+    --glass-key-border: rgb(29 29 31 / 0.22);
+    --glass-well: rgb(60 20 100 / 0.05);
+    --glass-hairline: rgb(29 29 31 / 0.1);
+    --glass-tile: rgb(29 29 31 / 0.08);
+    --glass-glyph: rgb(29 29 31 / 0.8);
+    overflow: hidden;
+    /* SF Pro wherever the visitor has it, as the app is set in it. */
+    font-family: -apple-system, BlinkMacSystemFont, var(--font-sans);
     box-shadow:
-      inset 0 1px 0 var(--glass-edge-top),
-      inset 0 0 0 1px var(--glass-control-rim),
-      0 1px 4px rgb(0 0 0 / 0.12);
+      0 0 0 0.5px rgb(0 0 0 / 0.08),
+      0 2px 6px rgb(0 0 0 / 0.05),
+      0 24px 60px -16px rgb(30 10 70 / 0.35);
+  }
+
+  .dark .glass-palette {
+    --glass-fill: rgb(16 14 28 / 0.6);
+    --glass-saturate: 1.2;
+    --glass-spec: rgb(255 255 255 / 0.32);
+    --glass-spec-far: rgb(255 255 255 / 0.14);
+    --glass-edge: rgb(255 255 255 / 0.1);
+    --glass-glow: rgb(255 255 255 / 0.04);
+    --glass-fg: #ffffff;
+    --glass-fg-muted: rgb(255 255 255 / 0.62);
+    --glass-fg-faint: rgb(255 255 255 / 0.42);
+    --glass-selection: rgb(255 255 255 / 0.13);
+    --glass-key: rgb(255 255 255 / 0.1);
+    --glass-key-border: rgb(255 255 255 / 0.32);
+    --glass-well: rgb(255 255 255 / 0.06);
+    --glass-hairline: rgb(255 255 255 / 0.12);
+    --glass-tile: rgb(255 255 255 / 0.12);
+    --glass-glyph: rgb(255 255 255 / 0.85);
+    box-shadow:
+      0 0 0 0.5px rgb(0 0 0 / 0.35),
+      0 2px 6px rgb(0 0 0 / 0.15),
+      0 24px 60px -16px rgb(10 0 40 / 0.55);
+  }
+
+  /* The footer's floating controls: rim-lit milk in Light, a grey slate in Dark,
+     both measured off the app over this wallpaper. */
+  .glass-control {
+    --glass-fill: rgb(255 255 255 / 0.55);
+    --glass-edge: rgb(0 0 0 / 0.08);
+    box-shadow:
+      0 1px 3px rgb(0 0 0 / 0.08),
+      0 4px 12px -4px rgb(0 0 0 / 0.1);
+  }
+
+  .dark .glass-control {
+    --glass-fill: rgb(56 72 102 / 0.84);
+    --glass-saturate: 0.7;
+    --glass-spec: rgb(255 255 255 / 0.35);
+    --glass-edge: rgb(255 255 255 / 0.2);
+    box-shadow:
+      0 1px 3px rgb(0 0 0 / 0.2),
+      0 6px 16px -6px rgb(0 0 0 / 0.35);
   }
 
   /* The app's edge dissolve at rest: an 80px band, a quarter strength midway. */
@@ -493,12 +507,340 @@
     );
   }
 
-  /* An app icon's own depth: lit along its top, sitting a hair off the glass. */
-  .glass-app-icon {
+  /* A raised card: a lit hairline, a faint top-down sheen, and on hover a glow
+     that follows the pointer (Spotlight feeds it --mx and --my). */
+  .card {
+    position: relative;
+    isolation: isolate;
+    border-radius: 24px;
+    background: linear-gradient(
+      180deg,
+      rgb(var(--tc-tint) / 0.045),
+      rgb(var(--tc-tint) / 0.018)
+    );
     box-shadow:
-      inset 0 0.5px 0 rgb(255 255 255 / 0.35),
-      inset 0 0 0 0.5px rgb(255 255 255 / 0.1),
-      0 0.5px 1.5px rgb(0 0 0 / 0.3);
+      inset 0 0 0 1px rgb(var(--tc-tint) / 0.07),
+      inset 0 1px 0 rgb(var(--tc-tint) / 0.05);
+  }
+
+  html:not(.dark) .card {
+    background: linear-gradient(180deg, #ffffff, #fafafb);
+    box-shadow:
+      inset 0 0 0 1px rgb(0 0 0 / 0.07),
+      0 1px 2px rgb(0 0 0 / 0.04),
+      0 8px 24px -12px rgb(0 0 0 / 0.08);
+  }
+
+  .card::before,
+  .card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s var(--ease-settle);
+  }
+
+  .card::before {
+    z-index: -1;
+    background: radial-gradient(
+      480px circle at var(--mx, 50%) var(--my, 0%),
+      rgb(134 59 255 / 0.1),
+      transparent 60%
+    );
+  }
+
+  .card::after {
+    padding: 1px;
+    background: radial-gradient(
+      300px circle at var(--mx, 50%) var(--my, 0%),
+      rgb(168 117 255 / 0.55),
+      transparent 70%
+    );
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+  }
+
+  .card:hover::before,
+  .card:hover::after {
+    opacity: 1;
+  }
+
+  /* The recessed stage a card's illustration sits on. */
+  .card-well {
+    background:
+      radial-gradient(
+        120% 80% at 50% 0%,
+        rgb(var(--tc-tint) / 0.05),
+        transparent 70%
+      ),
+      var(--color-canvas);
+    box-shadow: inset 0 0 0 1px rgb(var(--tc-tint) / 0.05);
+  }
+
+  html:not(.dark) .card-well {
+    background:
+      radial-gradient(
+        120% 80% at 50% 0%,
+        rgb(134 59 255 / 0.05),
+        transparent 70%
+      ),
+      #f6f6f8;
+  }
+
+  /* Hidden until a keyboard reaches it, then a pill above everything. */
+  .skip-link {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 100;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background-color: var(--color-action);
+    color: var(--color-action-fg);
+    font-size: var(--text-small);
+    font-weight: 500;
+    transform: translateY(-200%);
+  }
+
+  .skip-link:focus-visible {
+    transform: none;
+  }
+
+  /* The header pill: mostly page, a little glass, so links stay legible over anything. */
+  .nav-glass {
+    --glass-fill: rgb(255 255 255 / 0.62);
+    box-shadow:
+      0 0 0 0.5px rgb(0 0 0 / 0.08),
+      0 8px 24px -8px rgb(0 0 0 / 0.12);
+  }
+
+  .dark .nav-glass {
+    --glass-fill: rgb(14 14 18 / 0.58);
+    box-shadow:
+      0 0 0 0.5px rgb(0 0 0 / 0.8),
+      0 8px 30px -8px rgb(0 0 0 / 0.6);
+  }
+
+  /* ── Hero stage ────────────────────────────────────────────────────────
+     A desktop drawn at 1120px and scaled to fit. Until the script measures,
+     these steps keep it inside the column. */
+  .hero-stage-box {
+    --stage-scale: 1;
+  }
+
+  @media (width < 1170px) {
+    .hero-stage-box {
+      --stage-scale: 0.86;
+    }
+  }
+
+  @media (width < 1000px) {
+    .hero-stage-box {
+      --stage-scale: 1;
+    }
+  }
+
+  @media (width < 780px) {
+    .hero-stage-box {
+      --stage-scale: 0.62;
+    }
+  }
+
+  @media (width < 560px) {
+    .hero-stage-box {
+      --stage-scale: 0.46;
+    }
+  }
+
+  .hero-desktop {
+    background-color: #0b0620;
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0.1),
+      0 30px 60px -30px rgb(0 0 0 / 0.7),
+      0 60px 140px -40px rgb(90 40 220 / 0.45);
+  }
+
+  html:not(.dark) .hero-desktop {
+    box-shadow:
+      0 0 0 1px rgb(0 0 0 / 0.08),
+      0 30px 60px -30px rgb(30 10 80 / 0.35),
+      0 60px 140px -40px rgb(90 40 220 / 0.35);
+  }
+
+  /* The wallpaper's colours, bled out behind the desktop. */
+  .hero-aura {
+    background:
+      radial-gradient(
+        42% 36% at 50% 62%,
+        rgb(134 59 255 / 0.26),
+        transparent 70%
+      ),
+      radial-gradient(
+        30% 30% at 66% 72%,
+        rgb(71 191 255 / 0.14),
+        transparent 70%
+      ),
+      radial-gradient(50% 30% at 50% 0%, rgb(134 59 255 / 0.1), transparent 70%);
+  }
+
+  html:not(.dark) .hero-aura {
+    opacity: 0.6;
+  }
+
+  /* Summoned like the real panel: a quick fade, a little spring in the scale.
+     The fade never touches the panel itself: opacity on an ancestor cuts a
+     backdrop-filter off from what is behind it, so the glass would arrive flat
+     and snap in at the end. Each layer fades instead, through --pop. */
+  .palette-pop {
+    --pop: 0;
+    transform: scale(0.94) translateY(10px);
+    visibility: hidden;
+    transition:
+      --pop 0.16s ease-in,
+      transform 0.2s ease-in,
+      visibility 0s linear 0.2s;
+  }
+
+  .palette-pop[data-open] {
+    --pop: 1;
+    transform: none;
+    visibility: visible;
+    transition:
+      --pop 0.24s var(--ease-settle),
+      transform 0.55s cubic-bezier(0.2, 1.3, 0.35, 1),
+      visibility 0s;
+  }
+
+  .palette-pop .liquid-glass-material,
+  .palette-pop .liquid-glass-rim,
+  .palette-pop .glass-control > .liquid-glass-content,
+  .palette-pop .glass-palette > .liquid-glass-content > :not(.demo-footer) {
+    opacity: var(--pop);
+  }
+
+  .palette-pop .glass-palette {
+    transition: box-shadow 0.3s var(--ease-settle);
+  }
+
+  .palette-pop:not([data-open]) .glass-palette {
+    box-shadow: none;
+  }
+
+  .demo-list {
+    transition: transform 0.32s var(--ease-settle);
+  }
+
+  /* The input draws no outline of its own, so the whole palette carries the focus ring. */
+  .glass-palette:has(.demo-input:focus-visible) {
+    outline: 2px solid var(--color-violet-bright);
+    outline-offset: 3px;
+  }
+
+  .demo-highlight {
+    top: 0;
+    transition:
+      transform 0.24s var(--ease-settle),
+      opacity 0.15s ease;
+  }
+
+  .demo-highlight-fire {
+    animation: highlight-fire 0.26s ease-out;
+  }
+
+  .demo-action {
+    animation: action-in 0.25s var(--ease-settle);
+  }
+
+  .demo-preview {
+    animation: action-in 0.3s var(--ease-settle);
+  }
+
+  .demo-input::-webkit-search-cancel-button {
+    display: none;
+  }
+
+  /* A slice of a MacBook keyboard: the deck, and keys that travel when pressed. */
+  .keyboard-deck {
+    cursor: pointer;
+    background: linear-gradient(180deg, #d5d6db, #c6c7cc);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.7),
+      inset 0 -1px 0 rgb(0 0 0 / 0.08),
+      0 0 0 1px rgb(0 0 0 / 0.08),
+      0 24px 50px -24px rgb(30 10 80 / 0.4);
+  }
+
+  .dark .keyboard-deck {
+    background: linear-gradient(180deg, #1c1d21, #131417);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.07),
+      inset 0 -1px 0 rgb(0 0 0 / 0.5),
+      0 0 0 1px rgb(0 0 0 / 0.7),
+      0 24px 50px -24px rgb(0 0 0 / 0.9);
+  }
+
+  .deck-key {
+    font-family: -apple-system, BlinkMacSystemFont, var(--font-sans);
+    color: rgb(40 40 44 / 0.75);
+    background: linear-gradient(180deg, #ffffff, #f2f2f5);
+    box-shadow:
+      inset 0 -1px 0 rgb(0 0 0 / 0.06),
+      0 0 0 0.5px rgb(0 0 0 / 0.18),
+      0 2px 0 rgb(0 0 0 / 0.14),
+      0 3px 6px rgb(0 0 0 / 0.12);
+    transition:
+      transform 0.09s ease,
+      translate 0.12s ease,
+      box-shadow 0.09s ease,
+      color 0.15s ease,
+      background 0.15s ease;
+  }
+
+  .dark .deck-key {
+    color: rgb(255 255 255 / 0.62);
+    background: linear-gradient(180deg, #2c2d32, #222327);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.08),
+      inset 0 -1px 0 rgb(0 0 0 / 0.4),
+      0 0 0 0.5px rgb(0 0 0 / 0.9),
+      0 2px 0 #08080a,
+      0 3px 6px rgb(0 0 0 / 0.45);
+  }
+
+  .deck-key[data-pressed] {
+    transform: translateY(2px);
+    color: var(--color-violet-deep);
+    background: linear-gradient(180deg, #f6f0ff, #ece2ff);
+    box-shadow:
+      0 0 0 0.5px rgb(134 59 255 / 0.5),
+      0 0 0 rgb(0 0 0 / 0.14),
+      0 0 22px rgb(134 59 255 / 0.45);
+  }
+
+  .dark .deck-key[data-pressed] {
+    color: #e2d4ff;
+    background: linear-gradient(180deg, #3a3249, #2c2638);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.08),
+      0 0 0 0.5px rgb(168 117 255 / 0.6),
+      0 0 0 #08080a,
+      0 0 24px rgb(134 59 255 / 0.6);
+  }
+
+  /* Headline ink that fades a touch toward its foot, as on Apple's own pages. */
+  .text-gradient {
+    background-image: linear-gradient(
+      180deg,
+      var(--color-fg) 35%,
+      color-mix(in srgb, var(--color-fg) 58%, transparent)
+    );
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
   }
 
   /* A keyboard key. One complete rule rather than a stack of utilities: the
@@ -574,6 +916,14 @@
   --color-fd-ring: var(--color-violet-bright);
 }
 
+/* Animatable, so the palette's layers can fade together without an opacity on
+   the panel itself. */
+@property --pop {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
+
 /* Load-in and ambient motion — all gated on prefers-reduced-motion below. */
 @keyframes rise {
   from {
@@ -601,9 +951,30 @@
   }
 }
 
-@keyframes header-veil {
+/* The desktop tilts up into place, like a lid opening toward the reader. */
+@keyframes stage-in {
   from {
-    background-color: transparent;
+    opacity: 0;
+    transform: perspective(1800px) rotateX(16deg) translateY(48px) scale(0.96);
+  }
+}
+
+@keyframes aura-breathe {
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes highlight-fire {
+  40% {
+    background-color: rgb(134 59 255 / 0.45);
+  }
+}
+
+@keyframes action-in {
+  from {
+    opacity: 0;
+    translate: 0 4px;
   }
 }
 
@@ -621,6 +992,15 @@
   --ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-swap: cubic-bezier(0.65, 0, 0.35, 1);
   --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* blur-rise without the fade: the hero headline is the page's largest paint,
+   and Chrome only counts it once its opacity is above zero. */
+@keyframes blur-settle {
+  from {
+    filter: blur(8px);
+    translate: 0 var(--rise, 12px);
+  }
 }
 
 @keyframes blur-rise {
@@ -670,6 +1050,19 @@
 @media (prefers-reduced-motion: no-preference) {
   .blur-in {
     animation: blur-rise 0.8s var(--ease-settle) both;
+  }
+
+  .blur-settle {
+    animation: blur-settle 0.8s var(--ease-settle) both;
+  }
+
+  .stage-rise {
+    transform-origin: 50% 0;
+    animation: stage-in 1.2s var(--ease-settle) 0.2s both;
+  }
+
+  .hero-aura {
+    animation: aura-breathe 9s ease-in-out infinite;
   }
 
   .swap-words {

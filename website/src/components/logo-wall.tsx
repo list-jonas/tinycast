@@ -9,10 +9,10 @@ export function LogoWall() {
   return (
     <section
       aria-label="Companies whose people have starred Tinycast"
-      className="border-y border-border bg-tint/2"
+      className="relative"
     >
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-10">
-        <p className="text-center font-mono text-eyebrow uppercase text-fg-subtle">
+      <div className="mx-auto max-w-7xl px-4 pb-6 sm:px-10">
+        <p className="text-center text-small text-fg-subtle">
           Starred on GitHub by people at
         </p>
         <div
@@ -25,7 +25,7 @@ export function LogoWall() {
           {/* The spacing is padding on each item, never a flex `gap`. A gap sits
               between items but not after the last one, so half of it lands in
               the middle of the -50% translate and the loop jumps there. */}
-          <ul className="flex w-max animate-marquee items-center">
+          <ul className="flex w-max animate-marquee items-center hover:[animation-play-state:paused]">
             {track.map((company, index) => (
               <li
                 key={`${company}-${index}`}
@@ -34,7 +34,7 @@ export function LogoWall() {
               >
                 <CompanyLogo
                   id={company}
-                  className="opacity-70 transition-opacity hover:opacity-100"
+                  className="text-fg-subtle transition-colors hover:text-fg"
                 />
               </li>
             ))}

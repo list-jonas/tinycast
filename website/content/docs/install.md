@@ -11,11 +11,8 @@ Homebrew is the easiest way to install Tinycast. It clears the macOS quarantine 
 app opens without a warning.
 
 ```bash
-brew trust --tap abue-ammar/tinycast
 brew install --cask abue-ammar/tinycast/tinycast
 ```
-
-You only run `brew trust` once. Homebrew won't install from a third-party tap until you trust it.
 
 ### Intel Macs
 
